@@ -665,6 +665,7 @@ async function checkDriveForFile() {
     return data.files && data.files.length > 0 ? data.files[0].id : null;
 }
 
+// THE FIX: Switch to Resumable Upload
 async function pushToGoogleDrive() {
     const password = vaultPassInput.value;
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
@@ -674,7 +675,6 @@ async function pushToGoogleDrive() {
         const encryptedBase64 = await generateEncryptedBlob(password);
         const fileId = await checkDriveForFile();
         
-        // Use Resumable Upload to avoid strict multipart/related restrictions in standard fetch
         const metadata = { name: 'medledger_sync.medvault', parents: ['appDataFolder'] };
         const initUrl = fileId 
             ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=resumable`
