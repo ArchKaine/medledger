@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#18181b">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <title>MedLedger</title>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <h1>MedLedger</h1>
+            <div class="header-controls">
+                <div id="status-bar" class="status-indicator">Initializing...</div>
+
+                <button id="settings-toggle" aria-label="Settings" class="icon-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+
+                <button id="theme-toggle" aria-label="Toggle Dark Mode" class="icon-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="app">
+        <section id="med-config" class="card">
+            <h2>Add Medication</h2>
+            <form id="add-med-form">
+                <div class="inline-form" style="margin-bottom: 0.5rem;">
+                    <input type="text" id="new-med-name" placeholder="Medication (e.g., Lisinopril)" required>
+                    <input type="text" id="new-med-dose" placeholder="Dosage (e.g., 10mg)" required>
+                    <select id="new-med-freq" required>
+                        <option value="Daily" selected>Daily</option>
+                        <option value="As Needed">As Needed (PRN)</option>
+                        <option value="Morning">Morning</option>
+                        <option value="Night">Night</option>
+                        <option value="Weekly">Weekly</option>
+                    </select>
+                </div>
+                <div class="inline-form">
+                    <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 2;">
+                    <button type="submit" class="btn btn-secondary">Add to Regimen</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="daily-schedule" class="card">
+            <h2>Today's Regimen</h2>
+            <form id="med-form">
+                <div id="checklist-container" class="checklist">
+                    </div>
+
+                <div class="datetime-override">
+                    <label for="manual-time" class="override-label">Time Taken (Leave blank for 'Now'):</label>
+                    <input type="datetime-local" id="manual-time">
+                </div>
+
+                <div class="action-group">
+                    <button type="button" id="btn-submit-selected" class="btn btn-secondary">Log Selected</button>
+                    <button type="button" id="btn-submit-all" class="btn btn-primary">Log All Medications</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="log-history" class="card">
+            <h2>Recent Logs</h2>
+            <ul id="history-list" class="history-feed">
+                </ul>
+        </section>
+    </main>
+
+    <dialog id="edit-med-modal" class="card modal">
+        <h2>Edit Medication</h2>
+        <form id="edit-med-form" class="edit-form">
+            <input type="hidden" id="edit-med-id">
+
+            <div class="form-group">
+                <label class="form-label" for="edit-med-name">Name</label>
+                <input type="text" id="edit-med-name" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-med-dose">Dosage</label>
+                <input type="text" id="edit-med-dose" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-med-freq">Frequency</label>
+                <select id="edit-med-freq" required>
+                    <option value="Daily">Daily</option>
+                    <option value="As Needed">As Needed (PRN)</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Night">Night</option>
+                    <option value="Weekly">Weekly</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="edit-med-instructions">Bottle Instructions</label>
+                <input type="text" id="edit-med-instructions" placeholder="e.g., Do not crush" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+            </div>
+
+            <div class="action-group modal-actions">
+                <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="btn-delete-med" class="btn btn-danger">Delete</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="settings-modal" class="card modal">
+        <h2>System Settings</h2>
+
+        <div class="checklist" style="margin-bottom: 2rem;">
+            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
+                <input type="checkbox" id="toggle-babysitter" class="med-checkbox">
+                <span class="med-details">
+                    <span class="med-name">No Babysitter Mode</span>
+                    <span class="med-dose">Disables all confirmation dialogs for deletions.</span>
+                </span>
+            </label>
+
+            <label class="med-item" style="cursor:pointer;">
+                <input type="checkbox" id="toggle-expert" class="med-checkbox">
+                <span class="med-details">
+                    <span class="med-name">Expert Mode</span>
+                    <span class="med-dose">Double-click to instantly log a med. Ctrl+Enter to batch log.</span>
+                </span>
+            </label>
+        </div>
+
+        <div class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <h2>The Data Vault</h2>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Export an encrypted backup to sync to another device.
+            </p>
+
+            <div class="form-group">
+                <input type="password" id="vault-password" placeholder="Encryption Password" autocomplete="new-password">
+            </div>
+
+            <div class="action-group" style="margin-top: 1rem;">
+                <button type="button" id="btn-export-vault" class="btn btn-secondary">Export .medvault</button>
+                <label for="import-vault-file" class="btn btn-secondary" style="cursor: pointer;">Import Backup</label>
+                <input type="file" id="import-vault-file" accept=".medvault,.json" style="display: none;">
+            </div>
+            <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold;"></div>
+        </div>
+
+        <div class="action-group modal-actions" style="margin-top: 2rem;">
+            <button type="button" id="btn-close-settings" class="btn btn-primary">Done</button>
+        </div>
+    </dialog>
+
+    <script src="app.js"></script>
+</body>
+</html>
