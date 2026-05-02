@@ -14,6 +14,14 @@
             <h1>MedLedger</h1>
             <div class="header-controls">
                 <div id="status-bar" class="status-indicator">Initializing...</div>
+                
+                <button id="help-toggle" aria-label="Help Guide" class="icon-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </button>
 
                 <button id="settings-toggle" aria-label="Settings" class="icon-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -45,7 +53,7 @@
                         <option value="Night">Night</option>
                         <option value="Weekly">Weekly</option>
                     </select>
-
+                    
                     <div style="display: flex; flex-direction: column; gap: 0.25rem; flex: 1;">
                         <div id="new-med-times-container" style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
@@ -65,7 +73,7 @@
             <form id="med-form">
                 <div id="checklist-container" class="checklist">
                     </div>
-
+                
                 <div class="datetime-override">
                     <label for="manual-time" class="override-label">Time Taken (Leave blank for 'Now'):</label>
                     <input type="datetime-local" id="manual-time">
@@ -85,21 +93,69 @@
         </section>
     </main>
 
+    <dialog id="help-modal" class="card modal" style="max-height: 85vh; overflow-y: auto; max-width: 500px;">
+        <h2>User Guide</h2>
+        
+        <div class="help-section">
+            <h3>💊 Adding a New Medication</h3>
+            <p>Use the "Add Medication" box at the top of the screen.</p>
+            <ul>
+                <li>Type in the name and the dose (like 10mg).</li>
+                <li>Pick how often you take it (Daily, As Needed, etc.).</li>
+                <li><b>Times:</b> Tap the clock box to set exactly when you take it. If you take it multiple times a day, click <b>"+ Add Time"</b> for each dose.</li>
+                <li><b>Instructions:</b> Type any special rules from the bottle here, like "Take with food" or "Do not crush."</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>✅ Checking Off Your Regimen</h3>
+            <p>The "Today's Regimen" section shows everything you need to take today.</p>
+            <ul>
+                <li>Tap the empty square box next to the time to select it.</li>
+                <li>Tap the <b>Log Selected</b> button to record that you took it.</li>
+                <li><b>Forgot to log earlier?</b> Before you tap log, use the "Time Taken" calendar box to tell the system when you <i>actually</i> took the pill. Leave it blank if you are taking it right now.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>✏️ Fixing Mistakes</h3>
+            <p>Made a typo or stopped taking a medication?</p>
+            <ul>
+                <li>To change a medication, tap the little <b>Pencil Icon</b> on its card. You can fix the times, instructions, or dose, then click Save.</li>
+                <li>To completely remove it, tap the Pencil Icon and then tap the red <b>Delete</b> button.</li>
+                <li>To delete a single entry from your history log, tap the <b>Trash Can</b> icon next to it in the Recent Logs section.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>🔔 Reminders & Settings</h3>
+            <p>Tap the <b>Gear Icon</b> at the very top of the screen.</p>
+            <ul>
+                <li><b>Reminders:</b> Check this box to let your device alert you when it's time to take a pill.</li>
+                <li><b>Expert Mode:</b> Check this to allow "Double-Clicking". If you double-tap a medication, it will instantly log it without needing to press the submit button.</li>
+            </ul>
+        </div>
+
+        <div class="action-group modal-actions" style="margin-top: 2rem;">
+            <button type="button" id="btn-close-help" class="btn btn-primary">Got it</button>
+        </div>
+    </dialog>
+
     <dialog id="edit-med-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
         <h2>Edit Medication</h2>
         <form id="edit-med-form" class="edit-form">
             <input type="hidden" id="edit-med-id">
-
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-name">Name</label>
                 <input type="text" id="edit-med-name" required>
             </div>
-
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-dose">Dosage</label>
                 <input type="text" id="edit-med-dose" required>
             </div>
-
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-freq">Frequency</label>
                 <select id="edit-med-freq" required>
@@ -114,7 +170,7 @@
             <div class="form-group">
                 <label class="form-label">Reminder Times</label>
                 <div id="edit-med-times-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    </div>
+                </div>
                 <button type="button" onclick="addTimeField('edit-med-times-container')" class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.8rem; align-self: flex-start;">+ Add Another Time</button>
             </div>
 
@@ -131,9 +187,9 @@
         </form>
     </dialog>
 
-    <dialog id="settings-modal" class="card modal">
+    <dialog id="settings-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
         <h2>System Settings</h2>
-
+        
         <div class="checklist" style="margin-bottom: 2rem;">
             <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-babysitter" class="med-checkbox">
@@ -142,7 +198,7 @@
                     <span class="med-dose">Disables all confirmation dialogs for deletions.</span>
                 </span>
             </label>
-
+            
             <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-expert" class="med-checkbox">
                 <span class="med-details">
@@ -165,7 +221,7 @@
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
                 Export an encrypted backup to sync to another device.
             </p>
-
+            
             <div class="form-group">
                 <input type="password" id="vault-password" placeholder="Encryption Password" autocomplete="new-password">
             </div>
