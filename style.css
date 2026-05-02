@@ -264,7 +264,6 @@ input[type="time"] { flex: 1; min-width: 120px; }
     color: var(--accent-color);
 }
 
-/* Modals */
 .modal {
     position: fixed;
     top: 50%;
