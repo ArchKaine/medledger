@@ -26,7 +26,11 @@ const toggleReminders = document.getElementById('toggle-reminders');
 const vaultPassInput = document.getElementById('vault-password');
 const vaultStatus = document.getElementById('vault-status');
 
-// NEW: Help Elements
+// Password Peek Elements
+const peekBtn = document.getElementById('btn-peek-password');
+const peekIcon = document.getElementById('peek-icon');
+
+// Help Elements
 const helpModal = document.getElementById('help-modal');
 
 // --- Initialization ---
@@ -46,9 +50,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-toggle').addEventListener('click', () => settingsModal.showModal());
     document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
     
-    // NEW: Help Listeners
+    // Help Listeners
     document.getElementById('help-toggle').addEventListener('click', () => helpModal.showModal());
     document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
+
+    // Password Peek Listener
+    peekBtn.addEventListener('click', togglePasswordVisibility);
 
     document.getElementById('btn-export-vault').addEventListener('click', exportVault);
     document.getElementById('import-vault-file').addEventListener('change', importVault);
@@ -154,13 +161,14 @@ function initDB() {
     };
 }
 
-// --- Configuration Logic ---
+// --- Configuration Logic (Add/Edit/Delete Meds) ---
 function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
     const doseInput = document.getElementById('new-med-dose').value.trim();
     const freqInput = document.getElementById('new-med-freq').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
+    
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -180,6 +188,7 @@ function handleAddMed(e) {
     transaction.oncomplete = () => {
         addMedForm.reset();
         document.getElementById('new-med-freq').value = 'Daily'; 
+        // Reset times container to single input
         document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
     };
@@ -198,14 +207,15 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
             document.getElementById('edit-med-instructions').value = med.instructions || '';
             
+            // Handle legacy DB upgrades silently (time string -> times array)
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
 
             const timesContainer = document.getElementById('edit-med-times-container');
-            timesContainer.innerHTML = ''; 
+            timesContainer.innerHTML = ''; // Clear existing
             
             if (timesToRender.length === 0) {
-                addTimeField('edit-med-times-container'); 
+                addTimeField('edit-med-times-container'); // Ensure at least one blank field
             } else {
                 timesToRender.forEach(timeVal => {
                     addTimeField('edit-med-times-container');
@@ -273,6 +283,7 @@ function loadChecklist() {
             return;
         }
 
+        // Sort Top-Level Medications (Freq -> Name)
         rawMeds.sort((a, b) => {
             const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
             const weightA = freqWeight[a.frequency] || 99;
@@ -290,9 +301,11 @@ function loadChecklist() {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
+            // Card Wrapper
             const card = document.createElement('div');
             card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
 
+            // Card Header
             const headerHtml = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
                     <div>
@@ -310,6 +323,7 @@ function loadChecklist() {
                 </div>
             `;
 
+            // Card Checkboxes (The Times)
             let checkboxesHtml = '<div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;">';
             
             times.forEach(t => {
@@ -329,6 +343,7 @@ function loadChecklist() {
                     timeLabel = "Log PRN Dose";
                 }
 
+                // Create a unique ID for the label so Double Click works securely
                 const labelId = 'lbl-' + crypto.randomUUID();
 
                 checkboxesHtml += `
@@ -340,6 +355,7 @@ function loadChecklist() {
                     </label>
                 `;
 
+                // Defer adding the event listener until the HTML is actually in the DOM
                 if (AppSettings.expertMode && !isCompletedToday) {
                     setTimeout(() => {
                         const el = document.getElementById(labelId);
@@ -355,6 +371,7 @@ function loadChecklist() {
             });
             checkboxesHtml += '</div>';
 
+            // Card Instructions
             const instructionsHtml = med.instructions ? `
                 <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); background-color: rgba(0,0,0,0.1); font-style: italic;">
                     ${med.instructions}
@@ -392,8 +409,11 @@ function processBatchLog(compositeIds) {
         : new Date().toISOString();
 
     compositeIds.forEach(compId => {
+        // Because DOM IDs can technically contain the |, escape it
         const safeCompId = compId.replace(/\|/g, '\\|');
         const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
+        
+        // We pull the actual name from the data attribute we stored, not the UI text
         const actualMedName = checkbox.getAttribute('data-name');
         
         const parts = compId.split('|');
@@ -479,6 +499,7 @@ window.deleteLog = function(timestampKey) {
     
     const transaction = db.transaction(["logs"], "readwrite");
     transaction.objectStore("logs").delete(timestampKey);
+    // Reload checklist to un-check the item if it was deleted today
     transaction.oncomplete = () => {
         refreshHistory();
         loadChecklist();
@@ -601,6 +622,26 @@ async function importVault(e) {
 function showVaultStatus(message, color) {
     vaultStatus.textContent = message; vaultStatus.style.color = color;
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
+}
+
+// --- NEW: Password Peek Logic ---
+function togglePasswordVisibility() {
+    const isPassword = vaultPassInput.type === 'password';
+    vaultPassInput.type = isPassword ? 'text' : 'password';
+    
+    if (isPassword) {
+        // Change to "Hide" icon (eye-off)
+        peekIcon.innerHTML = `
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+        `;
+    } else {
+        // Change back to "Show" icon (eye)
+        peekIcon.innerHTML = `
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        `;
+    }
 }
 
 // ==========================================
