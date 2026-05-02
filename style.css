@@ -329,7 +329,7 @@ input[type="time"] { flex: 1; min-width: 120px; }
     opacity: 1;
 }
 
-/* --- Instructions Box Styling --- */
+/* --- NEW: Instructions Box Styling --- */
 .med-instructions-box {
     display: block;
     font-size: 0.85rem;
@@ -346,7 +346,7 @@ input[type="time"] { flex: 1; min-width: 120px; }
     background-color: rgba(255, 255, 255, 0.03); 
 }
 
-/* --- Help Manual Styling --- */
+/* --- NEW: Help Manual Styling --- */
 .help-section {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
@@ -377,7 +377,7 @@ input[type="time"] { flex: 1; min-width: 120px; }
     margin-top: 0.25rem;
 }
 
-/* --- Password Peek Styling --- */
+/* --- NEW: Password Peek Styling --- */
 .vault-input-wrapper {
     position: relative;
     display: flex;
