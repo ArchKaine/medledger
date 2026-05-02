@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <title>MedLedger</title>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSync()"></script>
 </head>
 <body>
     <header class="app-header">
@@ -139,10 +140,10 @@
 
         <div class="help-section">
             <h3>🔐 5. Backups & The Data Vault</h3>
-            <p>Because this app respects your privacy, your data is saved <i>only on this specific device</i>. It is not tracked in the cloud. If you get a new phone, you must manually move your data.</p>
+            <p>Because this app respects your privacy, your data is saved <i>only on this specific device</i>. It is not tracked in the cloud unless you explicitly log in and push it to your private Google Drive.</p>
             <ul>
-                <li><b>To Backup:</b> Open Settings. Type a password in the Data Vault box and tap <b>Export .medvault</b>. This saves a heavily encrypted backup file to your phone's downloads folder.</li>
-                <li><b>To Sync to a New Phone:</b> Email or send that `.medvault` file to your new device. Open MedLedger on the new device, go to Settings, type the <i>exact same password</i>, and tap <b>Import Backup</b>. Select the file, and your entire routine and history will instantly load.</li>
+                <li><b>To Backup Locally:</b> Open Settings, type a password, and tap <b>Local Backup</b>. This saves an encrypted file to your device.</li>
+                <li><b>Cloud Sync:</b> Enter a password, click "Sign in to Google", and authorize the app. You can then use the Push and Pull buttons to securely sync your encrypted vault to a hidden folder in your own Google Drive.</li>
             </ul>
         </div>
 
@@ -229,7 +230,7 @@
         <div class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
             <h2>The Data Vault</h2>
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                Export an encrypted backup to sync to another device.
+                Set a password to encrypt data locally before syncing or exporting.
             </p>
             
             <div class="form-group vault-input-wrapper">
@@ -242,11 +243,22 @@
                 </button>
             </div>
 
+            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px;">
+                <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Google Drive Sync</h3>
+                <button type="button" id="btn-gdrive-login" class="btn btn-secondary" style="width: 100%;" onclick="loginGoogleDrive()">Sign in to Google</button>
+                
+                <div id="cloud-sync-controls" class="cloud-controls" style="display: none;">
+                    <button type="button" id="btn-cloud-push" class="btn btn-primary" style="flex: 1;">Push to Cloud</button>
+                    <button type="button" id="btn-cloud-pull" class="btn btn-secondary" style="flex: 1;">Pull from Cloud</button>
+                </div>
+            </div>
+
             <div class="action-group" style="margin-top: 1rem;">
-                <button type="button" id="btn-export-vault" class="btn btn-secondary">Export .medvault</button>
-                <label for="import-vault-file" class="btn btn-secondary" style="cursor: pointer;">Import Backup</label>
+                <button type="button" id="btn-export-vault" class="btn btn-secondary" style="font-size: 0.85rem;">Local Backup</button>
+                <label for="import-vault-file" class="btn btn-secondary" style="cursor: pointer; font-size: 0.85rem;">Local Restore</label>
                 <input type="file" id="import-vault-file" accept=".medvault,.json" style="display: none;">
             </div>
+            
             <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold;"></div>
         </div>
 
