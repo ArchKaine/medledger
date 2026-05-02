@@ -5,7 +5,8 @@ let db;
 // --- Config State ---
 const AppSettings = {
     noBabysitter: localStorage.getItem('cfg_noBabysitter') === 'true',
-    expertMode: localStorage.getItem('cfg_expertMode') === 'true'
+    expertMode: localStorage.getItem('cfg_expertMode') === 'true',
+    reminders: localStorage.getItem('cfg_reminders') === 'true'
 };
 
 // --- DOM Elements ---
@@ -18,10 +19,11 @@ const addMedForm = document.getElementById('add-med-form');
 const editModal = document.getElementById('edit-med-modal');
 const editForm = document.getElementById('edit-med-form');
 
-// Settings & Vault Elements
+// Settings Elements
 const settingsModal = document.getElementById('settings-modal');
 const toggleBabysitter = document.getElementById('toggle-babysitter');
 const toggleExpert = document.getElementById('toggle-expert');
+const toggleReminders = document.getElementById('toggle-reminders');
 const vaultPassInput = document.getElementById('vault-password');
 const vaultStatus = document.getElementById('vault-status');
 
@@ -58,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initSettings() {
     toggleBabysitter.checked = AppSettings.noBabysitter;
     toggleExpert.checked = AppSettings.expertMode;
+    toggleReminders.checked = AppSettings.reminders;
 
     toggleBabysitter.addEventListener('change', (e) => {
         AppSettings.noBabysitter = e.target.checked;
@@ -68,6 +71,21 @@ function initSettings() {
         AppSettings.expertMode = e.target.checked;
         localStorage.setItem('cfg_expertMode', e.target.checked);
         loadChecklist();
+    });
+
+    toggleReminders.addEventListener('change', async (e) => {
+        AppSettings.reminders = e.target.checked;
+        localStorage.setItem('cfg_reminders', e.target.checked);
+
+        if (AppSettings.reminders && Notification.permission !== 'granted') {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                e.target.checked = false;
+                AppSettings.reminders = false;
+                localStorage.setItem('cfg_reminders', 'false');
+                alert("Notification permission denied by your browser/OS.");
+            }
+        }
     });
 }
 
@@ -117,6 +135,7 @@ function handleAddMed(e) {
     const nameInput = document.getElementById('new-med-name').value.trim();
     const doseInput = document.getElementById('new-med-dose').value.trim();
     const freqInput = document.getElementById('new-med-freq').value;
+    const timeInput = document.getElementById('new-med-time').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
 
     if (!nameInput || !doseInput) return;
@@ -126,6 +145,7 @@ function handleAddMed(e) {
         name: nameInput,
         dose: doseInput,
         frequency: freqInput,
+        time: timeInput,
         instructions: instructionsInput
     };
 
@@ -150,6 +170,7 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-name').value = med.name;
             document.getElementById('edit-med-dose').value = med.dose;
             document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
+            document.getElementById('edit-med-time').value = med.time || '';
             document.getElementById('edit-med-instructions').value = med.instructions || '';
             editModal.showModal();
         }
@@ -162,6 +183,7 @@ function saveEditedMed(e) {
     const name = document.getElementById('edit-med-name').value.trim();
     const dose = document.getElementById('edit-med-dose').value.trim();
     const freq = document.getElementById('edit-med-freq').value;
+    const time = document.getElementById('edit-med-time').value;
     const instructions = document.getElementById('edit-med-instructions').value.trim();
 
     const transaction = db.transaction(["meds"], "readwrite");
@@ -170,6 +192,7 @@ function saveEditedMed(e) {
         name: name,
         dose: dose,
         frequency: freq,
+        time: time,
         instructions: instructions
     });
 
@@ -207,9 +230,7 @@ function loadChecklist() {
             return;
         }
 
-        // --- NEW: Sorting Logic ---
         meds.sort((a, b) => {
-            // Assign numerical weight to frequencies
             const freqWeight = {
                 "Morning": 1,
                 "Daily": 2,
@@ -218,22 +239,27 @@ function loadChecklist() {
                 "As Needed": 5
             };
 
-            // Default to 99 if frequency is somehow missing or custom
             const weightA = freqWeight[a.frequency] || 99;
             const weightB = freqWeight[b.frequency] || 99;
 
-            // Primary sort by frequency weight
             if (weightA !== weightB) {
                 return weightA - weightB;
             }
-            // Secondary sort: Alphabetical by name if frequencies are the same
             return a.name.localeCompare(b.name);
         });
-        // -------------------------
 
         meds.forEach(med => {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
+
+            // Format time display if it exists
+            let timeHtml = '';
+            if (med.time) {
+                const [h, m] = med.time.split(':');
+                const period = h >= 12 ? 'PM' : 'AM';
+                const formattedHour = h % 12 || 12;
+                timeHtml = `<span style="font-size: 0.75rem; color: var(--text-secondary); margin-left: 0.5rem;">@ ${formattedHour}:${m} ${period}</span>`;
+            }
 
             const instructionsHtml = med.instructions ? `<span class="med-instructions-box">${med.instructions}</span>` : '';
 
@@ -243,7 +269,7 @@ function loadChecklist() {
             <label class="med-item" id="label-${med.id}" title="${AppSettings.expertMode ? 'Double-click to instantly log' : ''}">
             <input type="checkbox" name="med" value="${med.id}" class="med-checkbox">
             <span class="med-details">
-            <span class="med-name" data-name="${med.name}">${med.name} ${freqHtml}</span>
+            <span class="med-name" data-name="${med.name}">${med.name} ${freqHtml} ${timeHtml}</span>
             <span class="med-dose">${med.dose}</span>
             ${instructionsHtml}
             </span>
@@ -487,3 +513,58 @@ function showVaultStatus(message, color) {
     vaultStatus.textContent = message; vaultStatus.style.color = color;
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
+
+// ==========================================
+// --- LOCAL NOTIFICATION ENGINE ---
+// ==========================================
+
+let notifiedToday = JSON.parse(localStorage.getItem('notifiedMeds')) || {};
+
+function checkReminders() {
+    if (!AppSettings.reminders || Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    if (now.getHours() === 0 && now.getMinutes() === 0) {
+        notifiedToday = {};
+        localStorage.setItem('notifiedMeds', JSON.stringify(notifiedToday));
+    }
+
+    const currentHourStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    const todayStr = now.toLocaleDateString();
+
+    const tx = db.transaction(["meds", "logs"], "readonly");
+    const medReq = tx.objectStore("meds").getAll();
+    const logReq = tx.objectStore("logs").getAll();
+
+    tx.oncomplete = () => {
+        const meds = medReq.result;
+        const logs = logReq.result;
+
+        meds.forEach(med => {
+            if (!med.time) return;
+
+            if (currentHourStr >= med.time) {
+                if (notifiedToday[med.id] === todayStr) return;
+
+                const takenToday = logs.some(log => log.medId === med.id && new Date(log.dateTaken).toLocaleDateString() === todayStr);
+
+                if (!takenToday) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification("MedLedger Reminder", {
+                            body: `Pending: ${med.name} (${med.dose})`,
+                                                      icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzE4MTgxYiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjM2I4MmY2Ii8+PC9zdmc+",
+                                                      badge: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzE4MTgxYiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjM2I4MmY2Ii8+PC9zdmc+",
+                                                      requireInteraction: true
+                        });
+                    });
+
+                    notifiedToday[med.id] = todayStr;
+                    localStorage.setItem('notifiedMeds', JSON.stringify(notifiedToday));
+                }
+            }
+        });
+    };
+}
+
+setInterval(checkReminders, 60000);
+setTimeout(checkReminders, 2000);
