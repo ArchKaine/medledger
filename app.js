@@ -1,6 +1,13 @@
+// ==========================================
+// REPLACE THIS WITH YOUR GENERATED CLIENT ID
+const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+// ==========================================
+
 const DB_NAME = "MedLedgerDB";
 const DB_VERSION = 1;
 let db;
+let tokenClient;
+let gapiToken = null;
 
 // --- Config State ---
 const AppSettings = {
@@ -25,12 +32,8 @@ const toggleExpert = document.getElementById('toggle-expert');
 const toggleReminders = document.getElementById('toggle-reminders');
 const vaultPassInput = document.getElementById('vault-password');
 const vaultStatus = document.getElementById('vault-status');
-
-// Password Peek Elements
 const peekBtn = document.getElementById('btn-peek-password');
 const peekIcon = document.getElementById('peek-icon');
-
-// Help Elements
 const helpModal = document.getElementById('help-modal');
 
 // --- Initialization ---
@@ -49,16 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('settings-toggle').addEventListener('click', () => settingsModal.showModal());
     document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
-    
-    // Help Listeners
     document.getElementById('help-toggle').addEventListener('click', () => helpModal.showModal());
     document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
 
-    // Password Peek Listener
     peekBtn.addEventListener('click', togglePasswordVisibility);
 
-    document.getElementById('btn-export-vault').addEventListener('click', exportVault);
-    document.getElementById('import-vault-file').addEventListener('change', importVault);
+    // Local Vault
+    document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
+    document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
+
+    // Cloud Vault Actions
+    document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
+    document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
 
     document.addEventListener('keydown', (e) => {
         if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
@@ -69,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- Dynamic Time Field Utility ---
 window.addTimeField = function(containerId) {
     const container = document.getElementById(containerId);
     const input = document.createElement('input');
@@ -168,7 +172,6 @@ function handleAddMed(e) {
     const doseInput = document.getElementById('new-med-dose').value.trim();
     const freqInput = document.getElementById('new-med-freq').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
-    
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -188,7 +191,6 @@ function handleAddMed(e) {
     transaction.oncomplete = () => {
         addMedForm.reset();
         document.getElementById('new-med-freq').value = 'Daily'; 
-        // Reset times container to single input
         document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
     };
@@ -207,22 +209,20 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
             document.getElementById('edit-med-instructions').value = med.instructions || '';
             
-            // Handle legacy DB upgrades silently (time string -> times array)
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
 
             const timesContainer = document.getElementById('edit-med-times-container');
-            timesContainer.innerHTML = ''; // Clear existing
+            timesContainer.innerHTML = ''; 
             
             if (timesToRender.length === 0) {
-                addTimeField('edit-med-times-container'); // Ensure at least one blank field
+                addTimeField('edit-med-times-container'); 
             } else {
                 timesToRender.forEach(timeVal => {
                     addTimeField('edit-med-times-container');
                     timesContainer.lastElementChild.value = timeVal;
                 });
             }
-
             editModal.showModal();
         }
     };
@@ -255,7 +255,6 @@ function saveEditedMed(e) {
 
 function deleteMedication() {
     if (!AppSettings.noBabysitter && !confirm("Remove this medication completely from the regimen?")) return;
-    
     const id = document.getElementById('edit-med-id').value;
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").delete(id);
@@ -283,12 +282,10 @@ function loadChecklist() {
             return;
         }
 
-        // Sort Top-Level Medications (Freq -> Name)
         rawMeds.sort((a, b) => {
             const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
             const weightA = freqWeight[a.frequency] || 99;
             const weightB = freqWeight[b.frequency] || 99;
-            
             if (weightA !== weightB) return weightA - weightB;
             return a.name.localeCompare(b.name);
         });
@@ -297,15 +294,12 @@ function loadChecklist() {
 
         rawMeds.forEach(med => {
             let times = med.times && med.times.length > 0 ? med.times : [null];
-            
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
-            // Card Wrapper
             const card = document.createElement('div');
             card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
 
-            // Card Header
             const headerHtml = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
                     <div>
@@ -323,7 +317,6 @@ function loadChecklist() {
                 </div>
             `;
 
-            // Card Checkboxes (The Times)
             let checkboxesHtml = '<div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;">';
             
             times.forEach(t => {
@@ -343,7 +336,6 @@ function loadChecklist() {
                     timeLabel = "Log PRN Dose";
                 }
 
-                // Create a unique ID for the label so Double Click works securely
                 const labelId = 'lbl-' + crypto.randomUUID();
 
                 checkboxesHtml += `
@@ -355,7 +347,6 @@ function loadChecklist() {
                     </label>
                 `;
 
-                // Defer adding the event listener until the HTML is actually in the DOM
                 if (AppSettings.expertMode && !isCompletedToday) {
                     setTimeout(() => {
                         const el = document.getElementById(labelId);
@@ -371,7 +362,6 @@ function loadChecklist() {
             });
             checkboxesHtml += '</div>';
 
-            // Card Instructions
             const instructionsHtml = med.instructions ? `
                 <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); background-color: rgba(0,0,0,0.1); font-style: italic;">
                     ${med.instructions}
@@ -409,14 +399,10 @@ function processBatchLog(compositeIds) {
         : new Date().toISOString();
 
     compositeIds.forEach(compId => {
-        // Find the checkbox by value. Because | can be special, escape it if necessary.
-        // The safest selector is input[value="medId|time"].
-        const checkbox = document.querySelector(`input[value="${compId}"]`);
-        
-        // We pull the actual name from the data attribute we stored, not the UI text
+        const safeCompId = compId.replace(/\|/g, '\\|');
+        const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
         const actualMedName = checkbox.getAttribute('data-name');
         
-        // Extract base ID and target time for logging
         const parts = compId.split('|');
         const coreId = parts[0];
         const targetTime = parts[1] === 'none' ? null : parts[1];
@@ -434,7 +420,8 @@ function processBatchLog(compositeIds) {
 
     transaction.oncomplete = () => {
         compositeIds.forEach(compId => {
-            const checkbox = document.querySelector(`input[value="${compId}"]`);
+            const safeCompId = compId.replace(/\|/g, '\\|');
+            const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
             if (checkbox) {
                 checkbox.checked = false;
                 checkbox.disabled = true;
@@ -468,7 +455,6 @@ function refreshHistory() {
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateString = dateObj.toLocaleDateString();
             
-            // Show what scheduled slot this fulfilled
             let slotInfo = '';
             if (log.targetTime) {
                 const [h, m] = log.targetTime.split(':');
@@ -497,10 +483,8 @@ function refreshHistory() {
 
 window.deleteLog = function(timestampKey) {
     if (!AppSettings.noBabysitter && !confirm("Remove this log entry?")) return;
-    
     const transaction = db.transaction(["logs"], "readwrite");
     transaction.objectStore("logs").delete(timestampKey);
-    // Reload checklist to un-check the item if it was deleted today
     transaction.oncomplete = () => {
         refreshHistory();
         loadChecklist();
@@ -510,7 +494,6 @@ window.deleteLog = function(timestampKey) {
 function updateStatus() {
     const remaining = document.querySelectorAll('.med-checkbox:not(:disabled)');
     const total = document.querySelectorAll('.med-checkbox');
-    
     if (total.length === 0) {
         statusBar.textContent = "Ready.";
         statusBar.className = "status-indicator";
@@ -530,7 +513,7 @@ function registerServiceWorker() {
 }
 
 // ==========================================
-// --- ENCRYPTED VAULT LOGIC ---
+// --- ENCRYPTED VAULT LOGIC (Core) ---
 // ==========================================
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -546,78 +529,62 @@ async function getKey(keyMaterial, salt) {
     );
 }
 
-async function exportVault() {
-    const password = vaultPassInput.value;
-    if (!password) { showVaultStatus("Password required for export.", "var(--accent-color)"); return; }
+async function generateEncryptedBlob(password) {
+    const meds = await new Promise(res => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result));
+    const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
+    const rawData = JSON.stringify({ meds, logs, exportedAt: new Date().toISOString() });
+    
+    const keyMaterial = await getKeyMaterial(password);
+    const salt = window.crypto.getRandomValues(new Uint8Array(16));
+    const key = await getKey(keyMaterial, salt);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
 
-    try {
-        const meds = await new Promise(res => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result));
-        const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
-        
-        const rawData = JSON.stringify({ meds, logs, exportedAt: new Date().toISOString() });
-        const keyMaterial = await getKeyMaterial(password);
-        const salt = window.crypto.getRandomValues(new Uint8Array(16));
-        const key = await getKey(keyMaterial, salt);
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-
-        const encryptedContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(rawData));
-        const bundle = new Uint8Array(salt.byteLength + iv.byteLength + encryptedContent.byteLength);
-        bundle.set(salt, 0); bundle.set(iv, salt.byteLength); bundle.set(new Uint8Array(encryptedContent), salt.byteLength + iv.byteLength);
-
-        const blob = new Blob([btoa(String.fromCharCode.apply(null, bundle))], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = `MedLedger_${new Date().toISOString().split('T')[0]}.medvault`;
-        a.click(); URL.revokeObjectURL(url);
-
-        vaultPassInput.value = '';
-        showVaultStatus("Export successful.", "var(--success-color)");
-    } catch (err) { console.error(err); showVaultStatus("Export failed.", "#ef4444"); }
+    const encryptedContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(rawData));
+    const bundle = new Uint8Array(salt.byteLength + iv.byteLength + encryptedContent.byteLength);
+    bundle.set(salt, 0); 
+    bundle.set(iv, salt.byteLength); 
+    bundle.set(new Uint8Array(encryptedContent), salt.byteLength + iv.byteLength);
+    
+    return btoa(String.fromCharCode.apply(null, bundle));
 }
 
-async function importVault(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+async function processEncryptedBlob(password, base64Blob) {
+    const binaryString = atob(base64Blob);
+    const bundle = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bundle[i] = binaryString.charCodeAt(i);
 
-    const password = vaultPassInput.value;
-    if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); e.target.value = ''; return; }
+    const salt = bundle.slice(0, 16);
+    const iv = bundle.slice(16, 28);
+    const ciphertext = bundle.slice(28);
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-        try {
-            const binaryString = atob(event.target.result);
-            const bundle = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) bundle[i] = binaryString.charCodeAt(i);
+    const keyMaterial = await getKeyMaterial(password);
+    const key = await getKey(keyMaterial, salt);
+    const decryptedContent = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
+    return JSON.parse(dec.decode(decryptedContent));
+}
 
-            const salt = bundle.slice(0, 16);
-            const iv = bundle.slice(16, 28);
-            const ciphertext = bundle.slice(28);
+function restoreDataToDB(parsedData) {
+    const transaction = db.transaction(["meds", "logs"], "readwrite");
+    const medStore = transaction.objectStore("meds");
+    const logStore = transaction.objectStore("logs");
 
-            const keyMaterial = await getKeyMaterial(password);
-            const key = await getKey(keyMaterial, salt);
-            const decryptedContent = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
-            const parsedData = JSON.parse(dec.decode(decryptedContent));
+    medStore.clear(); logStore.clear();
+    parsedData.meds.forEach(med => medStore.add(med));
+    parsedData.logs.forEach(log => logStore.add(log));
 
-            const transaction = db.transaction(["meds", "logs"], "readwrite");
-            const medStore = transaction.objectStore("meds");
-            const logStore = transaction.objectStore("logs");
-
-            medStore.clear(); logStore.clear();
-            parsedData.meds.forEach(med => medStore.add(med));
-            parsedData.logs.forEach(log => logStore.add(log));
-
-            transaction.oncomplete = () => {
-                vaultPassInput.value = ''; e.target.value = '';
-                loadChecklist(); refreshHistory();
-                showVaultStatus("Import successful. Vault restored.", "var(--success-color)");
-            };
-        } catch (err) {
-            console.error(err);
-            showVaultStatus("Decryption failed. Incorrect password?", "#ef4444");
-            e.target.value = '';
-        }
+    transaction.oncomplete = () => {
+        loadChecklist(); refreshHistory();
     };
-    reader.readAsText(file);
+}
+
+function togglePasswordVisibility() {
+    const isPassword = vaultPassInput.type === 'password';
+    vaultPassInput.type = isPassword ? 'text' : 'password';
+    if (isPassword) {
+        peekIcon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>`;
+    } else {
+        peekIcon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>`;
+    }
 }
 
 function showVaultStatus(message, color) {
@@ -625,30 +592,146 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
-// --- Password Peek Logic ---
-function togglePasswordVisibility() {
-    const isPassword = vaultPassInput.type === 'password';
-    vaultPassInput.type = isPassword ? 'text' : 'password';
+// ==========================================
+// --- LOCAL VAULT (File Export/Import) ---
+// ==========================================
+async function exportVaultLocal() {
+    const password = vaultPassInput.value;
+    if (!password) { showVaultStatus("Password required for export.", "var(--accent-color)"); return; }
+    try {
+        const encryptedBase64 = await generateEncryptedBlob(password);
+        const blob = new Blob([encryptedBase64], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `MedLedger_${new Date().toISOString().split('T')[0]}.medvault`;
+        a.click(); URL.revokeObjectURL(url);
+        vaultPassInput.value = '';
+        showVaultStatus("Local Export successful.", "var(--success-color)");
+    } catch (err) { console.error(err); showVaultStatus("Export failed.", "#ef4444"); }
+}
+
+async function importVaultLocal(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const password = vaultPassInput.value;
+    if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); e.target.value = ''; return; }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        try {
+            const parsedData = await processEncryptedBlob(password, event.target.result);
+            restoreDataToDB(parsedData);
+            vaultPassInput.value = ''; e.target.value = '';
+            showVaultStatus("Local Import successful. Vault restored.", "var(--success-color)");
+        } catch (err) {
+            console.error(err); showVaultStatus("Decryption failed. Incorrect password?", "#ef4444"); e.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ==========================================
+// --- GOOGLE DRIVE SYNC INTEGRATION ---
+// ==========================================
+
+window.initGoogleSync = function() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.appdata',
+        callback: (tokenResponse) => {
+            if (tokenResponse && tokenResponse.access_token) {
+                gapiToken = tokenResponse.access_token;
+                document.getElementById('cloud-sync-controls').style.display = 'flex';
+                document.getElementById('btn-gdrive-login').style.display = 'none';
+                showVaultStatus("Google Drive Connected.", "var(--success-color)");
+            }
+        },
+    });
+};
+
+window.loginGoogleDrive = function() {
+    if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
+        showVaultStatus("Please add your Client ID to app.js", "#ef4444");
+        return;
+    }
+    tokenClient.requestAccessToken();
+};
+
+async function checkDriveForFile() {
+    const res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name="medledger_sync.medvault"', {
+        headers: { 'Authorization': `Bearer ${gapiToken}` }
+    });
+    const data = await res.json();
+    return data.files && data.files.length > 0 ? data.files[0].id : null;
+}
+
+async function pushToGoogleDrive() {
+    const password = vaultPassInput.value;
+    if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
     
-    if (isPassword) {
-        // Change to "Hide" icon (eye-off)
-        peekIcon.innerHTML = `
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-        `;
-    } else {
-        // Change back to "Show" icon (eye)
-        peekIcon.innerHTML = `
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-        `;
+    showVaultStatus("Encrypting and pushing...", "var(--text-secondary)");
+    try {
+        const encryptedBase64 = await generateEncryptedBlob(password);
+        const fileId = await checkDriveForFile();
+        
+        const metadata = { name: 'medledger_sync.medvault', parents: ['appDataFolder'] };
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+        form.append('file', new Blob([encryptedBase64], {type: 'text/plain'}));
+
+        const url = fileId 
+            ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+            
+        const method = fileId ? 'PATCH' : 'POST';
+
+        const uploadRes = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${gapiToken}` }, body: form });
+        
+        if (uploadRes.ok) {
+            vaultPassInput.value = '';
+            showVaultStatus("Successfully pushed securely to Drive.", "var(--success-color)");
+        } else {
+            throw new Error("Upload failed.");
+        }
+    } catch (err) {
+        console.error(err);
+        showVaultStatus("Failed to push to Cloud.", "#ef4444");
+    }
+}
+
+async function pullFromGoogleDrive() {
+    const password = vaultPassInput.value;
+    if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); return; }
+
+    showVaultStatus("Pulling from cloud...", "var(--text-secondary)");
+    try {
+        const fileId = await checkDriveForFile();
+        if (!fileId) {
+            showVaultStatus("No backup found in Drive.", "#ef4444");
+            return;
+        }
+
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${gapiToken}` }
+        });
+        
+        if (!res.ok) throw new Error("Download failed");
+        
+        const encryptedBase64 = await res.text();
+        const parsedData = await processEncryptedBlob(password, encryptedBase64);
+        restoreDataToDB(parsedData);
+        
+        vaultPassInput.value = '';
+        showVaultStatus("Successfully synced from Drive.", "var(--success-color)");
+    } catch (err) {
+        console.error(err);
+        showVaultStatus("Decryption or Download failed.", "#ef4444");
     }
 }
 
 // ==========================================
 // --- LOCAL NOTIFICATION ENGINE ---
 // ==========================================
-
 let notifiedToday = JSON.parse(localStorage.getItem('notifiedMeds')) || {};
 
 function checkReminders() {
@@ -672,9 +755,7 @@ function checkReminders() {
         const logs = logReq.result;
 
         rawMeds.forEach(med => {
-            // --- NEW: Skip PRN (As Needed) meds for automated reminders ---
             if (med.frequency === "As Needed") return;
-            // -------------------------------------------------------------
 
             let times = med.times || [];
             if (!med.times && med.time) times = [med.time]; 
@@ -684,7 +765,6 @@ function checkReminders() {
                     const compId = `${med.id}|${targetTime}`;
                     if (notifiedToday[compId] === todayStr) return; 
 
-                    // Check if it was actually logged
                     const takenToday = logs.some(log => log.compositeId === compId && new Date(log.dateTaken).toLocaleDateString() === todayStr);
 
                     if (!takenToday) {
