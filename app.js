@@ -266,9 +266,7 @@ function deleteMedication() {
     };
 }
 
-// ==========================================
 // --- Regimen Logic (Checklist & Logging) ---
-// ==========================================
 function loadChecklist() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
@@ -411,16 +409,17 @@ function processBatchLog(compositeIds) {
         : new Date().toISOString();
 
     compositeIds.forEach(compId => {
-        // Find the checkbox by value. Because DOM IDs can technically contain the |, escape it
-        const safeCompId = compId.replace(/\|/g, '\\|');
-        const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
+        // Find the checkbox by value. Because | can be special, escape it if necessary.
+        // The safest selector is input[value="medId|time"].
+        const checkbox = document.querySelector(`input[value="${compId}"]`);
         
         // We pull the actual name from the data attribute we stored, not the UI text
         const actualMedName = checkbox.getAttribute('data-name');
         
+        // Extract base ID and target time for logging
         const parts = compId.split('|');
-        const coreId = parts[Part[0]];
-        const targetTime = parts[1] === 'none' ? null : parts[Part[1]];
+        const coreId = parts[0];
+        const targetTime = parts[1] === 'none' ? null : parts[1];
         
         store.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
@@ -435,8 +434,7 @@ function processBatchLog(compositeIds) {
 
     transaction.oncomplete = () => {
         compositeIds.forEach(compId => {
-            const safeCompId = compId.replace(/\|/g, '\\|');
-            const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
+            const checkbox = document.querySelector(`input[value="${compId}"]`);
             if (checkbox) {
                 checkbox.checked = false;
                 checkbox.disabled = true;
@@ -470,6 +468,7 @@ function refreshHistory() {
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateString = dateObj.toLocaleDateString();
             
+            // Show what scheduled slot this fulfilled
             let slotInfo = '';
             if (log.targetTime) {
                 const [h, m] = log.targetTime.split(':');
@@ -626,7 +625,7 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
-// --- NEW: Password Peek Logic ---
+// --- Password Peek Logic ---
 function togglePasswordVisibility() {
     const isPassword = vaultPassInput.type === 'password';
     vaultPassInput.type = isPassword ? 'text' : 'password';
@@ -685,6 +684,7 @@ function checkReminders() {
                     const compId = `${med.id}|${targetTime}`;
                     if (notifiedToday[compId] === todayStr) return; 
 
+                    // Check if it was actually logged
                     const takenToday = logs.some(log => log.compositeId === compId && new Date(log.dateTaken).toLocaleDateString() === todayStr);
 
                     if (!takenToday) {
