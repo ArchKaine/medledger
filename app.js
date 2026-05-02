@@ -1,6 +1,6 @@
 // ==========================================
 // REPLACE THIS WITH YOUR GENERATED CLIENT ID
-const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 // ==========================================
 
 const DB_NAME = "MedLedgerDB";
