@@ -266,7 +266,9 @@ function deleteMedication() {
     };
 }
 
+// ==========================================
 // --- Regimen Logic (Checklist & Logging) ---
+// ==========================================
 function loadChecklist() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
@@ -283,26 +285,8 @@ function loadChecklist() {
             return;
         }
 
-        // Flatten meds into individual scheduled items
-        let schedule = [];
-        rawMeds.forEach(med => {
-            // Data upgrade check
-            let times = med.times || [];
-            if (!med.times && med.time) times = [med.time];
-
-            if (times.length > 0) {
-                times.forEach(t => schedule.push({...med, targetTime: t}));
-            } else {
-                schedule.push({...med, targetTime: null});
-            }
-        });
-
-        // Priority Sort: Time -> Frequency -> Name
-        schedule.sort((a, b) => {
-            if (a.targetTime && b.targetTime && a.targetTime !== b.targetTime) {
-                return a.targetTime.localeCompare(b.targetTime);
-            }
-            
+        // Sort Top-Level Medications (Freq -> Name)
+        rawMeds.sort((a, b) => {
             const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
             const weightA = freqWeight[a.frequency] || 99;
             const weightB = freqWeight[b.frequency] || 99;
@@ -313,58 +297,91 @@ function loadChecklist() {
 
         const todayStr = new Date().toLocaleDateString();
 
-        schedule.forEach(item => {
-            // Check if this specific instance has been logged today
-            const compositeLogId = item.targetTime ? `${item.id}|${item.targetTime}` : `${item.id}|none`;
-            const isCompletedToday = logs.some(log => 
-                log.compositeId === compositeLogId && 
-                new Date(log.dateTaken).toLocaleDateString() === todayStr
-            );
-
-            const freqClass = item.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
-            const freqHtml = item.frequency ? `<span class="${freqClass}">${item.frequency}</span>` : '';
+        rawMeds.forEach(med => {
+            let times = med.times && med.times.length > 0 ? med.times : [null];
             
-            let timeHtml = '';
-            if (item.targetTime) {
-                const [h, m] = item.targetTime.split(':');
-                const period = h >= 12 ? 'PM' : 'AM';
-                const formattedHour = h % 12 || 12;
-                timeHtml = `<span style="font-size: 0.85rem; font-weight: 700; color: var(--accent-color); margin-left: 0.5rem; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">@ ${formattedHour}:${m} ${period}</span>`;
-            }
+            const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
+            const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
-            const instructionsHtml = item.instructions ? `<span class="med-instructions-box">${item.instructions}</span>` : '';
-            
-            // Unique ID for the label/input relation
-            const uniqueDomId = crypto.randomUUID();
+            // Card Wrapper
+            const card = document.createElement('div');
+            card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'med-item-wrapper';
-            wrapper.innerHTML = `
-                <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="label-${uniqueDomId}" title="${AppSettings.expertMode ? 'Double-click to instantly log' : ''}">
-                    <input type="checkbox" name="med" value="${compositeLogId}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
-                    <span class="med-details">
-                        <span class="med-name" data-name="${item.name}">${item.name} ${timeHtml} ${freqHtml}</span>
-                        <span class="med-dose">${item.dose}</span>
-                        ${instructionsHtml}
-                    </span>
-                </label>
-                <button type="button" class="btn-icon" onclick="openEditModal('${item.id}')" aria-label="Edit Medication" title="Edit Master Record">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                </button>
+            // Card Header
+            const headerHtml = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            ${med.name} ${freqHtml}
+                        </h3>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem;">${med.dose}</div>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.5rem -0.5rem 0 0;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                </div>
             `;
-            checklistContainer.appendChild(wrapper);
 
-            if (AppSettings.expertMode && !isCompletedToday) {
-                const labelElement = wrapper.querySelector(`#label-${uniqueDomId}`);
-                labelElement.addEventListener('dblclick', (e) => {
-                    e.preventDefault(); 
-                    const checkbox = labelElement.querySelector('input');
-                    if (!checkbox.disabled) processBatchLog([compositeLogId]);
-                });
-            }
+            // Card Checkboxes (The Times)
+            let checkboxesHtml = '<div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;">';
+            
+            times.forEach(t => {
+                const compositeLogId = t ? `${med.id}|${t}` : `${med.id}|none`;
+                const isCompletedToday = logs.some(log => 
+                    log.compositeId === compositeLogId && 
+                    new Date(log.dateTaken).toLocaleDateString() === todayStr
+                );
+
+                let timeLabel = "Take Dosage";
+                if (t) {
+                    const [h, m] = t.split(':');
+                    const period = h >= 12 ? 'PM' : 'AM';
+                    const formattedHour = h % 12 || 12;
+                    timeLabel = `@ ${formattedHour}:${m} ${period}`;
+                } else if (med.frequency === 'As Needed') {
+                    timeLabel = "Log PRN Dose";
+                }
+
+                // Create a unique ID for the label so Double Click works securely
+                const labelId = 'lbl-' + crypto.randomUUID();
+
+                checkboxesHtml += `
+                    <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="${labelId}" style="margin: 0; padding: 0.5rem; border-radius: 4px; transition: background-color 0.2s; cursor: pointer;" title="${AppSettings.expertMode && !isCompletedToday ? 'Double-click to instantly log' : ''}">
+                        <input type="checkbox" name="med" value="${compositeLogId}" data-name="${med.name}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
+                        <span class="med-details" style="display: flex; align-items: center; width: 100%;">
+                            <span class="med-name" style="font-weight: 600; color: ${isCompletedToday ? 'var(--text-secondary)' : 'var(--text-primary)'};">${timeLabel}</span>
+                        </span>
+                    </label>
+                `;
+
+                // Defer adding the event listener until the HTML is actually in the DOM
+                if (AppSettings.expertMode && !isCompletedToday) {
+                    setTimeout(() => {
+                        const el = document.getElementById(labelId);
+                        if (el) {
+                            el.addEventListener('dblclick', (e) => {
+                                e.preventDefault();
+                                const checkbox = el.querySelector('input');
+                                if (!checkbox.disabled) processBatchLog([compositeLogId]);
+                            });
+                        }
+                    }, 0);
+                }
+            });
+            checkboxesHtml += '</div>';
+
+            // Card Instructions
+            const instructionsHtml = med.instructions ? `
+                <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); background-color: rgba(0,0,0,0.1); font-style: italic;">
+                    ${med.instructions}
+                </div>
+            ` : '';
+
+            card.innerHTML = headerHtml + checkboxesHtml + instructionsHtml;
+            checklistContainer.appendChild(card);
         });
         updateStatus();
     };
@@ -394,15 +411,16 @@ function processBatchLog(compositeIds) {
         : new Date().toISOString();
 
     compositeIds.forEach(compId => {
-        // Find the checkbox by value. Because | can be special, escape it if necessary.
-        // The safest selector is input[value="medId|time"].
-        const checkbox = document.querySelector(`input[value="${compId}"]`);
-        const nameElement = checkbox.closest('.med-item').querySelector('.med-name');
+        // Find the checkbox by value. Because DOM IDs can technically contain the |, escape it
+        const safeCompId = compId.replace(/\|/g, '\\|');
+        const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
         
-        // Extract base ID and target time for logging
+        // We pull the actual name from the data attribute we stored, not the UI text
+        const actualMedName = checkbox.getAttribute('data-name');
+        
         const parts = compId.split('|');
-        const coreId = parts[0];
-        const targetTime = parts[1] === 'none' ? null : parts[1];
+        const coreId = parts[Part[0]];
+        const targetTime = parts[1] === 'none' ? null : parts[Part[1]];
         
         store.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
@@ -410,14 +428,15 @@ function processBatchLog(compositeIds) {
             medId: coreId,
             targetTime: targetTime,
             compositeId: compId,
-            medName: nameElement.getAttribute('data-name'),
+            medName: actualMedName,
             status: "taken"
         });
     });
 
     transaction.oncomplete = () => {
         compositeIds.forEach(compId => {
-            const checkbox = document.querySelector(`input[value="${compId}"]`);
+            const safeCompId = compId.replace(/\|/g, '\\|');
+            const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
             if (checkbox) {
                 checkbox.checked = false;
                 checkbox.disabled = true;
@@ -451,12 +470,11 @@ function refreshHistory() {
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateString = dateObj.toLocaleDateString();
             
-            // Show what scheduled slot this fulfilled
             let slotInfo = '';
             if (log.targetTime) {
                 const [h, m] = log.targetTime.split(':');
                 const period = h >= 12 ? 'PM' : 'AM';
-                slotInfo = ` (Scheduled for ${h % 12 || 12}:${m} ${period})`;
+                slotInfo = ` (Scheduled ${h % 12 || 12}:${m} ${period})`;
             }
 
             const li = document.createElement('li');
@@ -608,6 +626,26 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
+// --- NEW: Password Peek Logic ---
+function togglePasswordVisibility() {
+    const isPassword = vaultPassInput.type === 'password';
+    vaultPassInput.type = isPassword ? 'text' : 'password';
+    
+    if (isPassword) {
+        // Change to "Hide" icon (eye-off)
+        peekIcon.innerHTML = `
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+        `;
+    } else {
+        // Change back to "Show" icon (eye)
+        peekIcon.innerHTML = `
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        `;
+    }
+}
+
 // ==========================================
 // --- LOCAL NOTIFICATION ENGINE ---
 // ==========================================
@@ -635,7 +673,10 @@ function checkReminders() {
         const logs = logReq.result;
 
         rawMeds.forEach(med => {
-            // Data upgrade check
+            // --- NEW: Skip PRN (As Needed) meds for automated reminders ---
+            if (med.frequency === "As Needed") return;
+            // -------------------------------------------------------------
+
             let times = med.times || [];
             if (!med.times && med.time) times = [med.time]; 
 
@@ -644,7 +685,6 @@ function checkReminders() {
                     const compId = `${med.id}|${targetTime}`;
                     if (notifiedToday[compId] === todayStr) return; 
 
-                    // Check if it was actually logged
                     const takenToday = logs.some(log => log.compositeId === compId && new Date(log.dateTaken).toLocaleDateString() === todayStr);
 
                     if (!takenToday) {
