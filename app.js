@@ -418,7 +418,7 @@ function processBatchLog(compositeIds) {
         
         const parts = compId.split('|');
         const coreId = parts[0];
-        const targetTime = parts[1] === 'none' ? null : parts[1];
+        const targetTime = parts[1] === 'none' ? null : parts[Part[1]];
         
         store.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
@@ -499,7 +499,6 @@ window.deleteLog = function(timestampKey) {
     
     const transaction = db.transaction(["logs"], "readwrite");
     transaction.objectStore("logs").delete(timestampKey);
-    // Reload checklist to un-check the item if it was deleted today
     transaction.oncomplete = () => {
         refreshHistory();
         loadChecklist();
@@ -624,7 +623,7 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
-// --- NEW: Password Peek Logic ---
+// --- Password Peek Logic ---
 function togglePasswordVisibility() {
     const isPassword = vaultPassInput.type === 'password';
     vaultPassInput.type = isPassword ? 'text' : 'password';
@@ -671,6 +670,10 @@ function checkReminders() {
         const logs = logReq.result;
 
         rawMeds.forEach(med => {
+            // --- NEW: Skip PRN (As Needed) meds for automated reminders ---
+            if (med.frequency === "As Needed") return;
+            // -------------------------------------------------------------
+
             let times = med.times || [];
             if (!med.times && med.time) times = [med.time]; 
 
