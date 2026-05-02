@@ -26,6 +26,9 @@ const toggleReminders = document.getElementById('toggle-reminders');
 const vaultPassInput = document.getElementById('vault-password');
 const vaultStatus = document.getElementById('vault-status');
 
+// NEW: Help Elements
+const helpModal = document.getElementById('help-modal');
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
@@ -43,6 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-toggle').addEventListener('click', () => settingsModal.showModal());
     document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
     
+    // NEW: Help Listeners
+    document.getElementById('help-toggle').addEventListener('click', () => helpModal.showModal());
+    document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
+
     document.getElementById('btn-export-vault').addEventListener('click', exportVault);
     document.getElementById('import-vault-file').addEventListener('change', importVault);
 
@@ -266,7 +273,6 @@ function loadChecklist() {
             return;
         }
 
-        // Sort Top-Level Medications (Freq -> Name)
         rawMeds.sort((a, b) => {
             const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
             const weightA = freqWeight[a.frequency] || 99;
@@ -284,11 +290,9 @@ function loadChecklist() {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
-            // Card Wrapper
             const card = document.createElement('div');
             card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
 
-            // Card Header
             const headerHtml = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
                     <div>
@@ -306,7 +310,6 @@ function loadChecklist() {
                 </div>
             `;
 
-            // Card Checkboxes (The Times)
             let checkboxesHtml = '<div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;">';
             
             times.forEach(t => {
@@ -326,7 +329,6 @@ function loadChecklist() {
                     timeLabel = "Log PRN Dose";
                 }
 
-                // Create a unique ID for the label so Double Click works securely
                 const labelId = 'lbl-' + crypto.randomUUID();
 
                 checkboxesHtml += `
@@ -338,7 +340,6 @@ function loadChecklist() {
                     </label>
                 `;
 
-                // Defer adding the event listener until the HTML is actually in the DOM
                 if (AppSettings.expertMode && !isCompletedToday) {
                     setTimeout(() => {
                         const el = document.getElementById(labelId);
@@ -354,7 +355,6 @@ function loadChecklist() {
             });
             checkboxesHtml += '</div>';
 
-            // Card Instructions
             const instructionsHtml = med.instructions ? `
                 <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); background-color: rgba(0,0,0,0.1); font-style: italic;">
                     ${med.instructions}
@@ -392,11 +392,8 @@ function processBatchLog(compositeIds) {
         : new Date().toISOString();
 
     compositeIds.forEach(compId => {
-        // Because DOM IDs can technically contain the |, escape it
         const safeCompId = compId.replace(/\|/g, '\\|');
         const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
-        
-        // We pull the actual name from the data attribute we stored, not the UI text
         const actualMedName = checkbox.getAttribute('data-name');
         
         const parts = compId.split('|');
