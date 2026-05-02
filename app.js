@@ -674,28 +674,43 @@ async function pushToGoogleDrive() {
         const encryptedBase64 = await generateEncryptedBlob(password);
         const fileId = await checkDriveForFile();
         
+        // Use Resumable Upload to avoid strict multipart/related restrictions in standard fetch
         const metadata = { name: 'medledger_sync.medvault', parents: ['appDataFolder'] };
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
-        form.append('file', new Blob([encryptedBase64], {type: 'text/plain'}));
+        const initUrl = fileId 
+            ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=resumable`
+            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable';
+        const initMethod = fileId ? 'PATCH' : 'POST';
 
-        const url = fileId 
-            ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-            
-        const method = fileId ? 'PATCH' : 'POST';
+        const initRes = await fetch(initUrl, {
+            method: initMethod,
+            headers: {
+                'Authorization': `Bearer ${gapiToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(fileId ? {} : metadata)
+        });
 
-        const uploadRes = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${gapiToken}` }, body: form });
+        if (!initRes.ok) throw new Error("Failed to initiate upload");
+
+        const uploadUrl = initRes.headers.get('Location');
+
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'text/plain'
+            },
+            body: encryptedBase64
+        });
         
         if (uploadRes.ok) {
             vaultPassInput.value = '';
             showVaultStatus("Successfully pushed securely to Drive.", "var(--success-color)");
         } else {
-            throw new Error("Upload failed.");
+            throw new Error("Upload data failed.");
         }
     } catch (err) {
         console.error(err);
-        showVaultStatus("Failed to push to Cloud.", "#ef4444");
+        showVaultStatus("Failed to push to Cloud. Check console.", "#ef4444");
     }
 }
 
