@@ -97,42 +97,52 @@
         <h2>User Guide</h2>
         
         <div class="help-section">
-            <h3>💊 Adding a New Medication</h3>
-            <p>Use the "Add Medication" box at the top of the screen.</p>
+            <h3>💊 1. Adding Medications</h3>
+            <p>Use the "Add Medication" box at the top of the screen to build your list.</p>
             <ul>
-                <li>Type in the name and the dose (like 10mg).</li>
-                <li>Pick how often you take it (Daily, As Needed, etc.).</li>
-                <li><b>Times:</b> Tap the clock box to set exactly when you take it. If you take it multiple times a day, click <b>"+ Add Time"</b> for each dose.</li>
-                <li><b>Instructions:</b> Type any special rules from the bottle here, like "Take with food" or "Do not crush."</li>
+                <li>Type the <b>Name</b> and <b>Dosage</b> (like 10mg).</li>
+                <li><b>Times:</b> Tap the clock box to set exactly when you take it. If a pill requires morning, noon, and night doses, click <b>"+ Add Time"</b> to create three separate timers for that one pill.</li>
+                <li><b>Instructions:</b> Type any special rules here (e.g., "Take with food", "Do not crush"). These will display permanently under the pill's name.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>✅ Checking Off Your Regimen</h3>
-            <p>The "Today's Regimen" section shows everything you need to take today.</p>
+            <h3>✅ 2. Logging Your Daily Regimen</h3>
+            <p>The "Today's Regimen" list shows everything due today. It resets automatically at midnight.</p>
             <ul>
-                <li>Tap the empty square box next to the time to select it.</li>
-                <li>Tap the <b>Log Selected</b> button to record that you took it.</li>
-                <li><b>Forgot to log earlier?</b> Before you tap log, use the "Time Taken" calendar box to tell the system when you <i>actually</i> took the pill. Leave it blank if you are taking it right now.</li>
+                <li>Tap the square checkbox next to a time slot to select it.</li>
+                <li>Tap <b>Log Selected</b> to record only what you checked, or <b>Log All</b> to instantly record the entire day's list.</li>
+                <li><b>Forgot to log earlier?</b> If you took a pill hours ago but forgot to tap it, use the "Time Taken" calendar box to set the <i>actual</i> time you took it before clicking Log. Leave it blank if you are taking it right now.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>✏️ Fixing Mistakes</h3>
-            <p>Made a typo or stopped taking a medication?</p>
+            <h3>✏️ 3. Fixing Mistakes & History</h3>
+            <p>Your history and routines are fully editable.</p>
             <ul>
-                <li>To change a medication, tap the little <b>Pencil Icon</b> on its card. You can fix the times, instructions, or dose, then click Save.</li>
-                <li>To completely remove it, tap the Pencil Icon and then tap the red <b>Delete</b> button.</li>
-                <li>To delete a single entry from your history log, tap the <b>Trash Can</b> icon next to it in the Recent Logs section.</li>
+                <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, or dose.</li>
+                <li><b>Delete a Pill:</b> Tap the Pencil Icon, then tap the red <b>Delete</b> button to remove it from your routine forever.</li>
+                <li><b>Undo a Log:</b> Accidentally checked something off? Scroll down to "Recent Logs" and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>🔔 Reminders & Settings</h3>
-            <p>Tap the <b>Gear Icon</b> at the very top of the screen.</p>
+            <h3>⚙️ 4. Settings & Customization</h3>
+            <p>Tap the <b>Gear Icon</b> at the top of the screen to access Settings.</p>
             <ul>
-                <li><b>Reminders:</b> Check this box to let your device alert you when it's time to take a pill.</li>
-                <li><b>Expert Mode:</b> Check this to allow "Double-Clicking". If you double-tap a medication, it will instantly log it without needing to press the submit button.</li>
+                <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due. (It will only remind you if you haven't checked it off yet).</li>
+                <li><b>Expert Mode:</b> Turns on "Double-Clicking". You can double-tap any item on the checklist to log it instantly without needing to press the submit button at the bottom.</li>
+                <li><b>No Babysitter Mode:</b> Turns off the "Are you sure?" pop-ups when deleting history logs.</li>
+                <li><b>Dark/Light Mode:</b> Tap the Sun/Moon icon in the top right corner to switch between light and dark backgrounds.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>🔐 5. Backups & The Data Vault</h3>
+            <p>Because this app respects your privacy, your data is saved <i>only on this specific device</i>. It is not tracked in the cloud. If you get a new phone, you must manually move your data.</p>
+            <ul>
+                <li><b>To Backup:</b> Open Settings. Type a password in the Data Vault box and tap <b>Export .medvault</b>. This saves a heavily encrypted backup file to your phone's downloads folder.</li>
+                <li><b>To Sync to a New Phone:</b> Email or send that `.medvault` file to your new device. Open MedLedger on the new device, go to Settings, type the <i>exact same password</i>, and tap <b>Import Backup</b>. Select the file, and your entire routine and history will instantly load.</li>
             </ul>
         </div>
 
