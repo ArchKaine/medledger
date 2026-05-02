@@ -499,3 +499,34 @@ input[type="datetime-local"] {
         background-color: rgba(255, 255, 255, 0.03);
     }
 }
+
+/* --- NEW: Help Manual Styling --- */
+.help-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.help-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.help-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.help-section p, .help-section li {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.help-section ul {
+    padding-left: 1.5rem;
+    margin-top: 0.25rem;
+}
