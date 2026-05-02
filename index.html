@@ -45,6 +45,7 @@
                         <option value="Night">Night</option>
                         <option value="Weekly">Weekly</option>
                     </select>
+                    <input type="time" id="new-med-time" aria-label="Reminder Time" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
                 </div>
                 <div class="inline-form">
                     <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 2;">
@@ -93,15 +94,21 @@
                 <input type="text" id="edit-med-dose" required>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="edit-med-freq">Frequency</label>
-                <select id="edit-med-freq" required>
-                    <option value="Daily">Daily</option>
-                    <option value="As Needed">As Needed (PRN)</option>
-                    <option value="Morning">Morning</option>
-                    <option value="Night">Night</option>
-                    <option value="Weekly">Weekly</option>
-                </select>
+            <div class="form-group" style="display: flex; gap: 1rem;">
+                <div style="flex: 1;">
+                    <label class="form-label" for="edit-med-freq">Frequency</label>
+                    <select id="edit-med-freq" style="width: 100%;" required>
+                        <option value="Daily">Daily</option>
+                        <option value="As Needed">As Needed (PRN)</option>
+                        <option value="Morning">Morning</option>
+                        <option value="Night">Night</option>
+                        <option value="Weekly">Weekly</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label" for="edit-med-time">Reminder Time</label>
+                    <input type="time" id="edit-med-time" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
+                </div>
             </div>
 
             <div class="form-group">
@@ -129,11 +136,19 @@
                 </span>
             </label>
 
-            <label class="med-item" style="cursor:pointer;">
+            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-expert" class="med-checkbox">
                 <span class="med-details">
                     <span class="med-name">Expert Mode</span>
                     <span class="med-dose">Double-click to instantly log a med. Ctrl+Enter to batch log.</span>
+                </span>
+            </label>
+
+            <label class="med-item" style="cursor:pointer;">
+                <input type="checkbox" id="toggle-reminders" class="med-checkbox">
+                <span class="med-details">
+                    <span class="med-name">Enable Local Reminders</span>
+                    <span class="med-dose">Triggers native push notifications for scheduled items.</span>
                 </span>
             </label>
         </div>
