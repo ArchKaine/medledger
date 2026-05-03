@@ -3,7 +3,6 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 // ==========================================
 
-// UPDATED DB VERSION to 2
 const DB_NAME = "MedLedgerDB";
 const DB_VERSION = 2;
 let db;
@@ -71,10 +70,15 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionLockControls.style.display = 'none';
         }
         settingsModal.showModal();
+        settingsModal.scrollTop = 0; // Pro-tweak: Reset scroll
     });
     
     document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
-    document.getElementById('help-toggle').addEventListener('click', () => helpModal.showModal());
+    
+    document.getElementById('help-toggle').addEventListener('click', () => {
+        helpModal.showModal();
+        helpModal.scrollTop = 0; // Pro-tweak: Reset scroll
+    });
     document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
 
     peekBtn.addEventListener('click', togglePasswordVisibility);
@@ -163,6 +167,7 @@ window.addTimeField = function(containerId) {
     input.className = 'time-input';
     input.style.cssText = 'padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit; margin-top: 0.25rem;';
     container.appendChild(input);
+    input.focus(); // Pro-tweak: Auto-focus new field
 };
 
 function getTimesFromContainer(containerId) {
@@ -212,20 +217,16 @@ function initSettings() {
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
-    // THIS is the migration block that handles the DB version bump.
     request.onupgradeneeded = (e) => {
         db = e.target.result;
         const oldVersion = e.oldVersion;
         const transaction = e.target.transaction;
 
-        // Path for brand new users (creates the DB from scratch)
         if (oldVersion < 1) {
             db.createObjectStore("meds", { keyPath: "id" });
             db.createObjectStore("logs", { keyPath: "timestamp" });
         }
 
-        // Upgrade path for Version 1 users to Version 2
-        // We open every existing medication and backfill an empty sideEffects field so the schema is uniform.
         if (oldVersion >= 1 && oldVersion < 2) {
             const medStore = transaction.objectStore("meds");
             medStore.openCursor().onsuccess = (event) => {
@@ -272,7 +273,7 @@ function handleAddMed(e) {
         frequency: freqInput,
         times: timesArray,
         instructions: instructionsInput,
-        sideEffects: sideEffectsInput // Added field
+        sideEffects: sideEffectsInput 
     };
     
     const transaction = db.transaction(["meds"], "readwrite");
@@ -298,7 +299,7 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-dose').value = med.dose;
             document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
             document.getElementById('edit-med-instructions').value = med.instructions || '';
-            document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; // Map field
+            document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
             
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
@@ -315,6 +316,8 @@ window.openEditModal = function(id) {
                 });
             }
             editModal.showModal();
+            editModal.scrollTop = 0; // Pro-tweak: Reset scroll
+            document.getElementById('edit-med-name').focus(); // Pro-tweak: Auto-focus
         }
     };
 };
@@ -326,7 +329,7 @@ function saveEditedMed(e) {
     const dose = document.getElementById('edit-med-dose').value.trim();
     const freq = document.getElementById('edit-med-freq').value;
     const instructions = document.getElementById('edit-med-instructions').value.trim();
-    const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); // Capture field
+    const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); 
     const timesArray = getTimesFromContainer('edit-med-times-container');
 
     const transaction = db.transaction(["meds"], "readwrite");
@@ -337,7 +340,7 @@ function saveEditedMed(e) {
         frequency: freq,
         times: timesArray,
         instructions: instructions,
-        sideEffects: sideEffects // Save field
+        sideEffects: sideEffects 
     });
 
     transaction.oncomplete = () => {
