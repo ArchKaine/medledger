@@ -62,8 +62,11 @@
                         <button type="button" onclick="addTimeField('new-med-times-container')" class="btn btn-secondary" style="padding: 0.25rem; font-size: 0.8rem;">+ Add Time</button>
                     </div>
                 </div>
-                <div class="inline-form">
-                    <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 2;">
+                <div class="inline-form" style="margin-bottom: 0.5rem;">
+                    <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 1;">
+                    <input type="text" id="new-med-side-effects" placeholder="Side Effects to Watch (e.g., Drowsiness)" style="flex: 1;">
+                </div>
+                <div class="action-group" style="justify-content: flex-end;">
                     <button type="submit" class="btn btn-secondary">Add to Regimen</button>
                 </div>
             </form>
@@ -106,7 +109,7 @@
             <ul>
                 <li>Type the <b>Name</b> and <b>Dosage</b> (like 10mg).</li>
                 <li><b>Times:</b> Tap the clock box to set exactly when you take it. If a pill requires morning, noon, and night doses, click <b>"+ Add Time"</b> to create three separate timers for that one pill.</li>
-                <li><b>Instructions:</b> Type any special rules here (e.g., "Take with food", "Do not crush"). These will display permanently under the pill's name.</li>
+                <li><b>Instructions & Side Effects:</b> Type any special rules or symptoms to watch out for. These will display permanently under the pill's name.</li>
             </ul>
         </div>
 
@@ -124,7 +127,7 @@
             <h3>✏️ 3. Fixing Mistakes & History</h3>
             <p>Your history and routines are fully editable.</p>
             <ul>
-                <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, or dose.</li>
+                <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, side effects, or dose.</li>
                 <li><b>Delete a Pill:</b> Tap the Pencil Icon, then tap the red <b>Delete</b> button to remove it from your routine forever.</li>
                 <li><b>Undo a Log:</b> Accidentally checked something off? Navigate to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen.</li>
             </ul>
@@ -134,8 +137,8 @@
             <h3>⚙️ 4. Settings & Customization</h3>
             <p>Tap the <b>Gear Icon</b> at the top of the screen to access Settings.</p>
             <ul>
-                <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due. (It will only remind you if you haven't checked it off yet).</li>
-                <li><b>Expert Mode:</b> Turns on "Double-Clicking". You can double-tap any item on the checklist to log it instantly without needing to press the submit button at the bottom.</li>
+                <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due.</li>
+                <li><b>Expert Mode:</b> Turns on "Double-Clicking". You can double-tap any item on the checklist to log it instantly.</li>
                 <li><b>No Babysitter Mode:</b> Turns off the "Are you sure?" pop-ups when deleting history logs.</li>
                 <li><b>Dark/Light Mode:</b> Tap the Sun/Moon icon in the top right corner to switch between light and dark backgrounds.</li>
             </ul>
@@ -193,6 +196,11 @@
             <div class="form-group">
                 <label class="form-label" for="edit-med-instructions">Bottle Instructions</label>
                 <input type="text" id="edit-med-instructions" placeholder="e.g., Do not crush" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="edit-med-side-effects">Side Effects to Watch</label>
+                <input type="text" id="edit-med-side-effects" placeholder="e.g., Drowsiness, Nausea" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
             </div>
 
             <div class="action-group modal-actions">
