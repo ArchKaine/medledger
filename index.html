@@ -229,14 +229,16 @@
             </label>
         </div>
 
-        <div class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+        <form id="vault-auth-form" class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;" onsubmit="event.preventDefault();">
             <h2>The Data Vault</h2>
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
                 Set a password to encrypt data locally before syncing or exporting.
             </p>
             
+            <input type="text" name="username" autocomplete="username" value="MedLedger_Vault" style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;" tabindex="-1">
+            
             <div class="form-group vault-input-wrapper">
-                <input type="password" id="vault-password" placeholder="Encryption Password" autocomplete="new-password">
+                <input type="password" id="vault-password" name="password" placeholder="Encryption Password" autocomplete="current-password">
                 <button type="button" id="btn-peek-password" class="icon-btn peek-btn" aria-label="Peek at Password">
                     <svg id="peek-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -262,7 +264,7 @@
             </div>
             
             <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold;"></div>
-        </div>
+        </form>
 
         <div class="action-group modal-actions" style="margin-top: 2rem;">
             <button type="button" id="btn-close-settings" class="btn btn-primary">Done</button>
