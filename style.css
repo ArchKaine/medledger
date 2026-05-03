@@ -637,3 +637,50 @@ input[type="time"] { flex: 1; min-width: 120px; }
         padding: 1.5rem;
     }
 }
+
+/* ==========================================
+   Heatmap Dashboard Styles
+   ========================================== */
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18px, 1fr));
+    gap: 4px;
+    margin-top: 0.5rem;
+}
+
+.heatmap-cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 3px;
+    background-color: var(--secondary-brand); /* Level 0 / Gray */
+    border: 1px solid rgba(0,0,0,0.1);
+    transition: transform 0.1s;
+    cursor: help;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.15);
+    z-index: 10;
+}
+
+[data-theme="dark"] .heatmap-cell, [data-theme="hc"] .heatmap-cell {
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.heatmap-cell.level-0 { 
+    background-color: rgba(128, 128, 128, 0.2); 
+}
+
+.heatmap-cell.level-1 { 
+    background-color: #f59e0b; /* Amber/Yellow for partial doses */
+}
+
+.heatmap-cell.level-2 { 
+    background-color: var(--success-color); /* Green for perfect adherence */
+}
+
+[data-theme="hc"] .heatmap-cell.level-1 { 
+    background-color: var(--accent-color); /* High Contrast Yellow */
+}
+[data-theme="hc"] .heatmap-cell.level-0 { 
+    background-color: #333333; /* High Contrast Empty */
+}
