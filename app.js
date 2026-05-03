@@ -635,6 +635,23 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
+// Explicitly ask the OS/Browser to save the vault password
+async function promptToSavePassword(password) {
+    if ('credentials' in navigator && window.PasswordCredential) {
+        try {
+            const cred = new PasswordCredential({
+                id: 'MedLedger_Vault',
+                password: password,
+                name: 'MedLedger Encryption Key'
+            });
+            // This triggers the Android/Browser "Save Password?" popup
+            await navigator.credentials.store(cred);
+        } catch (err) {
+            console.warn("Credential save ignored or failed:", err);
+        }
+    }
+}
+
 // ==========================================
 // --- LOCAL VAULT (File Export/Import) ---
 // ==========================================
