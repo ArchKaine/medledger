@@ -17,6 +17,85 @@
     --border-color: #d4d4d8;
 }
 
+/* ==========================================
+   HIGH CONTRAST MODE (ACCESSIBILITY)
+   ========================================== */
+[data-theme="hc"] {
+    --bg-primary: #000000;
+    --bg-surface: #000000;
+    --text-primary: #ffffff;
+    --text-secondary: #00ffff; 
+    --border-color: #ffffff;
+    --accent-color: #ffff00; 
+    --success-color: #00ff00; 
+    --danger-color: #ff0000; 
+}
+
+[data-theme="hc"] * {
+    box-shadow: none !important;
+}
+
+[data-theme="hc"] .app-header {
+    border-bottom: 3px solid var(--border-color);
+}
+
+[data-theme="hc"] .card, 
+[data-theme="hc"] input, 
+[data-theme="hc"] select,
+[data-theme="hc"] .med-instructions-box {
+    border: 2px solid var(--border-color);
+}
+
+[data-theme="hc"] .btn-primary {
+    background-color: var(--accent-color);
+    color: #000000;
+    border: 2px solid var(--accent-color);
+    font-weight: 900;
+}
+
+[data-theme="hc"] .btn-primary:hover {
+    background-color: #ffffff;
+    border-color: #ffffff;
+}
+
+[data-theme="hc"] .btn-secondary {
+    background-color: #000000;
+    color: #ffffff;
+    border: 2px solid var(--border-color);
+    font-weight: 900;
+}
+
+[data-theme="hc"] .btn-secondary:hover {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+[data-theme="hc"] .med-item {
+    border: 2px solid transparent;
+}
+
+[data-theme="hc"] .med-item:hover {
+    border-color: var(--accent-color);
+    background-color: transparent;
+}
+
+[data-theme="hc"] .med-item.completed {
+    opacity: 1;
+    border: 2px dashed var(--success-color);
+}
+
+[data-theme="hc"] .med-item.completed .med-name {
+    color: var(--success-color) !important;
+    text-decoration: line-through;
+}
+
+[data-theme="hc"] .tab-btn.active::after {
+    height: 4px;
+}
+
+/* ==========================================
+   STANDARD STYLES
+   ========================================== */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -445,80 +524,4 @@ input[type="time"] { flex: 1; min-width: 120px; }
     gap: 0.5rem;
     flex-wrap: wrap;
     margin-top: 0.5rem;
-}
-
-/* ==========================================
-   HIGH CONTRAST MODE (ACCESSIBILITY)
-   ========================================== */
-[data-theme="hc"] {
-    --bg-primary: #000000;
-    --bg-surface: #000000;
-    --text-primary: #ffffff;
-    --text-secondary: #00ffff; 
-    --border-color: #ffffff;
-    --accent-color: #ffff00; 
-    --success-color: #00ff00; 
-    --danger-color: #ff0000; 
-}
-
-[data-theme="hc"] * {
-    box-shadow: none !important;
-}
-
-[data-theme="hc"] .app-header {
-    border-bottom: 3px solid var(--border-color);
-}
-
-[data-theme="hc"] .card, 
-[data-theme="hc"] input, 
-[data-theme="hc"] select,
-[data-theme="hc"] .med-instructions-box {
-    border: 2px solid var(--border-color);
-}
-
-[data-theme="hc"] .btn-primary {
-    background-color: var(--accent-color);
-    color: #000000;
-    border: 2px solid var(--accent-color);
-    font-weight: 900;
-}
-
-[data-theme="hc"] .btn-primary:hover {
-    background-color: #ffffff;
-    border-color: #ffffff;
-}
-
-[data-theme="hc"] .btn-secondary {
-    background-color: #000000;
-    color: #ffffff;
-    border: 2px solid var(--border-color);
-    font-weight: 900;
-}
-
-[data-theme="hc"] .btn-secondary:hover {
-    background-color: #ffffff;
-    color: #000000;
-}
-
-[data-theme="hc"] .med-item {
-    border: 2px solid transparent;
-}
-
-[data-theme="hc"] .med-item:hover {
-    border-color: var(--accent-color);
-    background-color: transparent;
-}
-
-[data-theme="hc"] .med-item.completed {
-    opacity: 1;
-    border: 2px dashed var(--success-color);
-}
-
-[data-theme="hc"] .med-item.completed .med-name {
-    color: var(--success-color) !important;
-    text-decoration: line-through;
-}
-
-[data-theme="hc"] .tab-btn.active::after {
-    height: 4px;
 }
