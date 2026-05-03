@@ -36,6 +36,11 @@ const peekBtn = document.getElementById('btn-peek-password');
 const peekIcon = document.getElementById('peek-icon');
 const helpModal = document.getElementById('help-modal');
 
+const tabTodayBtn = document.getElementById('tab-today');
+const tabHistoryBtn = document.getElementById('tab-history');
+const dailyScheduleView = document.getElementById('daily-schedule');
+const logHistoryView = document.getElementById('log-history');
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
@@ -57,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     peekBtn.addEventListener('click', togglePasswordVisibility);
 
+    tabTodayBtn.addEventListener('click', () => switchTab('today'));
+    tabHistoryBtn.addEventListener('click', () => switchTab('history'));
+
     // Local Vault
     document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
     document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
@@ -73,6 +81,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+function switchTab(tab) {
+    if (tab === 'today') {
+        tabTodayBtn.classList.add('active');
+        tabHistoryBtn.classList.remove('active');
+        dailyScheduleView.classList.remove('hidden-view');
+        logHistoryView.classList.add('hidden-view');
+    } else {
+        tabHistoryBtn.classList.add('active');
+        tabTodayBtn.classList.remove('active');
+        logHistoryView.classList.remove('hidden-view');
+        dailyScheduleView.classList.add('hidden-view');
+    }
+}
 
 window.addTimeField = function(containerId) {
     const container = document.getElementById(containerId);
@@ -665,7 +687,7 @@ async function checkDriveForFile() {
     return data.files && data.files.length > 0 ? data.files[0].id : null;
 }
 
-// THE FIX: Switch to Resumable Upload
+// Use Resumable Upload to avoid strict multipart/related restrictions in standard fetch
 async function pushToGoogleDrive() {
     const password = vaultPassInput.value;
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
