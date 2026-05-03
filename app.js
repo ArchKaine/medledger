@@ -96,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnExportCSV.addEventListener('click', exportCSV);
     btnExportHTML.addEventListener('click', exportHTMLReport);
 
-    // Archiving Buttons
     const btnArchiveLogs = document.getElementById('btn-archive-logs');
     if(btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
     
@@ -259,7 +258,6 @@ function initDB() {
             };
         }
 
-        // Version 3: Archiving Migration
         if (oldVersion < 3) {
             if (!db.objectStoreNames.contains("archived_logs")) {
                 db.createObjectStore("archived_logs", { keyPath: "timestamp" });
@@ -687,10 +685,9 @@ function refreshHistory() {
         const logs = request.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         historyList.innerHTML = '';
         
-        // Duplicate Tracking Engine
         const tracker = {};
         logs.forEach(log => {
-            if (log.targetTime) { // Ignores PRN meds, only tracks scheduled
+            if (log.targetTime) { 
                 const dayKey = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId;
                 tracker[dayKey] = (tracker[dayKey] || 0) + 1;
             }
@@ -715,7 +712,6 @@ function refreshHistory() {
                 slotInfo = `<span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">(Scheduled ${h % 12 || 12}:${m} ${period})</span>`;
             }
 
-            // Flag duplicates visually
             let duplicateTag = '';
             if (log.targetTime) {
                 const dayKey = dateString + '|' + log.compositeId;
@@ -743,11 +739,9 @@ function refreshHistory() {
     };
 }
 
-// INVENTORY REFUND LOGIC
 window.deleteLog = function(timestampKey) {
     if (!AppSettings.noBabysitter && !confirm("Remove this log entry and refund the pill to inventory?")) return;
     
-    // Dual transaction: delete the log AND access specific med inventory
     const transaction = db.transaction(["logs", "meds"], "readwrite");
     const logStore = transaction.objectStore("logs");
     const medStore = transaction.objectStore("meds");
@@ -763,7 +757,6 @@ window.deleteLog = function(timestampKey) {
                 const getMedReq = medStore.get(log.medId);
                 getMedReq.onsuccess = () => {
                     const med = getMedReq.result;
-                    // If med exists and has pill count, add +1 back to bottle
                     if (med && med.inventory !== undefined && med.inventory !== "") {
                         med.inventory = parseInt(med.inventory) + 1;
                         medStore.put(med);
@@ -776,7 +769,7 @@ window.deleteLog = function(timestampKey) {
     transaction.oncomplete = () => {
         refreshHistory();
         calculateAdherence();
-        if (AppSettings.inventory) loadChecklist(); // Force UI to redraw updated pill counts
+        if (AppSettings.inventory) loadChecklist(); 
     };
 };
 
@@ -789,10 +782,9 @@ function calculateAdherence() {
         const meds = medReq.result;
         const logs = logReq.result;
 
-        // --- 1. Top Level 7-Day Calculation ---
         let expectedWeeklyDoses = 0;
         let nonPrnMedIds = new Set();
-        let expectedDailyDoses = 0; // Used for Heatmap
+        let expectedDailyDoses = 0; 
 
         meds.forEach(med => {
             if (med.frequency !== "As Needed") {
@@ -834,16 +826,14 @@ function calculateAdherence() {
         adherenceSubtext.textContent = `${actualTaken} of ${expectedWeeklyDoses} expected doses`;
 
         if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
-        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; // Yellow/Amber
+        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
         else adherenceScore.style.color = "var(--danger-color)"; 
 
-        // --- 2. Heatmap Generation Engine ---
-        if (!grid) return; // Ensure the element exists in HTML
+        if (!grid) return; 
         
         const range = parseInt(heatmapRangeSelect ? heatmapRangeSelect.value : 30);
-        grid.innerHTML = ''; // Clear old grid
+        grid.innerHTML = ''; 
 
-        // Create a map of { "MM/DD/YYYY": count }
         const logCountsByDate = {};
         logs.forEach(log => {
             if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
@@ -854,7 +844,6 @@ function calculateAdherence() {
 
         const today = new Date();
         
-        // Build the grid backwards (oldest day first, ending on today)
         for (let i = range - 1; i >= 0; i--) {
             const targetDate = new Date();
             targetDate.setDate(today.getDate() - i);
@@ -862,17 +851,16 @@ function calculateAdherence() {
             const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
             
             const count = logCountsByDate[dateStr] || 0;
-            let level = 0; // Default Gray (Missed)
+            let level = 0; 
             
             if (expectedDailyDoses > 0) {
-                if (count >= expectedDailyDoses) level = 2; // Perfect (Green)
-                else if (count > 0) level = 1; // Partial (Yellow)
+                if (count >= expectedDailyDoses) level = 2; 
+                else if (count > 0) level = 1; 
             }
 
             const cell = document.createElement('div');
             cell.className = `heatmap-cell level-${level}`;
             
-            // Build the tooltip
             if (level === 2) cell.title = `${displayStr}: Perfect (${count} doses)`;
             else if (level === 1) cell.title = `${displayStr}: Partial (${count} of ${expectedDailyDoses} doses)`;
             else cell.title = `${displayStr}: Missed doses`;
@@ -955,7 +943,6 @@ async function getKey(keyMaterial, salt) {
     );
 }
 
-// Includes archived_logs in the encrypted payload
 async function generateEncryptedBlob(password) {
     const meds = await new Promise(res => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result));
     const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
@@ -992,7 +979,6 @@ async function processEncryptedBlob(password, base64Blob) {
     return JSON.parse(dec.decode(decryptedContent));
 }
 
-// Restores archived_logs from the decrypted payload
 function restoreDataToDB(parsedData) {
     const transaction = db.transaction(["meds", "logs", "archived_logs"], "readwrite");
     const medStore = transaction.objectStore("meds");
@@ -1228,6 +1214,11 @@ window.initGoogleSync = function() {
         callback: (tokenResponse) => {
             if (tokenResponse && tokenResponse.access_token) {
                 gapiToken = tokenResponse.access_token;
+                
+                // Cache the token with a 55-minute buffer (Google tokens expire at 60)
+                localStorage.setItem('gapi_token', gapiToken);
+                localStorage.setItem('gapi_token_expiry', Date.now() + (55 * 60 * 1000));
+
                 const syncControls = document.getElementById('cloud-sync-controls');
                 const btnLogin = document.getElementById('btn-gdrive-login');
                 if(syncControls) syncControls.style.display = 'flex';
@@ -1236,6 +1227,21 @@ window.initGoogleSync = function() {
             }
         },
     });
+
+    // On Load: Check if we have an unexpired token in the cache to stay signed in
+    const savedToken = localStorage.getItem('gapi_token');
+    const tokenExpiry = localStorage.getItem('gapi_token_expiry');
+    
+    if (savedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+        gapiToken = savedToken;
+        const syncControls = document.getElementById('cloud-sync-controls');
+        const btnLogin = document.getElementById('btn-gdrive-login');
+        if(syncControls) syncControls.style.display = 'flex';
+        if(btnLogin) btnLogin.style.display = 'none';
+    } else {
+        localStorage.removeItem('gapi_token');
+        localStorage.removeItem('gapi_token_expiry');
+    }
 };
 
 window.loginGoogleDrive = function() {
@@ -1246,15 +1252,29 @@ window.loginGoogleDrive = function() {
     tokenClient.requestAccessToken();
 };
 
+window.logoutGoogleDrive = function() {
+    gapiToken = null;
+    localStorage.removeItem('gapi_token');
+    localStorage.removeItem('gapi_token_expiry');
+    const syncControls = document.getElementById('cloud-sync-controls');
+    const btnLogin = document.getElementById('btn-gdrive-login');
+    if(syncControls) syncControls.style.display = 'none';
+    if(btnLogin) btnLogin.style.display = 'block';
+    showVaultStatus("Cloud disconnected.", "var(--text-secondary)");
+};
+
 async function checkDriveForFile() {
     const res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name="medledger_sync.medvault"', {
         headers: { 'Authorization': `Bearer ${gapiToken}` }
     });
+    if (res.status === 401 || res.status === 403) {
+        logoutGoogleDrive();
+        throw new Error("Token expired.");
+    }
     const data = await res.json();
     return data.files && data.files.length > 0 ? data.files[0].id : null;
 }
 
-// Use Resumable Upload to avoid strict multipart/related restrictions in standard fetch
 async function pushToGoogleDrive() {
     const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
@@ -1283,7 +1303,10 @@ async function pushToGoogleDrive() {
             body: JSON.stringify(fileId ? {} : metadata)
         });
 
-        if (!initRes.ok) throw new Error("Failed to initiate upload");
+        if (!initRes.ok) {
+            if (initRes.status === 401 || initRes.status === 403) logoutGoogleDrive();
+            throw new Error("Failed to initiate upload");
+        }
 
         const uploadUrl = initRes.headers.get('Location');
 
@@ -1327,7 +1350,10 @@ async function pullFromGoogleDrive() {
             headers: { 'Authorization': `Bearer ${gapiToken}` }
         });
         
-        if (!res.ok) throw new Error("Download failed");
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) logoutGoogleDrive();
+            throw new Error("Download failed");
+        }
         
         const encryptedBase64 = await res.text();
         const parsedData = await processEncryptedBlob(password, encryptedBase64);
@@ -1404,3 +1430,18 @@ function checkReminders() {
 
 setInterval(checkReminders, 60000);
 setTimeout(checkReminders, 2000);
+
+// --- Midnight Rollover Engine ---
+let lastCheckedDate = new Date().toLocaleDateString();
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        const currentDate = new Date().toLocaleDateString();
+        if (currentDate !== lastCheckedDate) {
+            lastCheckedDate = currentDate;
+            loadChecklist(); 
+            refreshHistory(); 
+            calculateAdherence(); 
+        }
+    }
+});
