@@ -41,6 +41,9 @@ const tabHistoryBtn = document.getElementById('tab-history');
 const dailyScheduleView = document.getElementById('daily-schedule');
 const logHistoryView = document.getElementById('log-history');
 
+const sessionLockControls = document.getElementById('session-lock-controls');
+const btnLockVault = document.getElementById('btn-lock-vault');
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
@@ -55,12 +58,25 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
     editForm.addEventListener('submit', saveEditedMed);
     
-    document.getElementById('settings-toggle').addEventListener('click', () => settingsModal.showModal());
+    // Auto-fill logic when opening settings
+    document.getElementById('settings-toggle').addEventListener('click', () => {
+        const cachedPass = sessionStorage.getItem('medledger_session_key');
+        if (cachedPass) {
+            vaultPassInput.value = cachedPass;
+            sessionLockControls.style.display = 'flex';
+        } else {
+            vaultPassInput.value = '';
+            sessionLockControls.style.display = 'none';
+        }
+        settingsModal.showModal();
+    });
+    
     document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
     document.getElementById('help-toggle').addEventListener('click', () => helpModal.showModal());
     document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
 
     peekBtn.addEventListener('click', togglePasswordVisibility);
+    btnLockVault.addEventListener('click', lockVaultSession);
 
     tabTodayBtn.addEventListener('click', () => switchTab('today'));
     tabHistoryBtn.addEventListener('click', () => switchTab('history'));
@@ -556,10 +572,9 @@ function registerServiceWorker() {
 }
 
 // ==========================================
-// --- CREDENTIAL MANAGEMENT API ---
+// --- CREDENTIAL MANAGEMENT API & SESSION ---
 // ==========================================
 
-// Explicitly ask the OS/Browser to save the vault password
 async function promptToSavePassword(password) {
     if ('credentials' in navigator && window.PasswordCredential) {
         try {
@@ -568,12 +583,25 @@ async function promptToSavePassword(password) {
                 password: password,
                 name: 'MedLedger Encryption Key'
             });
-            // This triggers the Android/Browser "Save Password?" popup
             await navigator.credentials.store(cred);
         } catch (err) {
             console.warn("Credential save ignored or failed:", err);
         }
     }
+}
+
+function cacheSessionPassword(password) {
+    if (password) {
+        sessionStorage.setItem('medledger_session_key', password);
+        sessionLockControls.style.display = 'flex';
+    }
+}
+
+function lockVaultSession() {
+    sessionStorage.removeItem('medledger_session_key');
+    vaultPassInput.value = '';
+    sessionLockControls.style.display = 'none';
+    showVaultStatus("Vault locked.", "var(--text-secondary)");
 }
 
 // ==========================================
@@ -664,6 +692,7 @@ async function exportVaultLocal() {
     if (!password) { showVaultStatus("Password required for export.", "var(--accent-color)"); return; }
     
     promptToSavePassword(password);
+    cacheSessionPassword(password);
     
     try {
         const encryptedBase64 = await generateEncryptedBlob(password);
@@ -738,6 +767,7 @@ async function pushToGoogleDrive() {
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
     
     promptToSavePassword(password);
+    cacheSessionPassword(password);
 
     showVaultStatus("Encrypting and pushing...", "var(--text-secondary)");
     try {
@@ -788,6 +818,7 @@ async function pullFromGoogleDrive() {
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); return; }
 
     promptToSavePassword(password);
+    cacheSessionPassword(password);
 
     showVaultStatus("Pulling from cloud...", "var(--text-secondary)");
     try {
