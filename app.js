@@ -617,9 +617,14 @@ function processBatchLog(items) {
     const medStore = transaction.objectStore("meds");
     
     const manualTimeInput = document.getElementById('manual-time');
+    
+    // The exact moment the user physically clicked the "Log" button
+    const exactExecutionTimestamp = Date.now();
+    
+    // The time the user *claims* they took the pill
     const baseTimestamp = (manualTimeInput && manualTimeInput.value) 
         ? new Date(manualTimeInput.value).toISOString() 
-        : new Date().toISOString();
+        : new Date(exactExecutionTimestamp).toISOString();
 
     let decrements = {}; 
 
@@ -633,6 +638,7 @@ function processBatchLog(items) {
         logStore.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
             dateTaken: baseTimestamp, 
+            systemLoggedTime: exactExecutionTimestamp, // SILENT DELTA TRACKER ADDED HERE
             medId: coreId,
             targetTime: targetTime,
             compositeId: item.compId,
@@ -1032,7 +1038,8 @@ async function exportCSV() {
 
     logs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
 
-    let csvContent = "Date,Time Taken,Medication,Scheduled Target,Status\n";
+    // Added the new metadata column to the CSV header
+    let csvContent = "Date,Time Taken,Medication,Scheduled Target,Status,System Logged Time\n";
 
     logs.forEach(log => {
         const dateObj = new Date(log.dateTaken);
@@ -1047,8 +1054,15 @@ async function exportCSV() {
             const period = h >= 12 ? 'PM' : 'AM';
             targetStr = `${h % 12 || 12}:${m} ${period}`;
         }
+        
+        // Format the new timestamp for the CSV
+        let systemLogStr = "N/A";
+        if (log.systemLoggedTime) {
+            const sysDate = new Date(log.systemLoggedTime);
+            systemLogStr = `${sysDate.toLocaleDateString()} ${sysDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
 
-        csvContent += `${dateStr},${timeStr},${safeMedName},${targetStr},${log.status}\n`;
+        csvContent += `${dateStr},${timeStr},${safeMedName},${targetStr},${log.status},${systemLogStr}\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
