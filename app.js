@@ -841,10 +841,22 @@ function calculateAdherence() {
         grid.innerHTML = ''; 
 
         const logCountsByDate = {};
+        const retroCountsByDate = {}; // Tracks backdated logs
+
         logs.forEach(log => {
             if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
                 const localDateStr = new Date(log.dateTaken).toLocaleDateString();
                 logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+
+                // Calculate the time delta
+                const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
+                const claimedTime = new Date(log.dateTaken).getTime();
+                const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
+                
+                // If logged more than 4 hours after the claimed time, flag as retroactive
+                if (deltaHours > 4) {
+                    retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
+                }
             }
         });
 
@@ -857,6 +869,7 @@ function calculateAdherence() {
             const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
             
             const count = logCountsByDate[dateStr] || 0;
+            const retroCount = retroCountsByDate[dateStr] || 0;
             let level = 0; 
             
             if (expectedDailyDoses > 0) {
@@ -870,6 +883,12 @@ function calculateAdherence() {
             if (level === 2) cell.title = `${displayStr}: Perfect (${count} doses)`;
             else if (level === 1) cell.title = `${displayStr}: Partial (${count} of ${expectedDailyDoses} doses)`;
             else cell.title = `${displayStr}: Missed doses`;
+
+            // Apply the Ghost effect if there are retroactive logs
+            if (retroCount > 0 && level > 0) {
+                cell.style.opacity = '0.35'; // Fades the cell heavily
+                cell.title += ` ⚠️ (${retroCount} backdated)`;
+            }
             
             grid.appendChild(cell);
         }
