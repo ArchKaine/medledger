@@ -4,7 +4,7 @@ const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.goo
 // ==========================================
 
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -94,6 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLockVault.addEventListener('click', lockVaultSession);
     btnExportCSV.addEventListener('click', exportCSV);
     btnExportHTML.addEventListener('click', exportHTMLReport);
+
+    document.getElementById('btn-archive-logs').addEventListener('click', archiveOldLogs);
+    document.getElementById('btn-restore-archives').addEventListener('click', restoreArchivedLogs);
 
     tabTodayBtn.addEventListener('click', () => switchTab('today'));
     tabHistoryBtn.addEventListener('click', () => switchTab('history'));
@@ -220,7 +223,7 @@ function initSettings() {
     });
 }
 
-// --- Database Logic ---
+// --- Database Logic & Migration ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
@@ -246,6 +249,13 @@ function initDB() {
                 }
             };
         }
+
+        // Version 3: The Archiving Migration
+        if (oldVersion < 3) {
+            if (!db.objectStoreNames.contains("archived_logs")) {
+                db.createObjectStore("archived_logs", { keyPath: "timestamp" });
+            }
+        }
     };
     
     request.onsuccess = (e) => {
@@ -256,6 +266,56 @@ function initDB() {
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
         statusBar.textContent = "Database error.";
+    };
+}
+
+// --- Archiving Logic ---
+function archiveOldLogs() {
+    const days = parseInt(document.getElementById('archive-days').value) || 90;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const tx = db.transaction(["logs", "archived_logs"], "readwrite");
+    const logStore = tx.objectStore("logs");
+    const archiveStore = tx.objectStore("archived_logs");
+
+    logStore.openCursor().onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+            const log = cursor.value;
+            if (new Date(log.dateTaken) < cutoffDate) {
+                archiveStore.add(log);
+                cursor.delete();
+            }
+            cursor.continue();
+        }
+    };
+
+    tx.oncomplete = () => {
+        showVaultStatus(`Logs older than ${days} days moved to cold storage.`, "var(--success-color)");
+        refreshHistory();
+        calculateAdherence();
+    };
+}
+
+function restoreArchivedLogs() {
+    const tx = db.transaction(["logs", "archived_logs"], "readwrite");
+    const logStore = tx.objectStore("logs");
+    const archiveStore = tx.objectStore("archived_logs");
+
+    archiveStore.openCursor().onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+            logStore.add(cursor.value);
+            cursor.delete();
+            cursor.continue();
+        }
+    };
+
+    tx.oncomplete = () => {
+        showVaultStatus("All archives restored to active memory.", "var(--success-color)");
+        refreshHistory();
+        calculateAdherence();
     };
 }
 
@@ -615,10 +675,9 @@ function refreshHistory() {
         const logs = request.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         historyList.innerHTML = '';
         
-        // Duplicate Tracking Engine
         const tracker = {};
         logs.forEach(log => {
-            if (log.targetTime) { // Ignores PRN meds, only tracks scheduled
+            if (log.targetTime) { 
                 const dayKey = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId;
                 tracker[dayKey] = (tracker[dayKey] || 0) + 1;
             }
@@ -643,7 +702,6 @@ function refreshHistory() {
                 slotInfo = ` (Scheduled ${h % 12 || 12}:${m} ${period})`;
             }
 
-            // Flag duplicates visually
             let duplicateTag = '';
             if (log.targetTime) {
                 const dayKey = dateString + '|' + log.compositeId;
@@ -671,11 +729,9 @@ function refreshHistory() {
     };
 }
 
-// RESTORED INVENTORY REFUND LOGIC
 window.deleteLog = function(timestampKey) {
     if (!AppSettings.noBabysitter && !confirm("Remove this log entry and refund the pill to inventory?")) return;
     
-    // Open a dual transaction to delete the log AND access the specific med inventory
     const transaction = db.transaction(["logs", "meds"], "readwrite");
     const logStore = transaction.objectStore("logs");
     const medStore = transaction.objectStore("meds");
@@ -691,7 +747,6 @@ window.deleteLog = function(timestampKey) {
                 const getMedReq = medStore.get(log.medId);
                 getMedReq.onsuccess = () => {
                     const med = getMedReq.result;
-                    // If the med exists and has a pill count, add +1 back to the bottle
                     if (med && med.inventory !== undefined && med.inventory !== "") {
                         med.inventory = parseInt(med.inventory) + 1;
                         medStore.put(med);
@@ -704,7 +759,7 @@ window.deleteLog = function(timestampKey) {
     transaction.oncomplete = () => {
         refreshHistory();
         calculateAdherence();
-        if (AppSettings.inventory) loadChecklist(); // Force UI to redraw updated pill counts
+        if (AppSettings.inventory) loadChecklist(); 
     };
 };
 
@@ -841,7 +896,9 @@ async function getKey(keyMaterial, salt) {
 async function generateEncryptedBlob(password) {
     const meds = await new Promise(res => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result));
     const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
-    const rawData = JSON.stringify({ meds, logs, exportedAt: new Date().toISOString() });
+    const archived_logs = await new Promise(res => db.transaction(["archived_logs"], "readonly").objectStore("archived_logs").getAll().onsuccess = e => res(e.target.result));
+    
+    const rawData = JSON.stringify({ meds, logs, archived_logs, exportedAt: new Date().toISOString() });
     
     const keyMaterial = await getKeyMaterial(password);
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -873,16 +930,23 @@ async function processEncryptedBlob(password, base64Blob) {
 }
 
 function restoreDataToDB(parsedData) {
-    const transaction = db.transaction(["meds", "logs"], "readwrite");
+    const transaction = db.transaction(["meds", "logs", "archived_logs"], "readwrite");
     const medStore = transaction.objectStore("meds");
     const logStore = transaction.objectStore("logs");
+    const archiveStore = transaction.objectStore("archived_logs");
 
-    medStore.clear(); logStore.clear();
-    parsedData.meds.forEach(med => medStore.add(med));
-    parsedData.logs.forEach(log => logStore.add(log));
+    medStore.clear(); 
+    logStore.clear(); 
+    archiveStore.clear();
+
+    if (parsedData.meds) parsedData.meds.forEach(med => medStore.add(med));
+    if (parsedData.logs) parsedData.logs.forEach(log => logStore.add(log));
+    if (parsedData.archived_logs) parsedData.archived_logs.forEach(log => archiveStore.add(log));
 
     transaction.oncomplete = () => {
-        loadChecklist(); refreshHistory();
+        loadChecklist(); 
+        refreshHistory();
+        calculateAdherence();
     };
 }
 
