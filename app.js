@@ -471,7 +471,6 @@ function loadChecklist() {
                     </label>
                 `;
 
-                // EXPERT MODE: Double click bind fixed to pass element correctly
                 if (AppSettings.expertMode && !isCompletedToday) {
                     setTimeout(() => {
                         const el = document.getElementById(labelId);
@@ -516,7 +515,6 @@ function loadChecklist() {
     };
 }
 
-// --- NEW DATA STRUCTURE FOR SUBMISSIONS ---
 function logSelected() {
     const checkboxes = document.querySelectorAll('.med-checkbox:checked:not(:disabled)');
     if (checkboxes.length === 0) return;
@@ -540,7 +538,6 @@ function logAll() {
 }
 
 function processBatchLog(items) {
-    // 1. Immediately freeze the UI to completely block double-click rapid submissions
     items.forEach(item => {
         if (item.checkboxElement) item.checkboxElement.disabled = true;
     });
@@ -590,7 +587,7 @@ function processBatchLog(items) {
     transaction.oncomplete = () => {
         items.forEach(item => {
             if (item.checkboxElement) {
-                item.checkboxElement.checked = false; // Uncheck it
+                item.checkboxElement.checked = false; 
                 item.checkboxElement.closest('.med-item').classList.add('completed');
             }
         });
@@ -598,11 +595,10 @@ function processBatchLog(items) {
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
         refreshHistory(); 
-        if (AppSettings.inventory) loadChecklist(); // Triggers UI redraw if pill count dropped
+        if (AppSettings.inventory) loadChecklist(); 
     };
 
     transaction.onerror = () => {
-        // If DB fails, unfreeze the checkboxes so you aren't stuck
         items.forEach(item => {
             if (item.checkboxElement) item.checkboxElement.disabled = false;
         });
@@ -610,7 +606,7 @@ function processBatchLog(items) {
     };
 }
 
-// --- History & Adherence Logic ---
+// --- History, Refund & Adherence Logic ---
 function refreshHistory() {
     const transaction = db.transaction(["logs"], "readonly");
     const request = transaction.objectStore("logs").getAll();
@@ -618,6 +614,16 @@ function refreshHistory() {
     request.onsuccess = () => {
         const logs = request.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         historyList.innerHTML = '';
+        
+        // Duplicate Tracking Engine
+        const tracker = {};
+        logs.forEach(log => {
+            if (log.targetTime) { // Ignores PRN meds, only tracks scheduled
+                const dayKey = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId;
+                tracker[dayKey] = (tracker[dayKey] || 0) + 1;
+            }
+        });
+
         const recentLogs = logs.slice(0, 15);
 
         if (recentLogs.length === 0) {
@@ -637,11 +643,20 @@ function refreshHistory() {
                 slotInfo = ` (Scheduled ${h % 12 || 12}:${m} ${period})`;
             }
 
+            // Flag duplicates visually
+            let duplicateTag = '';
+            if (log.targetTime) {
+                const dayKey = dateString + '|' + log.compositeId;
+                if (tracker[dayKey] > 1) {
+                    duplicateTag = `<span style="margin-left: 0.5rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.1); color: var(--accent-color); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--accent-color);">Duplicate</span>`;
+                }
+            }
+
             const li = document.createElement('li');
             li.className = 'history-item';
             li.innerHTML = `
                 <div class="history-info">
-                    <span class="history-med">${log.medName} <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">${slotInfo}</span></span>
+                    <span class="history-med">${log.medName} <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">${slotInfo}</span>${duplicateTag}</span>
                     <span class="history-time">${dateString} ${timeString}</span>
                 </div>
                 <button class="btn-delete-log" onclick="deleteLog('${log.timestamp}')" aria-label="Delete Log" title="${AppSettings.noBabysitter ? 'Delete Instantly' : 'Delete'}">
@@ -655,6 +670,43 @@ function refreshHistory() {
         });
     };
 }
+
+// RESTORED INVENTORY REFUND LOGIC
+window.deleteLog = function(timestampKey) {
+    if (!AppSettings.noBabysitter && !confirm("Remove this log entry and refund the pill to inventory?")) return;
+    
+    // Open a dual transaction to delete the log AND access the specific med inventory
+    const transaction = db.transaction(["logs", "meds"], "readwrite");
+    const logStore = transaction.objectStore("logs");
+    const medStore = transaction.objectStore("meds");
+
+    const getLogReq = logStore.get(timestampKey);
+
+    getLogReq.onsuccess = () => {
+        const log = getLogReq.result;
+        if (log) {
+            logStore.delete(timestampKey);
+
+            if (AppSettings.inventory && log.medId) {
+                const getMedReq = medStore.get(log.medId);
+                getMedReq.onsuccess = () => {
+                    const med = getMedReq.result;
+                    // If the med exists and has a pill count, add +1 back to the bottle
+                    if (med && med.inventory !== undefined && med.inventory !== "") {
+                        med.inventory = parseInt(med.inventory) + 1;
+                        medStore.put(med);
+                    }
+                };
+            }
+        }
+    };
+
+    transaction.oncomplete = () => {
+        refreshHistory();
+        calculateAdherence();
+        if (AppSettings.inventory) loadChecklist(); // Force UI to redraw updated pill counts
+    };
+};
 
 function calculateAdherence() {
     const tx = db.transaction(["meds", "logs"], "readonly");
@@ -714,17 +766,6 @@ function calculateAdherence() {
         }
     };
 }
-
-window.deleteLog = function(timestampKey) {
-    if (!AppSettings.noBabysitter && !confirm("Remove this log entry?")) return;
-    const transaction = db.transaction(["logs"], "readwrite");
-    transaction.objectStore("logs").delete(timestampKey);
-    transaction.oncomplete = () => {
-        refreshHistory();
-        calculateAdherence();
-        loadChecklist();
-    };
-};
 
 function updateStatus() {
     const remaining = document.querySelectorAll('.med-checkbox:not(:disabled)');
