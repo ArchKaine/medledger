@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <title>MedLedger</title>
-    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSync()"></script>
 </head>
 <body>
     <header class="app-header">
@@ -27,7 +26,7 @@
                 <button id="settings-toggle" aria-label="Settings" class="icon-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                 </button>
 
@@ -69,8 +68,12 @@
             </form>
         </section>
 
-        <section id="daily-schedule" class="card">
-            <h2>Today's Regimen</h2>
+        <div class="tab-navigation">
+            <button id="tab-today" class="tab-btn active">Today's Regimen</button>
+            <button id="tab-history" class="tab-btn">History Log</button>
+        </div>
+
+        <section id="daily-schedule" class="card tab-view active-view">
             <form id="med-form">
                 <div id="checklist-container" class="checklist">
                     </div>
@@ -87,8 +90,7 @@
             </form>
         </section>
 
-        <section id="log-history" class="card">
-            <h2>Recent Logs</h2>
+        <section id="log-history" class="card tab-view hidden-view">
             <ul id="history-list" class="history-feed">
                 </ul>
         </section>
@@ -123,7 +125,7 @@
             <ul>
                 <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, or dose.</li>
                 <li><b>Delete a Pill:</b> Tap the Pencil Icon, then tap the red <b>Delete</b> button to remove it from your routine forever.</li>
-                <li><b>Undo a Log:</b> Accidentally checked something off? Scroll down to "Recent Logs" and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen.</li>
+                <li><b>Undo a Log:</b> Accidentally checked something off? Navigate to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen.</li>
             </ul>
         </div>
 
@@ -268,5 +270,6 @@
     </dialog>
 
     <script src="app.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSync()"></script>
 </body>
 </html>
