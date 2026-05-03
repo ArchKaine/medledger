@@ -688,7 +688,8 @@ function showVaultStatus(message, color) {
 // --- LOCAL VAULT (File Export/Import) ---
 // ==========================================
 async function exportVaultLocal() {
-    const password = vaultPassInput.value;
+    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
+    
     if (!password) { showVaultStatus("Password required for export.", "var(--accent-color)"); return; }
     
     promptToSavePassword(password);
@@ -701,7 +702,8 @@ async function exportVaultLocal() {
         const a = document.createElement("a");
         a.href = url; a.download = `MedLedger_${new Date().toISOString().split('T')[0]}.medvault`;
         a.click(); URL.revokeObjectURL(url);
-        vaultPassInput.value = '';
+        
+        vaultPassInput.value = password; 
         showVaultStatus("Local Export successful.", "var(--success-color)");
     } catch (err) { console.error(err); showVaultStatus("Export failed.", "#ef4444"); }
 }
@@ -763,7 +765,8 @@ async function checkDriveForFile() {
 
 // Use Resumable Upload to avoid strict multipart/related restrictions in standard fetch
 async function pushToGoogleDrive() {
-    const password = vaultPassInput.value;
+    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
+    
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
     
     promptToSavePassword(password);
@@ -802,7 +805,7 @@ async function pushToGoogleDrive() {
         });
         
         if (uploadRes.ok) {
-            vaultPassInput.value = '';
+            vaultPassInput.value = password;
             showVaultStatus("Successfully pushed securely to Drive.", "var(--success-color)");
         } else {
             throw new Error("Upload data failed.");
@@ -814,7 +817,8 @@ async function pushToGoogleDrive() {
 }
 
 async function pullFromGoogleDrive() {
-    const password = vaultPassInput.value;
+    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
+    
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); return; }
 
     promptToSavePassword(password);
@@ -838,7 +842,7 @@ async function pullFromGoogleDrive() {
         const parsedData = await processEncryptedBlob(password, encryptedBase64);
         restoreDataToDB(parsedData);
         
-        vaultPassInput.value = '';
+        vaultPassInput.value = password;
         showVaultStatus("Successfully synced from Drive.", "var(--success-color)");
     } catch (err) {
         console.error(err);
