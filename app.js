@@ -14,7 +14,7 @@ const AppSettings = {
     noBabysitter: localStorage.getItem('cfg_noBabysitter') === 'true',
     expertMode: localStorage.getItem('cfg_expertMode') === 'true',
     reminders: localStorage.getItem('cfg_reminders') === 'true',
-    inventory: localStorage.getItem('cfg_inventory') === 'true' // Opt-in pill tracking
+    inventory: localStorage.getItem('cfg_inventory') === 'true'
 };
 
 // --- DOM Elements ---
@@ -153,7 +153,7 @@ function switchTab(tab) {
         tabTodayBtn.classList.remove('active');
         logHistoryView.classList.remove('hidden-view');
         dailyScheduleView.classList.add('hidden-view');
-        calculateAdherence(); // Trigger stat calc when opening history
+        calculateAdherence(); 
     }
 }
 
@@ -184,7 +184,6 @@ function initSettings() {
     toggleReminders.checked = AppSettings.reminders;
     toggleInventory.checked = AppSettings.inventory;
 
-    // Show/hide inventory inputs based on initial load
     newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
 
     toggleBabysitter.addEventListener('change', (e) => {
@@ -221,7 +220,7 @@ function initSettings() {
     });
 }
 
-// --- Database Logic & UPGRADE MIGRATION ---
+// --- Database Logic ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
@@ -379,7 +378,6 @@ function deleteMedication() {
 }
 
 // --- Regimen Logic (Checklist & Logging) ---
-// --- Regimen Logic (Checklist & Logging) ---
 function loadChecklist() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
@@ -411,7 +409,6 @@ function loadChecklist() {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
-            // NEW: Generate the permanent inventory badge
             let inventoryBadgeHtml = '';
             if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
                 const invCount = parseInt(med.inventory);
@@ -425,7 +422,6 @@ function loadChecklist() {
             const card = document.createElement('div');
             card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
 
-            // UPDATED: Injected inventoryBadgeHtml next to med.dose
             const headerHtml = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
                     <div>
@@ -475,6 +471,7 @@ function loadChecklist() {
                     </label>
                 `;
 
+                // EXPERT MODE: Double click bind fixed to pass element correctly
                 if (AppSettings.expertMode && !isCompletedToday) {
                     setTimeout(() => {
                         const el = document.getElementById(labelId);
@@ -482,7 +479,13 @@ function loadChecklist() {
                             el.addEventListener('dblclick', (e) => {
                                 e.preventDefault();
                                 const checkbox = el.querySelector('input');
-                                if (!checkbox.disabled) processBatchLog([compositeLogId]);
+                                if (!checkbox.disabled) {
+                                    processBatchLog([{
+                                        compId: compositeLogId,
+                                        medName: med.name,
+                                        checkboxElement: checkbox
+                                    }]);
+                                }
                             });
                         }
                     }, 0);
@@ -491,7 +494,6 @@ function loadChecklist() {
             checkboxesHtml += '</div>';
 
             let extrasHtml = '';
-            
             if (med.instructions || med.sideEffects) {
                 extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; background-color: rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 0.5rem;">`;
                 
@@ -514,22 +516,35 @@ function loadChecklist() {
     };
 }
 
+// --- NEW DATA STRUCTURE FOR SUBMISSIONS ---
 function logSelected() {
     const checkboxes = document.querySelectorAll('.med-checkbox:checked:not(:disabled)');
-    const selectedMeds = Array.from(checkboxes).map(cb => cb.value);
-    if (selectedMeds.length === 0) return;
-    processBatchLog(selectedMeds);
+    if (checkboxes.length === 0) return;
+    const items = Array.from(checkboxes).map(cb => ({
+        compId: cb.value,
+        medName: cb.getAttribute('data-name'),
+        checkboxElement: cb
+    }));
+    processBatchLog(items);
 }
 
 function logAll() {
     const checkboxes = document.querySelectorAll('.med-checkbox:not(:disabled)');
-    const allMeds = Array.from(checkboxes).map(cb => cb.value);
-    if (allMeds.length === 0) return;
-    processBatchLog(allMeds);
+    if (checkboxes.length === 0) return;
+    const items = Array.from(checkboxes).map(cb => ({
+        compId: cb.value,
+        medName: cb.getAttribute('data-name'),
+        checkboxElement: cb
+    }));
+    processBatchLog(items);
 }
 
-function processBatchLog(compositeIds) {
-    // Open a transaction on BOTH logs and meds so we can decrement inventory
+function processBatchLog(items) {
+    // 1. Immediately freeze the UI to completely block double-click rapid submissions
+    items.forEach(item => {
+        if (item.checkboxElement) item.checkboxElement.disabled = true;
+    });
+
     const transaction = db.transaction(["logs", "meds"], "readwrite");
     const logStore = transaction.objectStore("logs");
     const medStore = transaction.objectStore("meds");
@@ -539,18 +554,13 @@ function processBatchLog(compositeIds) {
         ? new Date(manualTimeInput.value).toISOString() 
         : new Date().toISOString();
 
-    let decrements = {}; // Track how many to subtract per medication ID
+    let decrements = {}; 
 
-    compositeIds.forEach(compId => {
-        const safeCompId = compId.replace(/\|/g, '\\|');
-        const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
-        const actualMedName = checkbox.getAttribute('data-name');
-        
-        const parts = compId.split('|');
+    items.forEach(item => {
+        const parts = item.compId.split('|');
         const coreId = parts[0];
         const targetTime = parts[1] === 'none' ? null : parts[1];
         
-        // Track the count for inventory subtraction
         decrements[coreId] = (decrements[coreId] || 0) + 1;
         
         logStore.add({
@@ -558,20 +568,18 @@ function processBatchLog(compositeIds) {
             dateTaken: baseTimestamp, 
             medId: coreId,
             targetTime: targetTime,
-            compositeId: compId,
-            medName: actualMedName,
+            compositeId: item.compId,
+            medName: item.medName,
             status: "taken"
         });
     });
 
-    // Execute the Inventory Decrements if the feature is turned on
     if (AppSettings.inventory) {
         Object.keys(decrements).forEach(id => {
             const req = medStore.get(id);
             req.onsuccess = () => {
                 const med = req.result;
                 if (med && med.inventory !== undefined && med.inventory !== "") {
-                    // Subtract the logged amount, but don't drop below zero
                     med.inventory = Math.max(0, parseInt(med.inventory) - decrements[id]);
                     medStore.put(med);
                 }
@@ -580,20 +588,25 @@ function processBatchLog(compositeIds) {
     }
 
     transaction.oncomplete = () => {
-        compositeIds.forEach(compId => {
-            const safeCompId = compId.replace(/\|/g, '\\|');
-            const checkbox = document.querySelector(`input[value="${safeCompId}"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-                checkbox.disabled = true;
-                checkbox.closest('.med-item').classList.add('completed');
+        items.forEach(item => {
+            if (item.checkboxElement) {
+                item.checkboxElement.checked = false; // Uncheck it
+                item.checkboxElement.closest('.med-item').classList.add('completed');
             }
         });
         
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
-        refreshHistory(); // This will also trigger loadChecklist to update warning labels
-        if (AppSettings.inventory) loadChecklist(); // Force UI refresh for pill counts
+        refreshHistory(); 
+        if (AppSettings.inventory) loadChecklist(); // Triggers UI redraw if pill count dropped
+    };
+
+    transaction.onerror = () => {
+        // If DB fails, unfreeze the checkboxes so you aren't stuck
+        items.forEach(item => {
+            if (item.checkboxElement) item.checkboxElement.disabled = false;
+        });
+        console.error("Batch log failed.");
     };
 }
 
@@ -655,16 +668,15 @@ function calculateAdherence() {
         let expectedWeeklyDoses = 0;
         let nonPrnMedIds = new Set();
 
-        // 1. Calculate how many doses SHOULD be taken in a 7 day rolling window
         meds.forEach(med => {
             if (med.frequency !== "As Needed") {
                 nonPrnMedIds.add(med.id);
                 let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
                 
                 if (med.frequency === "Weekly") {
-                    expectedWeeklyDoses += timeCount; // Happens once a week
+                    expectedWeeklyDoses += timeCount; 
                 } else {
-                    expectedWeeklyDoses += (timeCount * 7); // Happens daily
+                    expectedWeeklyDoses += (timeCount * 7); 
                 }
             }
         });
@@ -676,7 +688,6 @@ function calculateAdherence() {
             return;
         }
 
-        // 2. Calculate how many scheduled doses WERE taken in the last 7 days
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         
@@ -689,7 +700,6 @@ function calculateAdherence() {
             }
         });
 
-        // 3. Render
         let percent = Math.min(100, Math.round((actualTaken / expectedWeeklyDoses) * 100));
         
         adherenceScore.textContent = `${percent}%`;
@@ -698,9 +708,9 @@ function calculateAdherence() {
         if (percent >= 90) {
             adherenceScore.style.color = "var(--success-color)";
         } else if (percent >= 75) {
-            adherenceScore.style.color = "#f59e0b"; // Warning Orange
+            adherenceScore.style.color = "#f59e0b"; 
         } else {
-            adherenceScore.style.color = "var(--accent-color)"; // Danger Red
+            adherenceScore.style.color = "var(--accent-color)"; 
         }
     };
 }
