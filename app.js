@@ -43,6 +43,7 @@ const logHistoryView = document.getElementById('log-history');
 
 const sessionLockControls = document.getElementById('session-lock-controls');
 const btnLockVault = document.getElementById('btn-lock-vault');
+const btnExportCSV = document.getElementById('btn-export-csv');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
     editForm.addEventListener('submit', saveEditedMed);
     
-    // Auto-fill logic when opening settings
     document.getElementById('settings-toggle').addEventListener('click', () => {
         const cachedPass = sessionStorage.getItem('medledger_session_key');
         if (cachedPass) {
@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     peekBtn.addEventListener('click', togglePasswordVisibility);
     btnLockVault.addEventListener('click', lockVaultSession);
+    btnExportCSV.addEventListener('click', exportCSV);
 
     tabTodayBtn.addEventListener('click', () => switchTab('today'));
     tabHistoryBtn.addEventListener('click', () => switchTab('history'));
@@ -112,7 +113,6 @@ function updateThemeIcon(theme) {
 function initializeTheme() {
     let savedTheme = localStorage.getItem('theme');
     
-    // Ensure we don't have corrupted states
     if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -130,7 +130,7 @@ themeToggleBtn.addEventListener('click', () => {
     } else if (currentTheme === 'light') {
         newTheme = 'hc';
     } else {
-        newTheme = 'dark'; // Fallback to dark if unknown or HC
+        newTheme = 'dark';
     }
     
     rootElement.setAttribute('data-theme', newTheme);
@@ -682,6 +682,53 @@ function togglePasswordVisibility() {
 function showVaultStatus(message, color) {
     vaultStatus.textContent = message; vaultStatus.style.color = color;
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
+}
+
+// ==========================================
+// --- CLINICIAN EXPORT (CSV) ---
+// ==========================================
+async function exportCSV() {
+    const logs = await new Promise(res => {
+        const tx = db.transaction(["logs"], "readonly");
+        tx.objectStore("logs").getAll().onsuccess = e => res(e.target.result);
+    });
+
+    if (!logs || logs.length === 0) {
+        showVaultStatus("No history to export.", "var(--accent-color)");
+        return;
+    }
+
+    logs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+
+    let csvContent = "Date,Time Taken,Medication,Scheduled Target,Status\n";
+
+    logs.forEach(log => {
+        const dateObj = new Date(log.dateTaken);
+        const dateStr = dateObj.toLocaleDateString();
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const safeMedName = `"${log.medName.replace(/"/g, '""')}"`;
+        
+        let targetStr = "Unscheduled";
+        if (log.targetTime) {
+            const [h, m] = log.targetTime.split(':');
+            const period = h >= 12 ? 'PM' : 'AM';
+            targetStr = `${h % 12 || 12}:${m} ${period}`;
+        }
+
+        csvContent += `${dateStr},${timeStr},${safeMedName},${targetStr},${log.status}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `MedLedger_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showVaultStatus("CSV Export downloaded.", "var(--success-color)");
 }
 
 // ==========================================
