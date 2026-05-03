@@ -127,10 +127,29 @@
     </main>
 
     <dialog id="help-modal" class="card modal" style="max-height: 85vh; overflow-y: auto; max-width: 500px;">
-        <h2>User Guide</h2>
+        <h2>User Guide & Warnings</h2>
         
         <div class="help-section">
-            <h3>💊 1. Adding Medications</h3>
+            <h3 style="color: var(--danger-color);">⚠️ Critical Warnings</h3>
+            <p>Because this app respects your privacy, your data lives <b>only on your device</b>. There is no central server.</p>
+            <ul>
+                <li><b>No Password Recovery:</b> If you set an encryption password for your Data Vault and forget it, your exported backups and cloud syncs are permanently unreadable. <i>There is no "Forgot Password" button because the developer never sees your password.</i></li>
+                <li><b>Browser Data:</b> Your active schedule lives inside your browser's local storage. If you clear your browser's site data/cookies without making a backup first, your ledger will be erased. Always Backup to Device or Push to Cloud first!</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>📱 1. Installation & Offline Use</h3>
+            <p>MedLedger is a Progressive Web App (PWA). You don't download it from an app store.</p>
+            <ul>
+                <li><b>iOS / Safari:</b> Tap the <b>Share</b> button at the bottom of the screen and select <b>"Add to Home Screen"</b>.</li>
+                <li><b>Android / Chrome:</b> Tap the <b>Menu (⋮)</b> at the top right and select <b>"Install App"</b> or <b>"Add to Home screen"</b>.</li>
+                <li>Once installed, the app will run entirely offline and can trigger local push notifications.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>💊 2. Adding Medications</h3>
             <p>Use the "Add Medication" box at the top of the screen to build your list.</p>
             <ul>
                 <li>Type the <b>Name</b> and <b>Dosage</b> (like 10mg).</li>
@@ -140,7 +159,7 @@
         </div>
 
         <div class="help-section">
-            <h3>✅ 2. Logging Your Daily Regimen</h3>
+            <h3>✅ 3. Logging Your Daily Regimen</h3>
             <p>The "Today's Regimen" list shows everything due today. It resets automatically at midnight.</p>
             <ul>
                 <li>Tap the square checkbox next to a time slot to select it.</li>
@@ -150,7 +169,7 @@
         </div>
 
         <div class="help-section">
-            <h3>✏️ 3. Fixing Mistakes & History</h3>
+            <h3>✏️ 4. Fixing Mistakes & History</h3>
             <p>Your history and routines are fully editable.</p>
             <ul>
                 <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, side effects, or dose.</li>
@@ -161,7 +180,7 @@
         </div>
 
         <div class="help-section">
-            <h3>⚙️ 4. Settings & Customization</h3>
+            <h3>⚙️ 5. Settings & Customization</h3>
             <p>Tap the <b>Gear Icon</b> at the top of the screen to access Settings.</p>
             <ul>
                 <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due.</li>
@@ -173,8 +192,8 @@
         </div>
 
         <div class="help-section">
-            <h3>🔐 5. Backups & The Data Vault</h3>
-            <p>Because this app respects your privacy, your data is saved <i>only on this specific device</i>. It is not tracked in the cloud unless you explicitly log in and push it to your private Google Drive.</p>
+            <h3>🔐 6. Backups & The Data Vault</h3>
+            <p>Your data is completely private. You hold the keys.</p>
             <ul>
                 <li><b>Session Unlock:</b> Type your password <b>once</b> to unlock the vault for your current session. A green indicator will appear. You can now Push, Pull, or Backup multiple times without re-typing your password.</li>
                 <li><b>Locking the Vault:</b> The vault automatically secures itself when you close the browser tab. To secure it manually before walking away, tap the <b>Lock Now</b> button.</li>
@@ -184,7 +203,7 @@
         </div>
 
         <div class="help-section">
-            <h3>📊 6. Tracking Your Progress</h3>
+            <h3>📊 7. Tracking Your Progress</h3>
             <p>The History tab features built-in analytics to monitor your consistency.</p>
             <ul>
                 <li><b>7-Day Adherence:</b> A quick percentage score showing how precisely you have followed your scheduled regimen over the last week.</li>
