@@ -44,6 +44,7 @@ const logHistoryView = document.getElementById('log-history');
 const sessionLockControls = document.getElementById('session-lock-controls');
 const btnLockVault = document.getElementById('btn-lock-vault');
 const btnExportCSV = document.getElementById('btn-export-csv');
+const btnExportHTML = document.getElementById('btn-export-html');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -78,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     peekBtn.addEventListener('click', togglePasswordVisibility);
     btnLockVault.addEventListener('click', lockVaultSession);
     btnExportCSV.addEventListener('click', exportCSV);
+    btnExportHTML.addEventListener('click', exportHTMLReport);
 
     tabTodayBtn.addEventListener('click', () => switchTab('today'));
     tabHistoryBtn.addEventListener('click', () => switchTab('history'));
@@ -685,7 +687,7 @@ function showVaultStatus(message, color) {
 }
 
 // ==========================================
-// --- CLINICIAN EXPORT (CSV) ---
+// --- CLINICIAN EXPORTS (CSV & HTML) ---
 // ==========================================
 async function exportCSV() {
     const logs = await new Promise(res => {
@@ -729,6 +731,102 @@ async function exportCSV() {
     document.body.removeChild(link);
     
     showVaultStatus("CSV Export downloaded.", "var(--success-color)");
+}
+
+async function exportHTMLReport() {
+    const logs = await new Promise(res => {
+        const tx = db.transaction(["logs"], "readonly");
+        tx.objectStore("logs").getAll().onsuccess = e => res(e.target.result);
+    });
+
+    if (!logs || logs.length === 0) {
+        showVaultStatus("No history to export.", "var(--accent-color)");
+        return;
+    }
+
+    logs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+
+    let rowsHtml = "";
+    logs.forEach(log => {
+        const dateObj = new Date(log.dateTaken);
+        const dateStr = dateObj.toLocaleDateString();
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        let targetStr = "Unscheduled";
+        if (log.targetTime) {
+            const [h, m] = log.targetTime.split(':');
+            const period = h >= 12 ? 'PM' : 'AM';
+            targetStr = `${h % 12 || 12}:${m} ${period}`;
+        }
+
+        rowsHtml += `
+            <tr>
+                <td>${dateStr}</td>
+                <td>${timeStr}</td>
+                <td><strong>${log.medName}</strong></td>
+                <td>${targetStr}</td>
+                <td class="status-${log.status}">${log.status.toUpperCase()}</td>
+            </tr>
+        `;
+    });
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MedLedger Clinical Report</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; color: #111; line-height: 1.5; padding: 2rem; max-width: 900px; margin: 0 auto; background: #fff; }
+        h1 { border-bottom: 2px solid #222; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+        .meta-info { color: #555; margin-bottom: 2rem; font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
+        th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+        th { background-color: #f9fafb; font-weight: 600; color: #333; }
+        tr:nth-child(even) { background-color: #fdfdfd; }
+        .status-taken { color: #166534; font-weight: bold; }
+        .status-missed { color: #991b1b; font-weight: bold; }
+        .btn-print { padding: 0.5rem 1rem; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: 600; font-size: 1rem; transition: background 0.2s; }
+        .btn-print:hover { background: #1d4ed8; }
+        @media print { 
+            body { padding: 0; max-width: none; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: flex-end;" class="no-print">
+        <h1>Medication Adherence Report</h1>
+        <button class="btn-print" onclick="window.print()">Print Report</button>
+    </div>
+    <div class="meta-info">Generated on: ${new Date().toLocaleString()}</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Time Taken</th>
+                <th>Medication</th>
+                <th>Scheduled Target</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rowsHtml}
+        </tbody>
+    </table>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `MedLedger_Printable_Report_${new Date().toISOString().split('T')[0]}.html`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showVaultStatus("HTML Report downloaded.", "var(--success-color)");
 }
 
 // ==========================================
