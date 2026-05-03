@@ -3,8 +3,9 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 // ==========================================
 
+// UPDATED DB VERSION to 2
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -207,14 +208,40 @@ function initSettings() {
     });
 }
 
-// --- Database Logic ---
+// --- Database Logic & UPGRADE MIGRATION ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    
+    // THIS is the migration block that handles the DB version bump.
     request.onupgradeneeded = (e) => {
         db = e.target.result;
-        if (!db.objectStoreNames.contains("meds")) db.createObjectStore("meds", { keyPath: "id" });
-        if (!db.objectStoreNames.contains("logs")) db.createObjectStore("logs", { keyPath: "timestamp" });
+        const oldVersion = e.oldVersion;
+        const transaction = e.target.transaction;
+
+        // Path for brand new users (creates the DB from scratch)
+        if (oldVersion < 1) {
+            db.createObjectStore("meds", { keyPath: "id" });
+            db.createObjectStore("logs", { keyPath: "timestamp" });
+        }
+
+        // Upgrade path for Version 1 users to Version 2
+        // We open every existing medication and backfill an empty sideEffects field so the schema is uniform.
+        if (oldVersion >= 1 && oldVersion < 2) {
+            const medStore = transaction.objectStore("meds");
+            medStore.openCursor().onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const med = cursor.value;
+                    if (med.sideEffects === undefined) {
+                        med.sideEffects = "";
+                        cursor.update(med);
+                    }
+                    cursor.continue();
+                }
+            };
+        }
     };
+    
     request.onsuccess = (e) => {
         db = e.target.result;
         loadChecklist();
@@ -233,6 +260,7 @@ function handleAddMed(e) {
     const doseInput = document.getElementById('new-med-dose').value.trim();
     const freqInput = document.getElementById('new-med-freq').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
+    const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -243,7 +271,8 @@ function handleAddMed(e) {
         dose: doseInput, 
         frequency: freqInput,
         times: timesArray,
-        instructions: instructionsInput 
+        instructions: instructionsInput,
+        sideEffects: sideEffectsInput // Added field
     };
     
     const transaction = db.transaction(["meds"], "readwrite");
@@ -269,6 +298,7 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-dose').value = med.dose;
             document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
             document.getElementById('edit-med-instructions').value = med.instructions || '';
+            document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; // Map field
             
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
@@ -296,6 +326,7 @@ function saveEditedMed(e) {
     const dose = document.getElementById('edit-med-dose').value.trim();
     const freq = document.getElementById('edit-med-freq').value;
     const instructions = document.getElementById('edit-med-instructions').value.trim();
+    const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); // Capture field
     const timesArray = getTimesFromContainer('edit-med-times-container');
 
     const transaction = db.transaction(["meds"], "readwrite");
@@ -305,7 +336,8 @@ function saveEditedMed(e) {
         dose: dose, 
         frequency: freq,
         times: timesArray,
-        instructions: instructions 
+        instructions: instructions,
+        sideEffects: sideEffects // Save field
     });
 
     transaction.oncomplete = () => {
@@ -423,13 +455,23 @@ function loadChecklist() {
             });
             checkboxesHtml += '</div>';
 
-            const instructionsHtml = med.instructions ? `
-                <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); background-color: rgba(0,0,0,0.1); font-style: italic;">
-                    ${med.instructions}
-                </div>
-            ` : '';
+            let extrasHtml = '';
+            if (med.instructions || med.sideEffects) {
+                extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; background-color: rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 0.5rem;">`;
+                
+                if (med.instructions) {
+                    extrasHtml += `<div style="color: var(--text-secondary); font-style: italic;">${med.instructions}</div>`;
+                }
+                if (med.sideEffects) {
+                    extrasHtml += `<div style="color: #ef4444; font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                      ${med.sideEffects}
+                                   </div>`;
+                }
+                extrasHtml += `</div>`;
+            }
 
-            card.innerHTML = headerHtml + checkboxesHtml + instructionsHtml;
+            card.innerHTML = headerHtml + checkboxesHtml + extrasHtml;
             checklistContainer.appendChild(card);
         });
         updateStatus();
