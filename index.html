@@ -63,8 +63,9 @@
                     </div>
                 </div>
                 <div class="inline-form" style="margin-bottom: 0.5rem;">
-                    <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 1;">
-                    <input type="text" id="new-med-side-effects" placeholder="Side Effects to Watch (e.g., Drowsiness)" style="flex: 1;">
+                    <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 2;">
+                    <input type="text" id="new-med-side-effects" placeholder="Side Effects to Watch" style="flex: 2;">
+                    <input type="number" id="new-med-inventory" placeholder="Pill Count" min="0" style="flex: 1; display: none;">
                 </div>
                 <div class="action-group" style="justify-content: flex-end;">
                     <button type="submit" class="btn btn-secondary">Add to Regimen</button>
@@ -95,6 +96,12 @@
         </section>
 
         <section id="log-history" class="card tab-view hidden-view">
+            <div id="adherence-dashboard" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center;">
+                <h3 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">7-Day Adherence</h3>
+                <div id="adherence-score" style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); margin-top: 0.5rem;">--%</div>
+                <div id="adherence-subtext" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Calculating...</div>
+            </div>
+            
             <ul id="history-list" class="history-feed">
                 </ul>
         </section>
@@ -139,8 +146,8 @@
             <ul>
                 <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due.</li>
                 <li><b>Expert Mode:</b> Turns on "Double-Clicking". You can double-tap any item on the checklist to log it instantly.</li>
+                <li><b>Enable Pill Tracker:</b> Opt-in to track your physical pill inventory and get warnings when running low.</li>
                 <li><b>No Babysitter Mode:</b> Turns off the "Are you sure?" pop-ups when deleting history logs.</li>
-                <li><b>Dark/Light Mode:</b> Tap the Sun/Moon icon in the top right corner to switch between light and dark backgrounds.</li>
             </ul>
         </div>
 
@@ -151,7 +158,7 @@
                 <li><b>Session Unlock:</b> Type your password <b>once</b> to unlock the vault for your current session. A green indicator will appear. You can now Push, Pull, or Backup multiple times without re-typing your password.</li>
                 <li><b>Locking the Vault:</b> The vault automatically secures itself when you close the browser tab. To secure it manually before walking away, tap the <b>Lock Now</b> button.</li>
                 <li><b>Cloud Sync:</b> Click "Sign in to Google" to authorize the app. Once your vault is unlocked, use the Push and Pull buttons to securely sync your encrypted data to a hidden folder in your Drive.</li>
-                <li><b>Local Backup:</b> With the vault unlocked, tap <b>Local Backup</b> to save an encrypted `.medvault` file directly to your device storage.</li>
+                <li><b>Clinician Reports:</b> Use the export buttons to download a printable HTML file or spreadsheet of your adherence history.</li>
             </ul>
         </div>
 
@@ -203,6 +210,11 @@
                 <input type="text" id="edit-med-side-effects" placeholder="e.g., Drowsiness, Nausea" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
             </div>
 
+            <div class="form-group" id="edit-inventory-group" style="display: none;">
+                <label class="form-label" for="edit-med-inventory">Current Pill Count</label>
+                <input type="number" id="edit-med-inventory" placeholder="Remaining pills" min="0" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+            </div>
+
             <div class="action-group modal-actions">
                 <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
                 <button type="button" id="btn-delete-med" class="btn btn-danger">Delete</button>
@@ -231,11 +243,19 @@
                 </span>
             </label>
 
-            <label class="med-item" style="cursor:pointer;">
+            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-reminders" class="med-checkbox">
                 <span class="med-details">
                     <span class="med-name">Enable Local Reminders</span>
                     <span class="med-dose">Triggers native push notifications for scheduled items.</span>
+                </span>
+            </label>
+
+            <label class="med-item" style="cursor:pointer;">
+                <input type="checkbox" id="toggle-inventory" class="med-checkbox">
+                <span class="med-details">
+                    <span class="med-name">Enable Pill Tracker</span>
+                    <span class="med-dose">Tracks remaining pills and warns when inventory is low.</span>
                 </span>
             </label>
         </div>
