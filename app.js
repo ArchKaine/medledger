@@ -379,6 +379,7 @@ function deleteMedication() {
 }
 
 // --- Regimen Logic (Checklist & Logging) ---
+// --- Regimen Logic (Checklist & Logging) ---
 function loadChecklist() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
@@ -410,16 +411,30 @@ function loadChecklist() {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
+            // NEW: Generate the permanent inventory badge
+            let inventoryBadgeHtml = '';
+            if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
+                const invCount = parseInt(med.inventory);
+                const isLow = invCount <= 10;
+                const badgeColor = isLow ? 'var(--accent-color)' : 'var(--text-secondary)';
+                const badgeBg = isLow ? 'rgba(239, 68, 68, 0.1)' : 'transparent';
+                const badgeBorder = isLow ? 'var(--accent-color)' : 'var(--border-color)';
+                inventoryBadgeHtml = `<span style="margin-left: 0.5rem; font-size: 0.75rem; background: ${badgeBg}; color: ${badgeColor}; padding: 0.1rem 0.5rem; border-radius: 12px; border: 1px solid ${badgeBorder}; font-weight: ${isLow ? 'bold' : 'normal'};">💊 ${invCount} left</span>`;
+            }
+
             const card = document.createElement('div');
             card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
 
+            // UPDATED: Injected inventoryBadgeHtml next to med.dose
             const headerHtml = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
                     <div>
                         <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                             ${med.name} ${freqHtml}
                         </h3>
-                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem;">${med.dose}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem; display: flex; align-items: center;">
+                            ${med.dose} ${inventoryBadgeHtml}
+                        </div>
                     </div>
                     <button type="button" class="btn-icon" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.5rem -0.5rem 0 0;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -477,18 +492,8 @@ function loadChecklist() {
 
             let extrasHtml = '';
             
-            // Check if we need to show warnings or instructions
-            const showInvWarning = AppSettings.inventory && med.inventory !== undefined && med.inventory !== "" && parseInt(med.inventory) <= 10;
-            
-            if (med.instructions || med.sideEffects || showInvWarning) {
+            if (med.instructions || med.sideEffects) {
                 extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; background-color: rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 0.5rem;">`;
-                
-                if (showInvWarning) {
-                    extrasHtml += `<div style="color: #ef4444; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                                      Low Inventory: Only ${med.inventory} pill${med.inventory == 1 ? '' : 's'} remaining
-                                   </div>`;
-                }
                 
                 if (med.instructions) {
                     extrasHtml += `<div style="color: var(--text-secondary); font-style: italic;">${med.instructions}</div>`;
