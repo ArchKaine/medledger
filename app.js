@@ -115,10 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
     document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
 
+    // FIX: Scope keyboard shortcut to only the active checklist
     document.addEventListener('keydown', (e) => {
         if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
-            const checked = document.querySelectorAll('.med-checkbox:checked:not(:disabled)');
+            const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
             checked.length > 0 ? logSelected() : logAll();
         }
     });
@@ -476,6 +477,9 @@ function loadChecklist() {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
+            // FIX: Escape double quotes so they don't break the HTML attribute
+            const safeMedName = med.name.replace(/"/g, '&quot;');
+
             let inventoryBadgeHtml = '';
             if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
                 const invCount = parseInt(med.inventory);
@@ -534,7 +538,7 @@ function loadChecklist() {
 
                 checkboxesHtml += `
                     <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="${labelId}" title="${AppSettings.expertMode && !isCompletedToday ? 'Double-click to instantly log' : ''}">
-                        <input type="checkbox" name="med" value="${compositeLogId}" data-name="${med.name}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
+                        <input type="checkbox" name="med" value="${compositeLogId}" data-name="${safeMedName}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
                         <span class="med-details" style="width: 100%;">
                             <span class="med-name" style="color: ${isCompletedToday ? 'var(--text-secondary)' : 'var(--text-primary)'};">${timeLabel}</span>
                         </span>
@@ -586,7 +590,8 @@ function loadChecklist() {
 }
 
 function logSelected() {
-    const checkboxes = document.querySelectorAll('.med-checkbox:checked:not(:disabled)');
+    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
+    const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
         compId: cb.value,
@@ -597,7 +602,8 @@ function logSelected() {
 }
 
 function logAll() {
-    const checkboxes = document.querySelectorAll('.med-checkbox:not(:disabled)');
+    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
+    const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
         compId: cb.value,
@@ -618,10 +624,7 @@ function processBatchLog(items) {
     
     const manualTimeInput = document.getElementById('manual-time');
     
-    // The exact moment the user physically clicked the "Log" button
     const exactExecutionTimestamp = Date.now();
-    
-    // The time the user *claims* they took the pill
     const baseTimestamp = (manualTimeInput && manualTimeInput.value) 
         ? new Date(manualTimeInput.value).toISOString() 
         : new Date(exactExecutionTimestamp).toISOString();
@@ -638,7 +641,7 @@ function processBatchLog(items) {
         logStore.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
             dateTaken: baseTimestamp, 
-            systemLoggedTime: exactExecutionTimestamp, // SILENT DELTA TRACKER ADDED HERE
+            systemLoggedTime: exactExecutionTimestamp,
             medId: coreId,
             targetTime: targetTime,
             compositeId: item.compId,
@@ -660,18 +663,12 @@ function processBatchLog(items) {
         });
     }
 
+    // FIX: Unconditionally reload the checklist to guarantee sync
     transaction.oncomplete = () => {
-        items.forEach(item => {
-            if (item.checkboxElement) {
-                item.checkboxElement.checked = false; 
-                item.checkboxElement.closest('.med-item').classList.add('completed');
-            }
-        });
-        
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
         refreshHistory(); 
-        if (AppSettings.inventory) loadChecklist(); 
+        loadChecklist(); 
     };
 
     transaction.onerror = () => {
@@ -775,7 +772,7 @@ window.deleteLog = function(timestampKey) {
     transaction.oncomplete = () => {
         refreshHistory();
         calculateAdherence();
-        if (AppSettings.inventory) loadChecklist(); 
+        loadChecklist(); 
     };
 };
 
@@ -841,19 +838,17 @@ function calculateAdherence() {
         grid.innerHTML = ''; 
 
         const logCountsByDate = {};
-        const retroCountsByDate = {}; // Tracks backdated logs
+        const retroCountsByDate = {}; 
 
         logs.forEach(log => {
             if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
                 const localDateStr = new Date(log.dateTaken).toLocaleDateString();
                 logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
 
-                // Calculate the time delta
                 const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
                 const claimedTime = new Date(log.dateTaken).getTime();
                 const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
                 
-                // If logged more than 4 hours after the claimed time, flag as retroactive
                 if (deltaHours > 4) {
                     retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
                 }
@@ -884,9 +879,8 @@ function calculateAdherence() {
             else if (level === 1) cell.title = `${displayStr}: Partial (${count} of ${expectedDailyDoses} doses)`;
             else cell.title = `${displayStr}: Missed doses`;
 
-            // Apply the Ghost effect if there are retroactive logs
             if (retroCount > 0 && level > 0) {
-                cell.style.opacity = '0.35'; // Fades the cell heavily
+                cell.style.opacity = '0.35'; 
                 cell.title += ` ⚠️ (${retroCount} backdated)`;
             }
             
@@ -896,8 +890,9 @@ function calculateAdherence() {
 }
 
 function updateStatus() {
-    const remaining = document.querySelectorAll('.med-checkbox:not(:disabled)');
-    const total = document.querySelectorAll('.med-checkbox');
+    // FIX: Scope query to checklist
+    const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
+    const total = document.querySelectorAll('#checklist-container .med-checkbox');
     if (total.length === 0) {
         statusBar.textContent = "Ready.";
         statusBar.className = "status-indicator";
@@ -1057,7 +1052,6 @@ async function exportCSV() {
 
     logs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
 
-    // Added the new metadata column to the CSV header
     let csvContent = "Date,Time Taken,Medication,Scheduled Target,Status,System Logged Time\n";
 
     logs.forEach(log => {
@@ -1074,7 +1068,6 @@ async function exportCSV() {
             targetStr = `${h % 12 || 12}:${m} ${period}`;
         }
         
-        // Format the new timestamp for the CSV
         let systemLogStr = "N/A";
         if (log.systemLoggedTime) {
             const sysDate = new Date(log.systemLoggedTime);
