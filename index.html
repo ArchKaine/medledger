@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#18181b">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com; connect-src 'self' https://www.googleapis.com; style-src 'self' 'unsafe-inline'; frame-src 'self' https://accounts.google.com; img-src 'self' data:; object-src 'none'; base-uri 'self';">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <title>MedLedger</title>
@@ -267,10 +268,11 @@
                 </div>
             </div>
 
-            <div class="action-group" style="margin-top: 1rem;">
+            <div class="action-group" style="margin-top: 1rem; flex-wrap: wrap;">
                 <button type="button" id="btn-export-vault" class="btn btn-secondary" style="font-size: 0.85rem;">Local Backup</button>
                 <label for="import-vault-file" class="btn btn-secondary" style="cursor: pointer; font-size: 0.85rem;">Local Restore</label>
                 <input type="file" id="import-vault-file" accept=".medvault,.json" style="display: none;">
+                <button type="button" id="btn-export-csv" class="btn btn-primary" style="font-size: 0.85rem; flex: 1; text-align: center;">Export CSV (Doctor Report)</button>
             </div>
             
             <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold;"></div>
