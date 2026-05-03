@@ -100,17 +100,6 @@
                 <h3 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">7-Day Adherence</h3>
                 <div id="adherence-score" style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); margin-top: 0.5rem;">--%</div>
                 <div id="adherence-subtext" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Calculating...</div>
-            </div>    
-            
-            <ul id="history-list" class="history-feed">
-                </ul>
-        </section>
-
-        <section id="log-history" class="card tab-view hidden-view">
-            <div id="adherence-dashboard" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center;">
-                <h3 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">7-Day Adherence</h3>
-                <div id="adherence-score" style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); margin-top: 0.5rem;">--%</div>
-                <div id="adherence-subtext" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Calculating...</div>
             </div>
 
             <div id="heatmap-container" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
@@ -123,7 +112,7 @@
                     </select>
                 </div>
                 <div id="heatmap-grid" class="heatmap-grid"></div>
-                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.7rem; color: var(--text-secondary);">
+                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-secondary);">
                     <span>Missed</span>
                     <div class="heatmap-cell level-0" style="width: 12px; height: 12px;"></div>
                     <div class="heatmap-cell level-1" style="width: 12px; height: 12px;"></div>
@@ -131,10 +120,10 @@
                     <span>Perfect</span>
                 </div>
             </div>
+            
             <ul id="history-list" class="history-feed">
                 </ul>
         </section>
-        
     </main>
 
     <dialog id="help-modal" class="card modal" style="max-height: 85vh; overflow-y: auto; max-width: 500px;">
@@ -166,7 +155,7 @@
             <ul>
                 <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, side effects, or dose.</li>
                 <li><b>Delete a Pill:</b> Tap the Pencil Icon, then tap the red <b>Delete</b> button to remove it from your routine forever.</li>
-                <li><b>Undo a Log:</b> Accidentally checked something off? Navigate to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen.</li>
+                <li><b>Undo a Log:</b> Accidentally checked something off? Navigate to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen and refund the pill to your inventory.</li>
             </ul>
         </div>
 
