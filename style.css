@@ -94,6 +94,49 @@ h2 {
     color: var(--text-primary);
 }
 
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: -0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    padding-bottom: 0.5rem;
+    transition: color 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--text-primary);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -0.6rem;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--accent-color);
+}
+
+.hidden-view {
+    display: none !important;
+}
+
 .inline-form {
     display: flex;
     gap: 0.75rem;
