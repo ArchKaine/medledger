@@ -54,6 +54,7 @@ const btnExportHTML = document.getElementById('btn-export-html');
 
 const adherenceScore = document.getElementById('adherence-score');
 const adherenceSubtext = document.getElementById('adherence-subtext');
+const heatmapRangeSelect = document.getElementById('heatmap-range');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -95,8 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
     btnExportCSV.addEventListener('click', exportCSV);
     btnExportHTML.addEventListener('click', exportHTMLReport);
 
-    document.getElementById('btn-archive-logs').addEventListener('click', archiveOldLogs);
-    document.getElementById('btn-restore-archives').addEventListener('click', restoreArchivedLogs);
+    // Archiving Buttons
+    const btnArchiveLogs = document.getElementById('btn-archive-logs');
+    if(btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
+    
+    const btnRestoreArchives = document.getElementById('btn-restore-archives');
+    if(btnRestoreArchives) btnRestoreArchives.addEventListener('click', restoreArchivedLogs);
+
+    if (heatmapRangeSelect) {
+        heatmapRangeSelect.addEventListener('change', calculateAdherence);
+    }
 
     tabTodayBtn.addEventListener('click', () => switchTab('today'));
     tabHistoryBtn.addEventListener('click', () => switchTab('history'));
@@ -187,7 +196,7 @@ function initSettings() {
     toggleReminders.checked = AppSettings.reminders;
     toggleInventory.checked = AppSettings.inventory;
 
-    newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
+    if(newMedInventory) newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
 
     toggleBabysitter.addEventListener('change', (e) => {
         AppSettings.noBabysitter = e.target.checked;
@@ -203,7 +212,7 @@ function initSettings() {
     toggleInventory.addEventListener('change', (e) => {
         AppSettings.inventory = e.target.checked;
         localStorage.setItem('cfg_inventory', e.target.checked);
-        newMedInventory.style.display = e.target.checked ? 'block' : 'none';
+        if(newMedInventory) newMedInventory.style.display = e.target.checked ? 'block' : 'none';
         loadChecklist(); 
     });
 
@@ -250,7 +259,7 @@ function initDB() {
             };
         }
 
-        // Version 3: The Archiving Migration
+        // Version 3: Archiving Migration
         if (oldVersion < 3) {
             if (!db.objectStoreNames.contains("archived_logs")) {
                 db.createObjectStore("archived_logs", { keyPath: "timestamp" });
@@ -368,10 +377,10 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-instructions').value = med.instructions || '';
             document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
             
-            if (AppSettings.inventory) {
+            if (AppSettings.inventory && editInventoryGroup) {
                 editInventoryGroup.style.display = 'block';
                 document.getElementById('edit-med-inventory').value = med.inventory || '';
-            } else {
+            } else if (editInventoryGroup) {
                 editInventoryGroup.style.display = 'none';
             }
             
@@ -473,17 +482,20 @@ function loadChecklist() {
             if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
                 const invCount = parseInt(med.inventory);
                 const isLow = invCount <= 10;
-                const badgeColor = isLow ? 'var(--accent-color)' : 'var(--text-secondary)';
-                const badgeBg = isLow ? 'rgba(239, 68, 68, 0.1)' : 'transparent';
-                const badgeBorder = isLow ? 'var(--accent-color)' : 'var(--border-color)';
+                const badgeColor = isLow ? 'var(--danger-color)' : 'var(--text-secondary)';
+                const badgeBg = isLow ? 'rgba(239, 68, 68, 0.15)' : 'transparent';
+                const badgeBorder = isLow ? 'var(--danger-color)' : 'var(--border-color)';
                 inventoryBadgeHtml = `<span style="margin-left: 0.5rem; font-size: 0.75rem; background: ${badgeBg}; color: ${badgeColor}; padding: 0.1rem 0.5rem; border-radius: 12px; border: 1px solid ${badgeBorder}; font-weight: ${isLow ? 'bold' : 'normal'};">💊 ${invCount} left</span>`;
             }
 
             const card = document.createElement('div');
-            card.style.cssText = 'border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--bg-surface); overflow: hidden; display: flex; flex-direction: column;';
+            card.className = 'card';
+            card.style.padding = '0';
+            card.style.overflow = 'hidden';
+            card.style.marginBottom = '1rem';
 
             const headerHtml = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-primary);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-surface);">
                     <div>
                         <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                             ${med.name} ${freqHtml}
@@ -492,7 +504,7 @@ function loadChecklist() {
                             ${med.dose} ${inventoryBadgeHtml}
                         </div>
                     </div>
-                    <button type="button" class="btn-icon" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.5rem -0.5rem 0 0;">
+                    <button type="button" class="icon-btn" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.25rem -0.25rem 0 0;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -501,7 +513,7 @@ function loadChecklist() {
                 </div>
             `;
 
-            let checkboxesHtml = '<div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;">';
+            let checkboxesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
             
             times.forEach(t => {
                 const compositeLogId = t ? `${med.id}|${t}` : `${med.id}|none`;
@@ -523,10 +535,10 @@ function loadChecklist() {
                 const labelId = 'lbl-' + crypto.randomUUID();
 
                 checkboxesHtml += `
-                    <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="${labelId}" style="margin: 0; padding: 0.5rem; border-radius: 4px; transition: background-color 0.2s; cursor: pointer;" title="${AppSettings.expertMode && !isCompletedToday ? 'Double-click to instantly log' : ''}">
+                    <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="${labelId}" title="${AppSettings.expertMode && !isCompletedToday ? 'Double-click to instantly log' : ''}">
                         <input type="checkbox" name="med" value="${compositeLogId}" data-name="${med.name}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
-                        <span class="med-details" style="display: flex; align-items: center; width: 100%;">
-                            <span class="med-name" style="font-weight: 600; color: ${isCompletedToday ? 'var(--text-secondary)' : 'var(--text-primary)'};">${timeLabel}</span>
+                        <span class="med-details" style="width: 100%;">
+                            <span class="med-name" style="color: ${isCompletedToday ? 'var(--text-secondary)' : 'var(--text-primary)'};">${timeLabel}</span>
                         </span>
                     </label>
                 `;
@@ -554,13 +566,13 @@ function loadChecklist() {
 
             let extrasHtml = '';
             if (med.instructions || med.sideEffects) {
-                extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; background-color: rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 0.5rem;">`;
+                extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 0.5rem;">`;
                 
                 if (med.instructions) {
-                    extrasHtml += `<div style="color: var(--text-secondary); font-style: italic;">${med.instructions}</div>`;
+                    extrasHtml += `<div class="med-instructions-box" style="margin-top:0;"><i>${med.instructions}</i></div>`;
                 }
                 if (med.sideEffects) {
-                    extrasHtml += `<div style="color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
+                    extrasHtml += `<div style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                                       ${med.sideEffects}
                                    </div>`;
@@ -666,7 +678,7 @@ function processBatchLog(items) {
     };
 }
 
-// --- History, Refund & Adherence Logic ---
+// --- History, Duplicate Tracking & Refund Logic ---
 function refreshHistory() {
     const transaction = db.transaction(["logs"], "readonly");
     const request = transaction.objectStore("logs").getAll();
@@ -675,9 +687,10 @@ function refreshHistory() {
         const logs = request.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         historyList.innerHTML = '';
         
+        // Duplicate Tracking Engine
         const tracker = {};
         logs.forEach(log => {
-            if (log.targetTime) { 
+            if (log.targetTime) { // Ignores PRN meds, only tracks scheduled
                 const dayKey = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId;
                 tracker[dayKey] = (tracker[dayKey] || 0) + 1;
             }
@@ -686,7 +699,7 @@ function refreshHistory() {
         const recentLogs = logs.slice(0, 15);
 
         if (recentLogs.length === 0) {
-            historyList.innerHTML = '<li style="color: var(--text-secondary);">No logs found.</li>';
+            historyList.innerHTML = '<li style="color: var(--text-secondary); text-align:center; padding: 2rem;">No logs found.</li>';
             return;
         }
 
@@ -699,26 +712,27 @@ function refreshHistory() {
             if (log.targetTime) {
                 const [h, m] = log.targetTime.split(':');
                 const period = h >= 12 ? 'PM' : 'AM';
-                slotInfo = ` (Scheduled ${h % 12 || 12}:${m} ${period})`;
+                slotInfo = `<span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">(Scheduled ${h % 12 || 12}:${m} ${period})</span>`;
             }
 
+            // Flag duplicates visually
             let duplicateTag = '';
             if (log.targetTime) {
                 const dayKey = dateString + '|' + log.compositeId;
                 if (tracker[dayKey] > 1) {
-                    duplicateTag = `<span style="margin-left: 0.5rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.1); color: var(--accent-color); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--accent-color);">Duplicate</span>`;
+                    duplicateTag = `<span style="margin-left: 0.5rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); color: var(--danger-color); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--danger-color);">Duplicate</span>`;
                 }
             }
 
             const li = document.createElement('li');
             li.className = 'history-item';
             li.innerHTML = `
-                <div class="history-info">
-                    <span class="history-med">${log.medName} <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">${slotInfo}</span>${duplicateTag}</span>
+                <div class="history-info" style="display:flex; flex-direction:column; gap:0.25rem;">
+                    <span class="history-med">${log.medName} ${slotInfo} ${duplicateTag}</span>
                     <span class="history-time">${dateString} ${timeString}</span>
                 </div>
-                <button class="btn-delete-log" onclick="deleteLog('${log.timestamp}')" aria-label="Delete Log" title="${AppSettings.noBabysitter ? 'Delete Instantly' : 'Delete'}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button class="btn-delete-log icon-btn" onclick="deleteLog('${log.timestamp}')" aria-label="Delete Log" title="${AppSettings.noBabysitter ? 'Delete Instantly' : 'Delete'}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                     </svg>
@@ -729,9 +743,11 @@ function refreshHistory() {
     };
 }
 
+// INVENTORY REFUND LOGIC
 window.deleteLog = function(timestampKey) {
     if (!AppSettings.noBabysitter && !confirm("Remove this log entry and refund the pill to inventory?")) return;
     
+    // Dual transaction: delete the log AND access specific med inventory
     const transaction = db.transaction(["logs", "meds"], "readwrite");
     const logStore = transaction.objectStore("logs");
     const medStore = transaction.objectStore("meds");
@@ -747,6 +763,7 @@ window.deleteLog = function(timestampKey) {
                 const getMedReq = medStore.get(log.medId);
                 getMedReq.onsuccess = () => {
                     const med = getMedReq.result;
+                    // If med exists and has pill count, add +1 back to bottle
                     if (med && med.inventory !== undefined && med.inventory !== "") {
                         med.inventory = parseInt(med.inventory) + 1;
                         medStore.put(med);
@@ -759,7 +776,7 @@ window.deleteLog = function(timestampKey) {
     transaction.oncomplete = () => {
         refreshHistory();
         calculateAdherence();
-        if (AppSettings.inventory) loadChecklist(); 
+        if (AppSettings.inventory) loadChecklist(); // Force UI to redraw updated pill counts
     };
 };
 
@@ -772,8 +789,10 @@ function calculateAdherence() {
         const meds = medReq.result;
         const logs = logReq.result;
 
+        // --- 1. Top Level 7-Day Calculation ---
         let expectedWeeklyDoses = 0;
         let nonPrnMedIds = new Set();
+        let expectedDailyDoses = 0; // Used for Heatmap
 
         meds.forEach(med => {
             if (med.frequency !== "As Needed") {
@@ -784,20 +803,23 @@ function calculateAdherence() {
                     expectedWeeklyDoses += timeCount; 
                 } else {
                     expectedWeeklyDoses += (timeCount * 7); 
+                    expectedDailyDoses += timeCount;
                 }
             }
         });
+
+        const grid = document.getElementById('heatmap-grid');
 
         if (expectedWeeklyDoses === 0) {
             adherenceScore.textContent = "--%";
             adherenceScore.style.color = "var(--text-primary)";
             adherenceSubtext.textContent = "No scheduled medications";
+            if (grid) grid.innerHTML = '';
             return;
         }
 
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
         let actualTaken = 0;
 
         logs.forEach(log => {
@@ -808,16 +830,54 @@ function calculateAdherence() {
         });
 
         let percent = Math.min(100, Math.round((actualTaken / expectedWeeklyDoses) * 100));
-        
         adherenceScore.textContent = `${percent}%`;
         adherenceSubtext.textContent = `${actualTaken} of ${expectedWeeklyDoses} expected doses`;
 
-        if (percent >= 90) {
-            adherenceScore.style.color = "var(--success-color)";
-        } else if (percent >= 75) {
-            adherenceScore.style.color = "#f59e0b"; 
-        } else {
-            adherenceScore.style.color = "var(--accent-color)"; 
+        if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
+        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; // Yellow/Amber
+        else adherenceScore.style.color = "var(--danger-color)"; 
+
+        // --- 2. Heatmap Generation Engine ---
+        if (!grid) return; // Ensure the element exists in HTML
+        
+        const range = parseInt(heatmapRangeSelect ? heatmapRangeSelect.value : 30);
+        grid.innerHTML = ''; // Clear old grid
+
+        // Create a map of { "MM/DD/YYYY": count }
+        const logCountsByDate = {};
+        logs.forEach(log => {
+            if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
+                const localDateStr = new Date(log.dateTaken).toLocaleDateString();
+                logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+            }
+        });
+
+        const today = new Date();
+        
+        // Build the grid backwards (oldest day first, ending on today)
+        for (let i = range - 1; i >= 0; i--) {
+            const targetDate = new Date();
+            targetDate.setDate(today.getDate() - i);
+            const dateStr = targetDate.toLocaleDateString();
+            const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            
+            const count = logCountsByDate[dateStr] || 0;
+            let level = 0; // Default Gray (Missed)
+            
+            if (expectedDailyDoses > 0) {
+                if (count >= expectedDailyDoses) level = 2; // Perfect (Green)
+                else if (count > 0) level = 1; // Partial (Yellow)
+            }
+
+            const cell = document.createElement('div');
+            cell.className = `heatmap-cell level-${level}`;
+            
+            // Build the tooltip
+            if (level === 2) cell.title = `${displayStr}: Perfect (${count} doses)`;
+            else if (level === 1) cell.title = `${displayStr}: Partial (${count} of ${expectedDailyDoses} doses)`;
+            else cell.title = `${displayStr}: Missed doses`;
+            
+            grid.appendChild(cell);
         }
     };
 }
@@ -865,14 +925,16 @@ async function promptToSavePassword(password) {
 function cacheSessionPassword(password) {
     if (password) {
         sessionStorage.setItem('medledger_session_key', password);
-        sessionLockControls.style.display = 'flex';
+        const lockControls = document.getElementById('session-lock-controls');
+        if(lockControls) lockControls.style.display = 'flex';
     }
 }
 
 function lockVaultSession() {
     sessionStorage.removeItem('medledger_session_key');
-    vaultPassInput.value = '';
-    sessionLockControls.style.display = 'none';
+    if(vaultPassInput) vaultPassInput.value = '';
+    const lockControls = document.getElementById('session-lock-controls');
+    if(lockControls) lockControls.style.display = 'none';
     showVaultStatus("Vault locked.", "var(--text-secondary)");
 }
 
@@ -893,6 +955,7 @@ async function getKey(keyMaterial, salt) {
     );
 }
 
+// Includes archived_logs in the encrypted payload
 async function generateEncryptedBlob(password) {
     const meds = await new Promise(res => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result));
     const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
@@ -929,6 +992,7 @@ async function processEncryptedBlob(password, base64Blob) {
     return JSON.parse(dec.decode(decryptedContent));
 }
 
+// Restores archived_logs from the decrypted payload
 function restoreDataToDB(parsedData) {
     const transaction = db.transaction(["meds", "logs", "archived_logs"], "readwrite");
     const medStore = transaction.objectStore("meds");
@@ -961,6 +1025,7 @@ function togglePasswordVisibility() {
 }
 
 function showVaultStatus(message, color) {
+    if(!vaultStatus) return;
     vaultStatus.textContent = message; vaultStatus.style.color = color;
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
@@ -975,7 +1040,7 @@ async function exportCSV() {
     });
 
     if (!logs || logs.length === 0) {
-        showVaultStatus("No history to export.", "var(--accent-color)");
+        showVaultStatus("No history to export.", "var(--danger-color)");
         return;
     }
 
@@ -1019,7 +1084,7 @@ async function exportHTMLReport() {
     });
 
     if (!logs || logs.length === 0) {
-        showVaultStatus("No history to export.", "var(--accent-color)");
+        showVaultStatus("No history to export.", "var(--danger-color)");
         return;
     }
 
@@ -1114,7 +1179,7 @@ async function exportHTMLReport() {
 async function exportVaultLocal() {
     const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
-    if (!password) { showVaultStatus("Password required for export.", "var(--accent-color)"); return; }
+    if (!password) { showVaultStatus("Password required for export.", "var(--danger-color)"); return; }
     
     promptToSavePassword(password);
     cacheSessionPassword(password);
@@ -1129,14 +1194,14 @@ async function exportVaultLocal() {
         
         vaultPassInput.value = password; 
         showVaultStatus("Local Export successful.", "var(--success-color)");
-    } catch (err) { console.error(err); showVaultStatus("Export failed.", "#ef4444"); }
+    } catch (err) { console.error(err); showVaultStatus("Export failed.", "var(--danger-color)"); }
 }
 
 async function importVaultLocal(e) {
     const file = e.target.files[0];
     if (!file) return;
     const password = vaultPassInput.value;
-    if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); e.target.value = ''; return; }
+    if (!password) { showVaultStatus("Password required to decrypt.", "var(--danger-color)"); e.target.value = ''; return; }
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -1146,7 +1211,7 @@ async function importVaultLocal(e) {
             vaultPassInput.value = ''; e.target.value = '';
             showVaultStatus("Local Import successful. Vault restored.", "var(--success-color)");
         } catch (err) {
-            console.error(err); showVaultStatus("Decryption failed. Incorrect password?", "#ef4444"); e.target.value = '';
+            console.error(err); showVaultStatus("Decryption failed. Incorrect password?", "var(--danger-color)"); e.target.value = '';
         }
     };
     reader.readAsText(file);
@@ -1163,8 +1228,10 @@ window.initGoogleSync = function() {
         callback: (tokenResponse) => {
             if (tokenResponse && tokenResponse.access_token) {
                 gapiToken = tokenResponse.access_token;
-                document.getElementById('cloud-sync-controls').style.display = 'flex';
-                document.getElementById('btn-gdrive-login').style.display = 'none';
+                const syncControls = document.getElementById('cloud-sync-controls');
+                const btnLogin = document.getElementById('btn-gdrive-login');
+                if(syncControls) syncControls.style.display = 'flex';
+                if(btnLogin) btnLogin.style.display = 'none';
                 showVaultStatus("Google Drive Connected.", "var(--success-color)");
             }
         },
@@ -1173,7 +1240,7 @@ window.initGoogleSync = function() {
 
 window.loginGoogleDrive = function() {
     if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
-        showVaultStatus("Please add your Client ID to app.js", "#ef4444");
+        showVaultStatus("Please add your Client ID to app.js", "var(--danger-color)");
         return;
     }
     tokenClient.requestAccessToken();
@@ -1191,7 +1258,7 @@ async function checkDriveForFile() {
 async function pushToGoogleDrive() {
     const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
-    if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
+    if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--danger-color)"); return; }
     
     promptToSavePassword(password);
     cacheSessionPassword(password);
@@ -1236,14 +1303,14 @@ async function pushToGoogleDrive() {
         }
     } catch (err) {
         console.error(err);
-        showVaultStatus("Failed to push to Cloud. Check console.", "#ef4444");
+        showVaultStatus("Failed to push to Cloud. Check console.", "var(--danger-color)");
     }
 }
 
 async function pullFromGoogleDrive() {
     const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
-    if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); return; }
+    if (!password) { showVaultStatus("Password required to decrypt.", "var(--danger-color)"); return; }
 
     promptToSavePassword(password);
     cacheSessionPassword(password);
@@ -1252,7 +1319,7 @@ async function pullFromGoogleDrive() {
     try {
         const fileId = await checkDriveForFile();
         if (!fileId) {
-            showVaultStatus("No backup found in Drive.", "#ef4444");
+            showVaultStatus("No backup found in Drive.", "var(--danger-color)");
             return;
         }
 
@@ -1270,7 +1337,7 @@ async function pullFromGoogleDrive() {
         showVaultStatus("Successfully synced from Drive.", "var(--success-color)");
     } catch (err) {
         console.error(err);
-        showVaultStatus("Decryption or Download failed.", "#ef4444");
+        showVaultStatus("Decryption or Download failed.", "var(--danger-color)");
     }
 }
 
