@@ -13,7 +13,8 @@ let gapiToken = null;
 const AppSettings = {
     noBabysitter: localStorage.getItem('cfg_noBabysitter') === 'true',
     expertMode: localStorage.getItem('cfg_expertMode') === 'true',
-    reminders: localStorage.getItem('cfg_reminders') === 'true'
+    reminders: localStorage.getItem('cfg_reminders') === 'true',
+    inventory: localStorage.getItem('cfg_inventory') === 'true' // Opt-in pill tracking
 };
 
 // --- DOM Elements ---
@@ -30,6 +31,11 @@ const settingsModal = document.getElementById('settings-modal');
 const toggleBabysitter = document.getElementById('toggle-babysitter');
 const toggleExpert = document.getElementById('toggle-expert');
 const toggleReminders = document.getElementById('toggle-reminders');
+const toggleInventory = document.getElementById('toggle-inventory');
+
+const newMedInventory = document.getElementById('new-med-inventory');
+const editInventoryGroup = document.getElementById('edit-inventory-group');
+
 const vaultPassInput = document.getElementById('vault-password');
 const vaultStatus = document.getElementById('vault-status');
 const peekBtn = document.getElementById('btn-peek-password');
@@ -45,6 +51,9 @@ const sessionLockControls = document.getElementById('session-lock-controls');
 const btnLockVault = document.getElementById('btn-lock-vault');
 const btnExportCSV = document.getElementById('btn-export-csv');
 const btnExportHTML = document.getElementById('btn-export-html');
+
+const adherenceScore = document.getElementById('adherence-score');
+const adherenceSubtext = document.getElementById('adherence-subtext');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -70,14 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionLockControls.style.display = 'none';
         }
         settingsModal.showModal();
-        settingsModal.scrollTop = 0; // Pro-tweak: Reset scroll
+        settingsModal.scrollTop = 0; 
     });
     
     document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
     
     document.getElementById('help-toggle').addEventListener('click', () => {
         helpModal.showModal();
-        helpModal.scrollTop = 0; // Pro-tweak: Reset scroll
+        helpModal.scrollTop = 0; 
     });
     document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
 
@@ -89,11 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     tabTodayBtn.addEventListener('click', () => switchTab('today'));
     tabHistoryBtn.addEventListener('click', () => switchTab('history'));
 
-    // Local Vault
     document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
     document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
 
-    // Cloud Vault Actions
     document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
     document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
 
@@ -119,27 +126,16 @@ function updateThemeIcon(theme) {
 
 function initializeTheme() {
     let savedTheme = localStorage.getItem('theme');
-    
     if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    
     rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 }
 
 themeToggleBtn.addEventListener('click', () => {
     let currentTheme = rootElement.getAttribute('data-theme');
-    
-    let newTheme;
-    if (currentTheme === 'dark') {
-        newTheme = 'light';
-    } else if (currentTheme === 'light') {
-        newTheme = 'hc';
-    } else {
-        newTheme = 'dark';
-    }
-    
+    let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
     rootElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
     updateThemeIcon(newTheme);
@@ -157,6 +153,7 @@ function switchTab(tab) {
         tabTodayBtn.classList.remove('active');
         logHistoryView.classList.remove('hidden-view');
         dailyScheduleView.classList.add('hidden-view');
+        calculateAdherence(); // Trigger stat calc when opening history
     }
 }
 
@@ -167,7 +164,7 @@ window.addTimeField = function(containerId) {
     input.className = 'time-input';
     input.style.cssText = 'padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit; margin-top: 0.25rem;';
     container.appendChild(input);
-    input.focus(); // Pro-tweak: Auto-focus new field
+    input.focus(); 
 };
 
 function getTimesFromContainer(containerId) {
@@ -185,6 +182,10 @@ function initSettings() {
     toggleBabysitter.checked = AppSettings.noBabysitter;
     toggleExpert.checked = AppSettings.expertMode;
     toggleReminders.checked = AppSettings.reminders;
+    toggleInventory.checked = AppSettings.inventory;
+
+    // Show/hide inventory inputs based on initial load
+    newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
 
     toggleBabysitter.addEventListener('change', (e) => {
         AppSettings.noBabysitter = e.target.checked;
@@ -194,6 +195,13 @@ function initSettings() {
     toggleExpert.addEventListener('change', (e) => {
         AppSettings.expertMode = e.target.checked;
         localStorage.setItem('cfg_expertMode', e.target.checked);
+        loadChecklist(); 
+    });
+
+    toggleInventory.addEventListener('change', (e) => {
+        AppSettings.inventory = e.target.checked;
+        localStorage.setItem('cfg_inventory', e.target.checked);
+        newMedInventory.style.display = e.target.checked ? 'block' : 'none';
         loadChecklist(); 
     });
 
@@ -233,10 +241,8 @@ function initDB() {
                 const cursor = event.target.result;
                 if (cursor) {
                     const med = cursor.value;
-                    if (med.sideEffects === undefined) {
-                        med.sideEffects = "";
-                        cursor.update(med);
-                    }
+                    if (med.sideEffects === undefined) med.sideEffects = "";
+                    cursor.update(med);
                     cursor.continue();
                 }
             };
@@ -262,6 +268,7 @@ function handleAddMed(e) {
     const freqInput = document.getElementById('new-med-freq').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
+    const inventoryInput = document.getElementById('new-med-inventory').value.trim();
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -273,7 +280,8 @@ function handleAddMed(e) {
         frequency: freqInput,
         times: timesArray,
         instructions: instructionsInput,
-        sideEffects: sideEffectsInput 
+        sideEffects: sideEffectsInput,
+        inventory: AppSettings.inventory ? inventoryInput : ""
     };
     
     const transaction = db.transaction(["meds"], "readwrite");
@@ -301,6 +309,13 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-instructions').value = med.instructions || '';
             document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
             
+            if (AppSettings.inventory) {
+                editInventoryGroup.style.display = 'block';
+                document.getElementById('edit-med-inventory').value = med.inventory || '';
+            } else {
+                editInventoryGroup.style.display = 'none';
+            }
+            
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
 
@@ -316,8 +331,8 @@ window.openEditModal = function(id) {
                 });
             }
             editModal.showModal();
-            editModal.scrollTop = 0; // Pro-tweak: Reset scroll
-            document.getElementById('edit-med-name').focus(); // Pro-tweak: Auto-focus
+            editModal.scrollTop = 0; 
+            document.getElementById('edit-med-name').focus(); 
         }
     };
 };
@@ -330,6 +345,7 @@ function saveEditedMed(e) {
     const freq = document.getElementById('edit-med-freq').value;
     const instructions = document.getElementById('edit-med-instructions').value.trim();
     const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); 
+    const inventory = AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
 
     const transaction = db.transaction(["meds"], "readwrite");
@@ -340,7 +356,8 @@ function saveEditedMed(e) {
         frequency: freq,
         times: timesArray,
         instructions: instructions,
-        sideEffects: sideEffects 
+        sideEffects: sideEffects,
+        inventory: inventory
     });
 
     transaction.oncomplete = () => {
@@ -459,15 +476,26 @@ function loadChecklist() {
             checkboxesHtml += '</div>';
 
             let extrasHtml = '';
-            if (med.instructions || med.sideEffects) {
+            
+            // Check if we need to show warnings or instructions
+            const showInvWarning = AppSettings.inventory && med.inventory !== undefined && med.inventory !== "" && parseInt(med.inventory) <= 10;
+            
+            if (med.instructions || med.sideEffects || showInvWarning) {
                 extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; background-color: rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 0.5rem;">`;
+                
+                if (showInvWarning) {
+                    extrasHtml += `<div style="color: #ef4444; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                      Low Inventory: Only ${med.inventory} pill${med.inventory == 1 ? '' : 's'} remaining
+                                   </div>`;
+                }
                 
                 if (med.instructions) {
                     extrasHtml += `<div style="color: var(--text-secondary); font-style: italic;">${med.instructions}</div>`;
                 }
                 if (med.sideEffects) {
-                    extrasHtml += `<div style="color: #ef4444; font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    extrasHtml += `<div style="color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                                       ${med.sideEffects}
                                    </div>`;
                 }
@@ -496,13 +524,17 @@ function logAll() {
 }
 
 function processBatchLog(compositeIds) {
-    const transaction = db.transaction(["logs"], "readwrite");
-    const store = transaction.objectStore("logs");
+    // Open a transaction on BOTH logs and meds so we can decrement inventory
+    const transaction = db.transaction(["logs", "meds"], "readwrite");
+    const logStore = transaction.objectStore("logs");
+    const medStore = transaction.objectStore("meds");
     
     const manualTimeInput = document.getElementById('manual-time');
     const baseTimestamp = (manualTimeInput && manualTimeInput.value) 
         ? new Date(manualTimeInput.value).toISOString() 
         : new Date().toISOString();
+
+    let decrements = {}; // Track how many to subtract per medication ID
 
     compositeIds.forEach(compId => {
         const safeCompId = compId.replace(/\|/g, '\\|');
@@ -513,7 +545,10 @@ function processBatchLog(compositeIds) {
         const coreId = parts[0];
         const targetTime = parts[1] === 'none' ? null : parts[1];
         
-        store.add({
+        // Track the count for inventory subtraction
+        decrements[coreId] = (decrements[coreId] || 0) + 1;
+        
+        logStore.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
             dateTaken: baseTimestamp, 
             medId: coreId,
@@ -523,6 +558,21 @@ function processBatchLog(compositeIds) {
             status: "taken"
         });
     });
+
+    // Execute the Inventory Decrements if the feature is turned on
+    if (AppSettings.inventory) {
+        Object.keys(decrements).forEach(id => {
+            const req = medStore.get(id);
+            req.onsuccess = () => {
+                const med = req.result;
+                if (med && med.inventory !== undefined && med.inventory !== "") {
+                    // Subtract the logged amount, but don't drop below zero
+                    med.inventory = Math.max(0, parseInt(med.inventory) - decrements[id]);
+                    medStore.put(med);
+                }
+            };
+        });
+    }
 
     transaction.oncomplete = () => {
         compositeIds.forEach(compId => {
@@ -537,11 +587,12 @@ function processBatchLog(compositeIds) {
         
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
-        refreshHistory();
+        refreshHistory(); // This will also trigger loadChecklist to update warning labels
+        if (AppSettings.inventory) loadChecklist(); // Force UI refresh for pill counts
     };
 }
 
-// --- History Logic ---
+// --- History & Adherence Logic ---
 function refreshHistory() {
     const transaction = db.transaction(["logs"], "readonly");
     const request = transaction.objectStore("logs").getAll();
@@ -587,12 +638,75 @@ function refreshHistory() {
     };
 }
 
+function calculateAdherence() {
+    const tx = db.transaction(["meds", "logs"], "readonly");
+    const medReq = tx.objectStore("meds").getAll();
+    const logReq = tx.objectStore("logs").getAll();
+
+    tx.oncomplete = () => {
+        const meds = medReq.result;
+        const logs = logReq.result;
+
+        let expectedWeeklyDoses = 0;
+        let nonPrnMedIds = new Set();
+
+        // 1. Calculate how many doses SHOULD be taken in a 7 day rolling window
+        meds.forEach(med => {
+            if (med.frequency !== "As Needed") {
+                nonPrnMedIds.add(med.id);
+                let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
+                
+                if (med.frequency === "Weekly") {
+                    expectedWeeklyDoses += timeCount; // Happens once a week
+                } else {
+                    expectedWeeklyDoses += (timeCount * 7); // Happens daily
+                }
+            }
+        });
+
+        if (expectedWeeklyDoses === 0) {
+            adherenceScore.textContent = "--%";
+            adherenceScore.style.color = "var(--text-primary)";
+            adherenceSubtext.textContent = "No scheduled medications";
+            return;
+        }
+
+        // 2. Calculate how many scheduled doses WERE taken in the last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        let actualTaken = 0;
+
+        logs.forEach(log => {
+            const logDate = new Date(log.dateTaken);
+            if (logDate >= sevenDaysAgo && log.status === "taken" && nonPrnMedIds.has(log.medId)) {
+                actualTaken++;
+            }
+        });
+
+        // 3. Render
+        let percent = Math.min(100, Math.round((actualTaken / expectedWeeklyDoses) * 100));
+        
+        adherenceScore.textContent = `${percent}%`;
+        adherenceSubtext.textContent = `${actualTaken} of ${expectedWeeklyDoses} expected doses`;
+
+        if (percent >= 90) {
+            adherenceScore.style.color = "var(--success-color)";
+        } else if (percent >= 75) {
+            adherenceScore.style.color = "#f59e0b"; // Warning Orange
+        } else {
+            adherenceScore.style.color = "var(--accent-color)"; // Danger Red
+        }
+    };
+}
+
 window.deleteLog = function(timestampKey) {
     if (!AppSettings.noBabysitter && !confirm("Remove this log entry?")) return;
     const transaction = db.transaction(["logs"], "readwrite");
     transaction.objectStore("logs").delete(timestampKey);
     transaction.oncomplete = () => {
         refreshHistory();
+        calculateAdherence();
         loadChecklist();
     };
 };
