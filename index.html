@@ -191,7 +191,7 @@
                 <li><b>Consistency Grid (Heatmap):</b> A visual calendar of your habits. A <b>Green</b> square means you took all scheduled doses that day, <b>Yellow</b> means partial completion, and <b>Gray</b> means missed doses. Use the dropdown menu to view your 7-day, 30-day, or 90-day trends.</li>
             </ul>
         </div>
-        
+
         <div class="action-group modal-actions" style="margin-top: 2rem;">
             <button type="button" id="btn-close-help" class="btn btn-primary">Got it</button>
         </div>
@@ -322,9 +322,10 @@
                     Cloud Sync (Google Drive)
                 </h3>
                 <button type="button" id="btn-gdrive-login" class="btn btn-secondary" style="width: 100%;" onclick="loginGoogleDrive()">Sign in to Google</button>
-                <div id="cloud-sync-controls" class="cloud-controls" style="display: none;">
+                <div id="cloud-sync-controls" class="cloud-controls" style="display: none; flex-wrap: wrap;">
                     <button type="button" id="btn-cloud-push" class="btn btn-primary" style="flex: 1;">Push to Cloud</button>
                     <button type="button" id="btn-cloud-pull" class="btn btn-secondary" style="flex: 1;">Pull from Cloud</button>
+                    <button type="button" id="btn-gdrive-logout" class="btn btn-danger" style="flex: 100%; margin-top: 0.5rem; margin-right: 0;" onclick="logoutGoogleDrive()">Disconnect Cloud</button>
                 </div>
             </div>
 
