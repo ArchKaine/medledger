@@ -556,6 +556,27 @@ function registerServiceWorker() {
 }
 
 // ==========================================
+// --- CREDENTIAL MANAGEMENT API ---
+// ==========================================
+
+// Explicitly ask the OS/Browser to save the vault password
+async function promptToSavePassword(password) {
+    if ('credentials' in navigator && window.PasswordCredential) {
+        try {
+            const cred = new PasswordCredential({
+                id: 'MedLedger_Vault',
+                password: password,
+                name: 'MedLedger Encryption Key'
+            });
+            // This triggers the Android/Browser "Save Password?" popup
+            await navigator.credentials.store(cred);
+        } catch (err) {
+            console.warn("Credential save ignored or failed:", err);
+        }
+    }
+}
+
+// ==========================================
 // --- ENCRYPTED VAULT LOGIC (Core) ---
 // ==========================================
 const enc = new TextEncoder();
@@ -635,29 +656,15 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
-// Explicitly ask the OS/Browser to save the vault password
-async function promptToSavePassword(password) {
-    if ('credentials' in navigator && window.PasswordCredential) {
-        try {
-            const cred = new PasswordCredential({
-                id: 'MedLedger_Vault',
-                password: password,
-                name: 'MedLedger Encryption Key'
-            });
-            // This triggers the Android/Browser "Save Password?" popup
-            await navigator.credentials.store(cred);
-        } catch (err) {
-            console.warn("Credential save ignored or failed:", err);
-        }
-    }
-}
-
 // ==========================================
 // --- LOCAL VAULT (File Export/Import) ---
 // ==========================================
 async function exportVaultLocal() {
     const password = vaultPassInput.value;
     if (!password) { showVaultStatus("Password required for export.", "var(--accent-color)"); return; }
+    
+    promptToSavePassword(password);
+    
     try {
         const encryptedBase64 = await generateEncryptedBlob(password);
         const blob = new Blob([encryptedBase64], { type: "text/plain" });
@@ -730,6 +737,8 @@ async function pushToGoogleDrive() {
     const password = vaultPassInput.value;
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--accent-color)"); return; }
     
+    promptToSavePassword(password);
+
     showVaultStatus("Encrypting and pushing...", "var(--text-secondary)");
     try {
         const encryptedBase64 = await generateEncryptedBlob(password);
@@ -777,6 +786,8 @@ async function pushToGoogleDrive() {
 async function pullFromGoogleDrive() {
     const password = vaultPassInput.value;
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--accent-color)"); return; }
+
+    promptToSavePassword(password);
 
     showVaultStatus("Pulling from cloud...", "var(--text-secondary)");
     try {
