@@ -54,6 +54,7 @@ async function refreshAllClinicalData(isAuto = false) {
     const meds = await new Promise(res => medStore.getAll().onsuccess = e => res(e.target.result));
 
     for (const med of meds) {
+        // Only fetch if description is currently empty or if forced manually
         if (!isAuto || !med.description) {
             const freshData = await fetchDrugInfo(med.name);
             med.description = freshData.description;
@@ -84,15 +85,17 @@ function archiveOldLogs() {
     logStore.openCursor().onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) {
-            if (new Date(cursor.value.dateTaken) < cutoffDate) {
-                archiveStore.add(cursor.value);
+            const log = cursor.value;
+            if (new Date(log.dateTaken) < cutoffDate) {
+                archiveStore.add(log);
                 cursor.delete();
             }
             cursor.continue();
         }
     };
+
     tx.oncomplete = () => {
-        if(typeof showVaultStatus === 'function') showVaultStatus(`History older than ${days} days archived.`, "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus(`Logs older than ${days} days moved to cold storage.`, "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
@@ -102,6 +105,7 @@ function restoreArchivedLogs() {
     const tx = db.transaction(["logs", "archived_logs"], "readwrite");
     const logStore = tx.objectStore("logs");
     const archiveStore = tx.objectStore("archived_logs");
+
     archiveStore.openCursor().onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) {
@@ -110,8 +114,9 @@ function restoreArchivedLogs() {
             cursor.continue();
         }
     };
+
     tx.oncomplete = () => {
-        if(typeof showVaultStatus === 'function') showVaultStatus("Archives restored to active memory.", "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("All archives restored to active memory.", "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
@@ -246,7 +251,7 @@ window.openEditModal = function(id) {
                 <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color); font-size: 0.75rem; text-transform: uppercase;">Drug Reference (Fetched Data)</h4>
                 ${med.description ? `<p style="margin-bottom: 0.5rem;"><strong>Summary:</strong> ${med.description}</p>` : ''}
                 ${med.indications ? `<p style="margin: 0;"><strong>Primary Indications:</strong> ${med.indications}</p>` : ''}
-            </div>` : '';
+            </div>` : '<p style="font-size:0.75rem; color:var(--text-secondary); text-align:center;">No clinical data cached for this medication.</p>';
 
         document.getElementById('edit-med-modal')?.showModal();
     };
@@ -297,9 +302,10 @@ window.refillMed = function(id, amount) {
     const qty = amount === 'custom' ? (parseInt(document.getElementById(`refill-custom-${id}`).value) || 0) : parseInt(amount);
     if (qty <= 0) return;
     const tx = db.transaction(["meds"], "readwrite");
-    tx.objectStore("meds").get(id).onsuccess = (e) => {
+    const medStore = tx.objectStore("meds");
+    medStore.get(id).onsuccess = (e) => {
         const m = e.target.result;
-        if (m) { m.inventory = (parseInt(m.inventory) || 0) + qty; tx.objectStore("meds").put(m); }
+        if (m) { m.inventory = (parseInt(m.inventory) || 0) + qty; medStore.put(m); }
     };
     tx.oncomplete = loadChecklist;
 };
@@ -464,13 +470,14 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- 9. High-Fidelity Exports (Grouped by Date) ---
+// --- 9. High-Fidelity Exports ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
 
+    const lowInvMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
     const grouped = {};
     logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken).toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
@@ -489,8 +496,7 @@ async function exportHTMLReport() {
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const lowInv = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
-    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
+    const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
     const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
@@ -515,7 +521,7 @@ async function exportHTMLReport() {
         @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
     </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper">
     <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
-    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInv.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
+    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInvMeds.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
     ${refillHtml}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${clinicalBody}
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 
@@ -548,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('medledger_clinical_lookups', e.target.checked);
         });
 
-        // FORCE REFRESH FOR ALL MEDS ON FIRST LOAD (or if not done before)
+        // FORCE REFRESH FOR ALL MEDS ON FIRST LOAD
         if (toggle.checked && localStorage.getItem('medledger_initial_fetch_done') !== 'true') {
             const checkDB = setInterval(() => {
                 if (typeof db !== 'undefined') {
