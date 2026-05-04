@@ -8,7 +8,7 @@ async function fetchDrugInfo(drugName) {
     const info = { description: "", indications: "" };
     const cleanName = drugName.toLowerCase().trim();
     try {
-        // Wikidata Lookup (Plain English Summary)
+        // 1. Wikidata Lookup (Plain English Summary)
         const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${cleanName}&languages=en&props=descriptions&format=json&origin=*`;
         const wikiRes = await fetch(wikiUrl);
         if (wikiRes.ok) {
@@ -19,7 +19,7 @@ async function fetchDrugInfo(drugName) {
                 info.description = entities[entityId].descriptions?.en?.value || "";
             }
         }
-        // OpenFDA Lookup (Official Clinical Indications)
+        // 2. OpenFDA Lookup (Official Clinical Indications)
         const fdaUrl = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${cleanName}"&limit=1`;
         const fdaRes = await fetch(fdaUrl);
         if (fdaRes.ok) {
@@ -192,11 +192,11 @@ window.openEditModal = function(id) {
         
         const container = document.getElementById('edit-med-times-container');
         container.innerHTML = ''; 
-        const timesToRender = med.times || [];
-        if (timesToRender.length === 0) {
+        const times = med.times || [];
+        if (times.length === 0) {
             if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
         } else {
-            timesToRender.forEach(t => {
+            times.forEach(t => {
                 if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
                 if(container.lastElementChild) container.lastElementChild.value = t;
             });
@@ -299,7 +299,6 @@ function loadChecklist() {
 
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.toLocaleDateString();
-        const currentHourStr = new Date().getHours().toString().padStart(2, '0') + ':' + new Date().getMinutes().toString().padStart(2, '0');
         let visibleCount = 0;
 
         rawMeds.forEach(med => {
@@ -330,7 +329,7 @@ function loadChecklist() {
                         <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
                         <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
                     </label>
-                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.5rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
+                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
                 `;
             });
             timesHtml += '</div>';
@@ -411,8 +410,7 @@ function refreshHistory() {
             return `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px;">DUP</span>' : ''}
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
+                    <strong>${l.medName}</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</span>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
@@ -446,7 +444,6 @@ async function exportHTMLReport() {
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
 
-    const lowInvMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
     const grouped = {};
     logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken).toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
@@ -465,7 +462,8 @@ async function exportHTMLReport() {
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
+    const lowInv = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
+    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
     const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
@@ -490,7 +488,7 @@ async function exportHTMLReport() {
         @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
     </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper">
     <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
-    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInvMeds.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
+    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInv.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
     ${refillHtml}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${clinicalBody}
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 
