@@ -18,8 +18,19 @@ const AppSettings = {
     inventory: localStorage.getItem('cfg_inventory') === 'true'
 };
 
+// --- DOM Elements (Core Bootloader Needs) ---
+let checklistContainer, historyList, addMedForm, editModal, editForm, settingsModal, helpModal;
+
 // --- Initialization / Bootloader ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Bind core elements used directly by the engine
+    checklistContainer = document.getElementById('checklist-container');
+    historyList = document.getElementById('history-list');
+    addMedForm = document.getElementById('add-med-form');
+    editModal = document.getElementById('edit-med-modal');
+    editForm = document.getElementById('edit-med-form');
+    settingsModal = document.getElementById('settings-modal');
+    helpModal = document.getElementById('help-modal');
 
     // Boot UI and Database
     if(typeof initializeTheme === 'function') initializeTheme();
@@ -34,13 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if(e.target.type === 'submit') handleAddMed(e);
     });
     
-    const editModal = document.getElementById('edit-med-modal');
     document.getElementById('btn-cancel-edit')?.addEventListener('click', () => editModal?.close());
     document.getElementById('btn-delete-med')?.addEventListener('click', deleteMedication);
     document.getElementById('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
     // Modal Interactions (UI Logic)
-    const settingsModal = document.getElementById('settings-modal');
     document.getElementById('settings-toggle')?.addEventListener('click', () => {
         const cachedPass = sessionStorage.getItem('medledger_session_key');
         const vaultPassInput = document.getElementById('vault-password');
@@ -58,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
     
-    const helpModal = document.getElementById('help-modal');
     document.getElementById('help-toggle')?.addEventListener('click', () => {
         helpModal?.showModal();
         if(helpModal) helpModal.scrollTop = 0; 
@@ -73,8 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-archive-logs')?.addEventListener('click', archiveOldLogs);
     document.getElementById('btn-restore-archives')?.addEventListener('click', restoreArchivedLogs);
     
-    document.getElementById('heatmap-range')?.addEventListener('change', calculateAdherence);
-    
+    // Heatmap Dropdown Persist & Event
     const heatmapRangeSelect = document.getElementById('heatmap-range');
     if (heatmapRangeSelect) {
         const savedRange = localStorage.getItem('cfg_heatmapRange');
@@ -85,7 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof calculateAdherence === 'function') calculateAdherence();
         });
     }
-    
+
+    // GUARANTEED TAB LISTENERS
+    document.getElementById('tab-today')?.addEventListener('click', () => switchTab('today'));
     document.getElementById('tab-history')?.addEventListener('click', () => switchTab('history'));
 
     document.getElementById('btn-export-vault')?.addEventListener('click', exportVaultLocal);
