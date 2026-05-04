@@ -23,7 +23,7 @@ function calculateAdherence() {
             const currentHourStr = realNow.getHours().toString().padStart(2, '0') + ':' + realNow.getMinutes().toString().padStart(2, '0');
             
             const heatmapRangeSelect = document.getElementById('heatmap-range');
-            const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 30);
+            const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 7);
             if (isNaN(range)) return; 
             
             // --- EPOCH CALCULATION (Find "Day Zero" of the database) ---
