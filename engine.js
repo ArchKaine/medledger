@@ -3,12 +3,12 @@
 // Checklist, Clinical Data, Refills, and High-Fidelity Reports
 // ==========================================
 
-// --- Clinical Data Fetcher (OpenFDA + Wikidata) ---
+// --- 1. Clinical Data Fetcher (Integrated) ---
 async function fetchDrugInfo(drugName) {
     const info = { description: "", indications: "" };
     const cleanName = drugName.toLowerCase().trim();
     try {
-        // 1. Wikidata Lookup (Plain English Summary)
+        // Wikidata Lookup (Plain English Summary)
         const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${cleanName}&languages=en&props=descriptions&format=json&origin=*`;
         const wikiRes = await fetch(wikiUrl);
         if (wikiRes.ok) {
@@ -19,7 +19,7 @@ async function fetchDrugInfo(drugName) {
                 info.description = entities[entityId].descriptions?.en?.value || "";
             }
         }
-        // 2. OpenFDA Lookup (Official Clinical Indications)
+        // OpenFDA Lookup (Official Clinical Indications)
         const fdaUrl = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${cleanName}"&limit=1`;
         const fdaRes = await fetch(fdaUrl);
         if (fdaRes.ok) {
@@ -33,7 +33,7 @@ async function fetchDrugInfo(drugName) {
     return info;
 }
 
-// --- Helper: Get Times from Container ---
+// --- 2. Helper Logic ---
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return [];
@@ -43,7 +43,7 @@ function getTimesFromContainer(containerId) {
     return [...new Set(times)].sort();
 }
 
-// --- Archiving Logic ---
+// --- 3. Archiving Logic ---
 function archiveOldLogs() {
     const archiveDaysEl = document.getElementById('archive-days');
     const days = parseInt(archiveDaysEl ? archiveDaysEl.value : 90) || 90;
@@ -90,7 +90,7 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- Zero-Knowledge Interaction Engine ---
+// --- 4. Zero-Knowledge Interaction Engine ---
 async function checkLocalInteractions(newMedName) {
     try {
         const res = await fetch('interactions.json');
@@ -107,7 +107,7 @@ async function checkLocalInteractions(newMedName) {
     } catch (err) { return []; }
 }
 
-// --- Configuration Logic (Add/Edit/Delete) ---
+// --- 5. Configuration Logic (Add/Edit/Delete) ---
 async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
@@ -192,17 +192,17 @@ window.openEditModal = function(id) {
         
         const container = document.getElementById('edit-med-times-container');
         container.innerHTML = ''; 
-        const times = med.times || [];
-        if (times.length === 0) {
+        const timesToRender = med.times || [];
+        if (timesToRender.length === 0) {
             if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
         } else {
-            times.forEach(t => {
+            timesToRender.forEach(t => {
                 if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
                 if(container.lastElementChild) container.lastElementChild.value = t;
             });
         }
 
-        // --- NEW: CLINICAL INFO DISPLAY IN EDIT MODAL ---
+        // --- LOOKUP DATA DISPLAY IN MODAL ---
         let clinicalPanel = document.getElementById('modal-clinical-info');
         if (!clinicalPanel) {
             clinicalPanel = document.createElement('div');
@@ -254,11 +254,12 @@ async function saveEditedMed(e) {
         cycleStartDate: document.getElementById('edit-med-cycle-start').value || null,
         description, indications
     });
+
     tx.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); };
 }
 
 function deleteMedication() {
-    if (!AppSettings.noBabysitter && !confirm("Remove medication?")) return;
+    if (!AppSettings.noBabysitter && !confirm("Remove this medication?")) return;
     const id = document.getElementById('edit-med-id').value;
     const tx = db.transaction(["meds"], "readwrite");
     tx.objectStore("meds").delete(id);
@@ -277,7 +278,7 @@ window.refillMed = function(id, amount) {
     tx.oncomplete = loadChecklist;
 };
 
-// --- Regimen Logic ---
+// --- 6. Regimen Logic ---
 function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container || typeof db === 'undefined') return;
@@ -298,6 +299,7 @@ function loadChecklist() {
 
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.toLocaleDateString();
+        const currentHourStr = new Date().getHours().toString().padStart(2, '0') + ':' + new Date().getMinutes().toString().padStart(2, '0');
         let visibleCount = 0;
 
         rawMeds.forEach(med => {
@@ -328,7 +330,7 @@ function loadChecklist() {
                         <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
                         <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
                     </label>
-                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
+                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.5rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
                 `;
             });
             timesHtml += '</div>';
@@ -358,11 +360,12 @@ function loadChecklist() {
             `;
             container.appendChild(card);
         });
-        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary);">Regimen complete.</p>';
+        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary);">Clear for today.</p>';
         if(typeof updateStatus === 'function') updateStatus();
     };
 }
 
+// --- 7. Logging Logic ---
 function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
@@ -400,14 +403,21 @@ function refreshHistory() {
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
         const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
-        list.innerHTML = logs.slice(0, 15).map(l => `
+        const tracker = {};
+        logs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
+        
+        list.innerHTML = logs.slice(0, 15).map(l => {
+            const isDup = l.targetTime && tracker[new Date(l.dateTaken).toLocaleDateString() + '|' + l.compositeId] > 1;
+            return `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</span>
+                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px;">DUP</span>' : ''}
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
-            </li>`).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
+            </li>`;
+        }).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
     };
 }
 
@@ -429,7 +439,7 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- HIGH-FIDELITY CLINICAL EXPORTS ---
+// --- 8. High-Fidelity Grouped Clinical Report ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
@@ -457,7 +467,7 @@ async function exportHTMLReport() {
 
     const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
-    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Clinical Summary</title><style>
+    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
         .report-paper { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; border-top: 8px solid #2563eb; }
         .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
@@ -485,7 +495,7 @@ async function exportHTMLReport() {
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Report.html`; a.click();
 }
 
 async function exportCSV() {
@@ -499,7 +509,7 @@ async function exportCSV() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
 }
 
-// --- Reminders & Utility ---
+// --- 9. Utilities & Rollover ---
 function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
