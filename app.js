@@ -327,8 +327,45 @@ function restoreArchivedLogs() {
     };
 }
 
+// --- Zero-Knowledge Interaction Engine ---
+async function checkLocalInteractions(newMedName) {
+    try {
+        // 1. Fetch the static JSON matrix (loads locally, no external API call)
+        const response = await fetch('interactions.json');
+        const interactionDB = await response.json();
+
+        // 2. Get the user's active medications from IndexedDB
+        const activeMeds = await new Promise(res => {
+            db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result);
+        });
+
+        // 3. Normalize the new medication name (lowercase, remove extra spaces)
+        const newDrug = newMedName.toLowerCase().trim();
+        let warnings = [];
+
+        // 4. Cross-reference the new drug against the active regimen
+        activeMeds.forEach(med => {
+            const activeDrug = med.name.toLowerCase().trim();
+
+            // Check Matrix: Does New Drug interact with Active Drug?
+            if (interactionDB[newDrug] && interactionDB[newDrug][activeDrug]) {
+                warnings.push(`Warning with ${med.name}: ${interactionDB[newDrug][activeDrug]}`);
+            }
+            // Check Matrix: Does Active Drug interact with New Drug?
+            else if (interactionDB[activeDrug] && interactionDB[activeDrug][newDrug]) {
+                warnings.push(`Warning with ${med.name}: ${interactionDB[activeDrug][newDrug]}`);
+            }
+        });
+
+        return warnings;
+    } catch (err) {
+        console.warn("Interaction DB not found or failed to load. Bypassing check.");
+        return []; // Fails open so the app still works even if the JSON is missing
+    }
+}
+
 // --- Configuration Logic (Add/Edit/Delete Meds) ---
-function handleAddMed(e) {
+async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
     const doseInput = document.getElementById('new-med-dose').value.trim();
@@ -340,25 +377,45 @@ function handleAddMed(e) {
 
     if (!nameInput || !doseInput) return;
 
-    const newMed = { 
-        id: crypto.randomUUID(), 
-        name: nameInput, 
-        dose: doseInput, 
+    // ==========================================
+    // ZERO-KNOWLEDGE INTERACTION CHECK
+    // ==========================================
+    const warnings = await checkLocalInteractions(nameInput);
+
+    if (warnings.length > 0) {
+        // If a clash is found, halt the save and force the user to confirm
+        const alertMessage = `⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nDo you still want to add this medication to your regimen?`;
+
+        // If the user clicks "Cancel" on the warning, abort the save entirely
+        if (!confirm(alertMessage)) {
+            showVaultStatus("Medication aborted.", "var(--text-secondary)");
+            return;
+        }
+    }
+    // ==========================================
+
+    const newMed = {
+        id: crypto.randomUUID(),
+        name: nameInput,
+        dose: doseInput,
         frequency: freqInput,
         times: timesArray,
         instructions: instructionsInput,
         sideEffects: sideEffectsInput,
         inventory: AppSettings.inventory ? inventoryInput : ""
     };
-    
+
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").add(newMed);
 
     transaction.oncomplete = () => {
         addMedForm.reset();
-        document.getElementById('new-med-freq').value = 'Daily'; 
+        document.getElementById('new-med-freq').value = 'Daily';
         document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
+        if (warnings.length > 0) {
+            showVaultStatus("Medication added with warnings.", "var(--danger-color)");
+        }
     };
 }
 

@@ -1,0 +1,18 @@
+{
+  "ibuprofen": {
+    "lisinopril": "Decreases blood pressure medication effectiveness and increases strain on kidneys.",
+    "aspirin": "Increases risk of severe gastrointestinal bleeding.",
+    "warfarin": "High risk of severe bleeding."
+  },
+  "warfarin": {
+    "aspirin": "Severe bleeding risk. Both medications prevent blood clotting.",
+    "acetaminophen": "High doses can abnormally increase the effects of Warfarin."
+  },
+  "sertraline": {
+    "tramadol": "High risk of Serotonin Syndrome.",
+    "st. john's wort": "Dangerous risk of Serotonin Syndrome."
+  },
+  "clarithromycin": {
+    "atorvastatin": "Can increase statin levels in the blood, leading to muscle toxicity."
+  }
+}
