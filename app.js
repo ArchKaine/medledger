@@ -1,7 +1,8 @@
 // ==========================================
-// REPLACE THIS WITH YOUR GENERATED CLIENT ID
-const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
+// app.js - MedLedger Core Engine & Bootloader
 // ==========================================
+
+const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 
 const DB_NAME = "MedLedgerDB";
 const DB_VERSION = 3;
@@ -17,104 +18,76 @@ const AppSettings = {
     inventory: localStorage.getItem('cfg_inventory') === 'true'
 };
 
-// --- DOM Elements ---
-const themeToggleBtn = document.getElementById('theme-toggle');
-const rootElement = document.documentElement;
-const statusBar = document.getElementById('status-bar');
-const checklistContainer = document.getElementById('checklist-container');
-const historyList = document.getElementById('history-list');
-const addMedForm = document.getElementById('add-med-form');
-const editModal = document.getElementById('edit-med-modal');
-const editForm = document.getElementById('edit-med-form');
+// --- DOM Elements (Core Bootloader Needs) ---
+let checklistContainer, historyList, addMedForm, editModal, editForm, settingsModal, helpModal;
 
-const settingsModal = document.getElementById('settings-modal');
-const toggleBabysitter = document.getElementById('toggle-babysitter');
-const toggleExpert = document.getElementById('toggle-expert');
-const toggleReminders = document.getElementById('toggle-reminders');
-const toggleInventory = document.getElementById('toggle-inventory');
-
-const newMedInventory = document.getElementById('new-med-inventory');
-const editInventoryGroup = document.getElementById('edit-inventory-group');
-
-const vaultPassInput = document.getElementById('vault-password');
-const vaultStatus = document.getElementById('vault-status');
-const peekBtn = document.getElementById('btn-peek-password');
-const peekIcon = document.getElementById('peek-icon');
-const helpModal = document.getElementById('help-modal');
-
-const tabTodayBtn = document.getElementById('tab-today');
-const tabHistoryBtn = document.getElementById('tab-history');
-const dailyScheduleView = document.getElementById('daily-schedule');
-const logHistoryView = document.getElementById('log-history');
-
-const sessionLockControls = document.getElementById('session-lock-controls');
-const btnLockVault = document.getElementById('btn-lock-vault');
-const btnExportCSV = document.getElementById('btn-export-csv');
-const btnExportHTML = document.getElementById('btn-export-html');
-
-const adherenceScore = document.getElementById('adherence-score');
-const adherenceSubtext = document.getElementById('adherence-subtext');
-const heatmapRangeSelect = document.getElementById('heatmap-range');
-
-// --- Initialization ---
+// --- Initialization / Bootloader ---
 document.addEventListener('DOMContentLoaded', () => {
-    initializeTheme();
-    initSettings();
+    // Bind core elements used directly by the engine
+    checklistContainer = document.getElementById('checklist-container');
+    historyList = document.getElementById('history-list');
+    addMedForm = document.getElementById('add-med-form');
+    editModal = document.getElementById('edit-med-modal');
+    editForm = document.getElementById('edit-med-form');
+    settingsModal = document.getElementById('settings-modal');
+    helpModal = document.getElementById('help-modal');
+
+    // Boot UI and Database
+    if(typeof initializeTheme === 'function') initializeTheme();
+    if(typeof initSettings === 'function') initSettings();
     initDB();
     registerServiceWorker();
 
-    document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
-    document.getElementById('btn-submit-all').addEventListener('click', logAll);
-    addMedForm.addEventListener('submit', handleAddMed);
-    document.getElementById('btn-cancel-edit').addEventListener('click', () => editModal.close());
-    document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
-    editForm.addEventListener('submit', saveEditedMed);
+    // Hook up Engine Listeners
+    document.getElementById('btn-submit-selected')?.addEventListener('click', logSelected);
+    document.getElementById('btn-submit-all')?.addEventListener('click', logAll);
+    addMedForm?.addEventListener('submit', handleAddMed);
+    document.getElementById('btn-cancel-edit')?.addEventListener('click', () => editModal.close());
+    document.getElementById('btn-delete-med')?.addEventListener('click', deleteMedication);
+    editForm?.addEventListener('submit', saveEditedMed);
     
-    document.getElementById('settings-toggle').addEventListener('click', () => {
+    // Modal Interactions
+    document.getElementById('settings-toggle')?.addEventListener('click', () => {
         const cachedPass = sessionStorage.getItem('medledger_session_key');
-        if (cachedPass) {
+        const vaultPassInput = document.getElementById('vault-password');
+        const sessionLockControls = document.getElementById('session-lock-controls');
+        
+        if (cachedPass && vaultPassInput && sessionLockControls) {
             vaultPassInput.value = cachedPass;
             sessionLockControls.style.display = 'flex';
-        } else {
+        } else if (vaultPassInput && sessionLockControls) {
             vaultPassInput.value = '';
             sessionLockControls.style.display = 'none';
         }
-        settingsModal.showModal();
-        settingsModal.scrollTop = 0; 
+        settingsModal?.showModal();
+        if(settingsModal) settingsModal.scrollTop = 0; 
     });
+    document.getElementById('btn-close-settings')?.addEventListener('click', () => settingsModal.close());
     
-    document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
-    
-    document.getElementById('help-toggle').addEventListener('click', () => {
-        helpModal.showModal();
-        helpModal.scrollTop = 0; 
+    document.getElementById('help-toggle')?.addEventListener('click', () => {
+        helpModal?.showModal();
+        if(helpModal) helpModal.scrollTop = 0; 
     });
-    document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
+    document.getElementById('btn-close-help')?.addEventListener('click', () => helpModal.close());
 
-    peekBtn.addEventListener('click', togglePasswordVisibility);
-    btnLockVault.addEventListener('click', lockVaultSession);
-    btnExportCSV.addEventListener('click', exportCSV);
-    btnExportHTML.addEventListener('click', exportHTMLReport);
-
-    const btnArchiveLogs = document.getElementById('btn-archive-logs');
-    if(btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
+    // Connect to external modules
+    document.getElementById('btn-peek-password')?.addEventListener('click', togglePasswordVisibility);
+    document.getElementById('btn-lock-vault')?.addEventListener('click', lockVaultSession);
+    document.getElementById('btn-export-csv')?.addEventListener('click', exportCSV);
+    document.getElementById('btn-export-html')?.addEventListener('click', exportHTMLReport);
+    document.getElementById('btn-archive-logs')?.addEventListener('click', archiveOldLogs);
+    document.getElementById('btn-restore-archives')?.addEventListener('click', restoreArchivedLogs);
     
-    const btnRestoreArchives = document.getElementById('btn-restore-archives');
-    if(btnRestoreArchives) btnRestoreArchives.addEventListener('click', restoreArchivedLogs);
+    document.getElementById('heatmap-range')?.addEventListener('change', calculateAdherence);
+    document.getElementById('tab-today')?.addEventListener('click', () => switchTab('today'));
+    document.getElementById('tab-history')?.addEventListener('click', () => switchTab('history'));
 
-    if (heatmapRangeSelect) {
-        heatmapRangeSelect.addEventListener('change', calculateAdherence);
-    }
+    document.getElementById('btn-export-vault')?.addEventListener('click', exportVaultLocal);
+    document.getElementById('import-vault-file')?.addEventListener('change', importVaultLocal);
+    document.getElementById('btn-cloud-push')?.addEventListener('click', pushToGoogleDrive);
+    document.getElementById('btn-cloud-pull')?.addEventListener('click', pullFromGoogleDrive);
 
-    tabTodayBtn.addEventListener('click', () => switchTab('today'));
-    tabHistoryBtn.addEventListener('click', () => switchTab('history'));
-
-    // NOTE: These functions now live inside vault.js
-    document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
-    document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
-    document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
-    document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
-
+    // Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
         if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
@@ -124,114 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- Theme Logic ---
-function updateThemeIcon(theme) {
-    if (theme === 'light') {
-        themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
-    } else if (theme === 'hc') {
-        themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
-    } else {
-        themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
-    }
-}
-
-function initializeTheme() {
-    let savedTheme = localStorage.getItem('theme');
-    if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
-        savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    rootElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
-}
-
-themeToggleBtn.addEventListener('click', () => {
-    let currentTheme = rootElement.getAttribute('data-theme');
-    let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
-    rootElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-});
-
-// --- Tab Logic ---
-function switchTab(tab) {
-    if (tab === 'today') {
-        tabTodayBtn.classList.add('active');
-        tabHistoryBtn.classList.remove('active');
-        dailyScheduleView.classList.remove('hidden-view');
-        logHistoryView.classList.add('hidden-view');
-    } else {
-        tabHistoryBtn.classList.add('active');
-        tabTodayBtn.classList.remove('active');
-        logHistoryView.classList.remove('hidden-view');
-        dailyScheduleView.classList.add('hidden-view');
-        calculateAdherence(); 
-    }
-}
-
-window.addTimeField = function(containerId) {
-    const container = document.getElementById(containerId);
-    const input = document.createElement('input');
-    input.type = 'time';
-    input.className = 'time-input';
-    input.style.cssText = 'padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit; margin-top: 0.25rem;';
-    container.appendChild(input);
-    input.focus(); 
-};
-
-function getTimesFromContainer(containerId) {
-    const container = document.getElementById(containerId);
-    const inputs = container.querySelectorAll('input[type="time"]');
-    let times = [];
-    inputs.forEach(input => {
-        if (input.value) times.push(input.value);
-    });
-    return [...new Set(times)].sort();
-}
-
-// --- Settings Logic ---
-function initSettings() {
-    toggleBabysitter.checked = AppSettings.noBabysitter;
-    toggleExpert.checked = AppSettings.expertMode;
-    toggleReminders.checked = AppSettings.reminders;
-    toggleInventory.checked = AppSettings.inventory;
-
-    if(newMedInventory) newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
-
-    toggleBabysitter.addEventListener('change', (e) => {
-        AppSettings.noBabysitter = e.target.checked;
-        localStorage.setItem('cfg_noBabysitter', e.target.checked);
-    });
-
-    toggleExpert.addEventListener('change', (e) => {
-        AppSettings.expertMode = e.target.checked;
-        localStorage.setItem('cfg_expertMode', e.target.checked);
-        loadChecklist(); 
-    });
-
-    toggleInventory.addEventListener('change', (e) => {
-        AppSettings.inventory = e.target.checked;
-        localStorage.setItem('cfg_inventory', e.target.checked);
-        if(newMedInventory) newMedInventory.style.display = e.target.checked ? 'block' : 'none';
-        loadChecklist(); 
-    });
-
-    toggleReminders.addEventListener('change', async (e) => {
-        AppSettings.reminders = e.target.checked;
-        localStorage.setItem('cfg_reminders', e.target.checked);
-        
-        if (AppSettings.reminders && Notification.permission !== 'granted') {
-            const permission = await Notification.requestPermission();
-            if (permission !== 'granted') {
-                e.target.checked = false;
-                AppSettings.reminders = false;
-                localStorage.setItem('cfg_reminders', 'false');
-                alert("Notification permission denied by your browser/OS.");
-            }
-        }
-    });
-}
-
-// --- Database Logic & Migration ---
+// --- Database Initialization ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
@@ -244,7 +110,6 @@ function initDB() {
             db.createObjectStore("meds", { keyPath: "id" });
             db.createObjectStore("logs", { keyPath: "timestamp" });
         }
-
         if (oldVersion >= 1 && oldVersion < 2) {
             const medStore = transaction.objectStore("meds");
             medStore.openCursor().onsuccess = (event) => {
@@ -257,7 +122,6 @@ function initDB() {
                 }
             };
         }
-
         if (oldVersion < 3) {
             if (!db.objectStoreNames.contains("archived_logs")) {
                 db.createObjectStore("archived_logs", { keyPath: "timestamp" });
@@ -272,13 +136,14 @@ function initDB() {
     };
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
-        statusBar.textContent = "Database error.";
+        if(typeof showVaultStatus === 'function') showVaultStatus("Database connection error.", "var(--danger-color)");
     };
 }
 
 // --- Archiving Logic ---
 function archiveOldLogs() {
-    const days = parseInt(document.getElementById('archive-days').value) || 90;
+    const archiveDaysEl = document.getElementById('archive-days');
+    const days = parseInt(archiveDaysEl ? archiveDaysEl.value : 90) || 90;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
@@ -299,7 +164,7 @@ function archiveOldLogs() {
     };
 
     tx.oncomplete = () => {
-        showVaultStatus(`Logs older than ${days} days moved to cold storage.`, "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus(`Logs older than ${days} days moved to cold storage.`, "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
@@ -320,7 +185,7 @@ function restoreArchivedLogs() {
     };
 
     tx.oncomplete = () => {
-        showVaultStatus("All archives restored to active memory.", "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("All archives restored to active memory.", "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
@@ -365,7 +230,7 @@ async function handleAddMed(e) {
     const freqInput = document.getElementById('new-med-freq').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
-    const inventoryInput = document.getElementById('new-med-inventory').value.trim();
+    const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -375,7 +240,7 @@ async function handleAddMed(e) {
     if (warnings.length > 0) {
         const alertMessage = `⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nDo you still want to add this medication to your regimen?`;
         if (!confirm(alertMessage)) {
-            showVaultStatus("Medication aborted.", "var(--text-secondary)");
+            if(typeof showVaultStatus === 'function') showVaultStatus("Medication aborted.", "var(--text-secondary)");
             return;
         }
     }
@@ -400,7 +265,7 @@ async function handleAddMed(e) {
         document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
         if (warnings.length > 0) {
-            showVaultStatus("Medication added with warnings.", "var(--danger-color)");
+            if(typeof showVaultStatus === 'function') showVaultStatus("Medication added with warnings.", "var(--danger-color)");
         }
     };
 }
@@ -419,6 +284,7 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-instructions').value = med.instructions || '';
             document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
             
+            const editInventoryGroup = document.getElementById('edit-inventory-group');
             if (AppSettings.inventory && editInventoryGroup) {
                 editInventoryGroup.style.display = 'block';
                 document.getElementById('edit-med-inventory').value = med.inventory || '';
@@ -440,8 +306,8 @@ window.openEditModal = function(id) {
                     timesContainer.lastElementChild.value = timeVal;
                 });
             }
-            editModal.showModal();
-            editModal.scrollTop = 0; 
+            editModal?.showModal();
+            if(editModal) editModal.scrollTop = 0; 
             document.getElementById('edit-med-name').focus(); 
         }
     };
@@ -471,7 +337,7 @@ function saveEditedMed(e) {
     });
 
     transaction.oncomplete = () => {
-        editModal.close();
+        editModal?.close();
         loadChecklist();
     };
 }
@@ -483,13 +349,15 @@ function deleteMedication() {
     transaction.objectStore("meds").delete(id);
 
     transaction.oncomplete = () => {
-        editModal.close();
+        editModal?.close();
         loadChecklist();
     };
 }
 
 // --- Regimen Logic (Checklist & Logging) ---
 function loadChecklist() {
+    if(!checklistContainer) return;
+    
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
@@ -501,7 +369,7 @@ function loadChecklist() {
 
         if (rawMeds.length === 0) {
             checklistContainer.innerHTML = '<p style="color: var(--text-secondary);">No medications added yet.</p>';
-            statusBar.textContent = "Ready.";
+            if(typeof updateStatus === 'function') updateStatus();
             return;
         }
 
@@ -627,7 +495,7 @@ function loadChecklist() {
             card.innerHTML = headerHtml + checkboxesHtml + extrasHtml;
             checklistContainer.appendChild(card);
         });
-        updateStatus();
+        if(typeof updateStatus === 'function') updateStatus();
     };
 }
 
@@ -705,7 +573,7 @@ function processBatchLog(items) {
 
     transaction.oncomplete = () => {
         if (manualTimeInput) manualTimeInput.value = '';
-        updateStatus();
+        if(typeof updateStatus === 'function') updateStatus();
         refreshHistory(); 
         loadChecklist(); 
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
@@ -721,6 +589,7 @@ function processBatchLog(items) {
 
 // --- History, Duplicate Tracking & Refund Logic ---
 function refreshHistory() {
+    if(!historyList) return;
     const transaction = db.transaction(["logs"], "readonly");
     const request = transaction.objectStore("logs").getAll();
 
@@ -816,21 +685,6 @@ window.deleteLog = function(timestampKey) {
     };
 };
 
-function updateStatus() {
-    const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
-    const total = document.querySelectorAll('#checklist-container .med-checkbox');
-    if (total.length === 0) {
-        statusBar.textContent = "Ready.";
-        statusBar.className = "status-indicator";
-    } else if (remaining.length === 0) {
-        statusBar.textContent = "All regimens complete.";
-        statusBar.className = "status-indicator complete";
-    } else {
-        statusBar.textContent = "Pending actions required.";
-        statusBar.className = "status-indicator";
-    }
-}
-
 function registerServiceWorker() {
     if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
         navigator.serviceWorker.register('sw.js').catch(err => console.error('Service Worker Failed:', err));
@@ -847,7 +701,7 @@ async function exportCSV() {
     });
 
     if (!logs || logs.length === 0) {
-        showVaultStatus("No history to export.", "var(--danger-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("No history to export.", "var(--danger-color)");
         return;
     }
 
@@ -887,7 +741,7 @@ async function exportCSV() {
     link.click();
     document.body.removeChild(link);
     
-    showVaultStatus("CSV Export downloaded.", "var(--success-color)");
+    if(typeof showVaultStatus === 'function') showVaultStatus("CSV Export downloaded.", "var(--success-color)");
 }
 
 async function exportHTMLReport() {
@@ -897,7 +751,7 @@ async function exportHTMLReport() {
     });
 
     if (!logs || logs.length === 0) {
-        showVaultStatus("No history to export.", "var(--danger-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("No history to export.", "var(--danger-color)");
         return;
     }
 
@@ -983,7 +837,7 @@ async function exportHTMLReport() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showVaultStatus("HTML Report downloaded.", "var(--success-color)");
+    if(typeof showVaultStatus === 'function') showVaultStatus("HTML Report downloaded.", "var(--success-color)");
 }
 
 // ==========================================
