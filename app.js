@@ -74,7 +74,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-restore-archives')?.addEventListener('click', restoreArchivedLogs);
     
     document.getElementById('heatmap-range')?.addEventListener('change', calculateAdherence);
-    document.getElementById('tab-today')?.addEventListener('click', () => switchTab('today'));
+    
+    const heatmapRangeSelect = document.getElementById('heatmap-range');
+    if (heatmapRangeSelect) {
+        const savedRange = localStorage.getItem('cfg_heatmapRange');
+        if (savedRange) heatmapRangeSelect.value = savedRange;
+        
+        heatmapRangeSelect.addEventListener('change', (e) => {
+            localStorage.setItem('cfg_heatmapRange', e.target.value);
+            if (typeof calculateAdherence === 'function') calculateAdherence();
+        });
+    }
+    
     document.getElementById('tab-history')?.addEventListener('click', () => switchTab('history'));
 
     document.getElementById('btn-export-vault')?.addEventListener('click', exportVaultLocal);
