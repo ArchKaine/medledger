@@ -1,9 +1,9 @@
 // ==========================================
 // engine.js - MedLedger Core Logic
-// Checklist, Clinical Data, Refills, and High-Fidelity Reports
+// Checklist, Regimen Logic, Refills, and High-Fidelity Reports
 // ==========================================
 
-// --- Helper Logic ---
+// --- 1. Helper Logic ---
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return [];
@@ -13,7 +13,7 @@ function getTimesFromContainer(containerId) {
     return [...new Set(times)].sort();
 }
 
-// --- Archiving Logic ---
+// --- 2. Archiving Logic ---
 function archiveOldLogs() {
     const archiveDaysEl = document.getElementById('archive-days');
     const days = parseInt(archiveDaysEl ? archiveDaysEl.value : 90) || 90;
@@ -60,7 +60,7 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- Zero-Knowledge Interaction Engine ---
+// --- 3. Zero-Knowledge Interaction Engine ---
 async function checkLocalInteractions(newMedName) {
     try {
         const res = await fetch('interactions.json');
@@ -77,7 +77,7 @@ async function checkLocalInteractions(newMedName) {
     } catch (err) { return []; }
 }
 
-// --- Configuration Logic (Add/Edit/Delete) ---
+// --- 4. Configuration Logic (Add/Edit/Delete) ---
 async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
@@ -93,7 +93,7 @@ async function handleAddMed(e) {
     const warnings = await checkLocalInteractions(nameInput);
     if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
 
-    // Clinical Lookup Integration
+    // References external fetchDrugInfo from clinical.js
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
@@ -172,7 +172,7 @@ window.openEditModal = function(id) {
             });
         }
 
-        // --- LOOKUP DATA DISPLAY IN EDIT MODAL ---
+        // --- SCROLLABLE CLINICAL INFO DISPLAY IN EDIT MODAL ---
         let clinicalPanel = document.getElementById('modal-clinical-info');
         if (!clinicalPanel) {
             clinicalPanel = document.createElement('div');
@@ -182,6 +182,8 @@ window.openEditModal = function(id) {
             clinicalPanel.style.background = 'var(--bg-primary)';
             clinicalPanel.style.border = '1px solid var(--border-color)';
             clinicalPanel.style.borderRadius = '6px';
+            clinicalPanel.style.maxHeight = '150px';
+            clinicalPanel.style.overflowY = 'auto';
             document.querySelector('#edit-med-modal form').appendChild(clinicalPanel);
         }
         clinicalPanel.innerHTML = (med.description || med.indications) ? `
@@ -189,7 +191,7 @@ window.openEditModal = function(id) {
                 <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color); font-size: 0.75rem; text-transform: uppercase;">Drug Reference (Fetched Data)</h4>
                 ${med.description ? `<p style="margin-bottom: 0.5rem;"><strong>Summary:</strong> ${med.description}</p>` : ''}
                 ${med.indications ? `<p style="margin: 0;"><strong>Primary Indications:</strong> ${med.indications}</p>` : ''}
-            </div>` : '';
+            </div>` : '<p style="font-size:0.7rem; color:var(--text-secondary); text-align:center;">No clinical data cached for this pill.</p>';
 
         document.getElementById('edit-med-modal')?.showModal();
     };
@@ -205,6 +207,8 @@ async function saveEditedMed(e) {
 
     let description = existing.description || "";
     let indications = existing.indications || "";
+    
+    // References external fetchDrugInfo from clinical.js
     if (document.getElementById('toggle-lookup')?.checked && existing.name !== name && typeof fetchDrugInfo === 'function') {
         const clinicalData = await fetchDrugInfo(name);
         description = clinicalData.description;
@@ -248,7 +252,7 @@ window.refillMed = function(id, amount) {
     tx.oncomplete = loadChecklist;
 };
 
-// --- Regimen Logic ---
+// --- 5. Regimen Logic ---
 function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container || typeof db === 'undefined') return;
@@ -319,7 +323,7 @@ function loadChecklist() {
                     <button class="icon-btn" onclick="openEditModal('${med.id}')" type="button">✏️</button>
                 </div>
                 ${timesHtml}
-                ${(med.instructions || med.sideEffects || med.description || med.indications) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px;">
+                ${(med.instructions || med.sideEffects || med.description || med.indications) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px; max-height:100px; overflow-y:auto;">
                     ${med.instructions ? `<div><i>${med.instructions}</i></div>` : ''}
                     ${med.sideEffects ? `<div>ℹ️ ${med.sideEffects}</div>` : ''}
                     ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
@@ -334,7 +338,7 @@ function loadChecklist() {
     };
 }
 
-// --- Logging Logic ---
+// --- 6. Logging Logic ---
 function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
@@ -408,13 +412,14 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- High-Fidelity Grouped Clinical Report ---
+// --- 7. High-Fidelity Exports ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
 
+    const lowInv = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
     const grouped = {};
     logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken).toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
@@ -433,7 +438,6 @@ async function exportHTMLReport() {
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const lowInv = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
     const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
     const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
@@ -478,11 +482,10 @@ async function exportCSV() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
 }
 
-// --- 10. Persistence & Initialisation ---
+// --- 8. Persistence & Initialisation ---
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
-        // DEFAULT TO TRUE if no setting exists
         if (localStorage.getItem('medledger_clinical_lookups') === null) {
             localStorage.setItem('medledger_clinical_lookups', 'true');
         }
@@ -492,10 +495,10 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('medledger_clinical_lookups', e.target.checked);
         });
 
-        // FORCE REFRESH ON FIRST LOAD
+        // References external refreshAllClinicalData from clinical.js
         if (toggle.checked && localStorage.getItem('medledger_initial_fetch_done') !== 'true') {
             const checkDB = setInterval(() => {
-                if (typeof db !== 'undefined') {
+                if (typeof db !== 'undefined' && typeof refreshAllClinicalData === 'function') {
                     clearInterval(checkDB);
                     refreshAllClinicalData(true);
                 }
