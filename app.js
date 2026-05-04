@@ -17,131 +17,116 @@ const AppSettings = {
     inventory: localStorage.getItem('cfg_inventory') === 'true'
 };
 
-// --- DOM Elements (Populated on Load to Prevent Init Crashes) ---
-let themeToggleBtn, rootElement, statusBar, checklistContainer, historyList, addMedForm, editModal, editForm;
-let settingsModal, toggleBabysitter, toggleExpert, toggleReminders, toggleInventory;
-let newMedInventory, editInventoryGroup, vaultPassInput, vaultStatus, peekBtn, peekIcon, helpModal;
-let tabTodayBtn, tabHistoryBtn, dailyScheduleView, logHistoryView, sessionLockControls;
-let btnLockVault, btnExportCSV, btnExportHTML, adherenceScore, adherenceSubtext, heatmapRangeSelect;
+// --- DOM Elements ---
+const themeToggleBtn = document.getElementById('theme-toggle');
+const rootElement = document.documentElement;
+const statusBar = document.getElementById('status-bar');
+const checklistContainer = document.getElementById('checklist-container');
+const historyList = document.getElementById('history-list');
+const addMedForm = document.getElementById('add-med-form');
+const editModal = document.getElementById('edit-med-modal');
+const editForm = document.getElementById('edit-med-form');
+
+const settingsModal = document.getElementById('settings-modal');
+const toggleBabysitter = document.getElementById('toggle-babysitter');
+const toggleExpert = document.getElementById('toggle-expert');
+const toggleReminders = document.getElementById('toggle-reminders');
+const toggleInventory = document.getElementById('toggle-inventory');
+
+const newMedInventory = document.getElementById('new-med-inventory');
+const editInventoryGroup = document.getElementById('edit-inventory-group');
+
+const vaultPassInput = document.getElementById('vault-password');
+const vaultStatus = document.getElementById('vault-status');
+const peekBtn = document.getElementById('btn-peek-password');
+const peekIcon = document.getElementById('peek-icon');
+const helpModal = document.getElementById('help-modal');
+
+const tabTodayBtn = document.getElementById('tab-today');
+const tabHistoryBtn = document.getElementById('tab-history');
+const dailyScheduleView = document.getElementById('daily-schedule');
+const logHistoryView = document.getElementById('log-history');
+
+const sessionLockControls = document.getElementById('session-lock-controls');
+const btnLockVault = document.getElementById('btn-lock-vault');
+const btnExportCSV = document.getElementById('btn-export-csv');
+const btnExportHTML = document.getElementById('btn-export-html');
+
+const adherenceScore = document.getElementById('adherence-score');
+const adherenceSubtext = document.getElementById('adherence-subtext');
+const heatmapRangeSelect = document.getElementById('heatmap-range');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    try {
-        // Safely bind all elements
-        themeToggleBtn = document.getElementById('theme-toggle');
-        rootElement = document.documentElement;
-        statusBar = document.getElementById('status-bar');
-        checklistContainer = document.getElementById('checklist-container');
-        historyList = document.getElementById('history-list');
-        addMedForm = document.getElementById('add-med-form');
-        editModal = document.getElementById('edit-med-modal');
-        editForm = document.getElementById('edit-med-form');
-        settingsModal = document.getElementById('settings-modal');
-        toggleBabysitter = document.getElementById('toggle-babysitter');
-        toggleExpert = document.getElementById('toggle-expert');
-        toggleReminders = document.getElementById('toggle-reminders');
-        toggleInventory = document.getElementById('toggle-inventory');
-        newMedInventory = document.getElementById('new-med-inventory');
-        editInventoryGroup = document.getElementById('edit-inventory-group');
-        vaultPassInput = document.getElementById('vault-password');
-        vaultStatus = document.getElementById('vault-status');
-        peekBtn = document.getElementById('btn-peek-password');
-        peekIcon = document.getElementById('peek-icon');
-        helpModal = document.getElementById('help-modal');
-        tabTodayBtn = document.getElementById('tab-today');
-        tabHistoryBtn = document.getElementById('tab-history');
-        dailyScheduleView = document.getElementById('daily-schedule');
-        logHistoryView = document.getElementById('log-history');
-        sessionLockControls = document.getElementById('session-lock-controls');
-        btnLockVault = document.getElementById('btn-lock-vault');
-        btnExportCSV = document.getElementById('btn-export-csv');
-        btnExportHTML = document.getElementById('btn-export-html');
-        adherenceScore = document.getElementById('adherence-score');
-        adherenceSubtext = document.getElementById('adherence-subtext');
-        heatmapRangeSelect = document.getElementById('heatmap-range');
+    initializeTheme();
+    initSettings();
+    initDB();
+    registerServiceWorker();
 
-        // Boot Sequence
-        initializeTheme();
-        initSettings();
-        injectAdvancedUI(); 
-        initDB();
-        registerServiceWorker();
-
-        // Safe Event Listeners
-        if (document.getElementById('btn-submit-selected')) document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
-        if (document.getElementById('btn-submit-all')) document.getElementById('btn-submit-all').addEventListener('click', logAll);
-        if (addMedForm) addMedForm.addEventListener('submit', handleAddMed);
-        if (document.getElementById('btn-cancel-edit')) document.getElementById('btn-cancel-edit').addEventListener('click', () => { if (editModal) editModal.close(); });
-        if (document.getElementById('btn-delete-med')) document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
-        if (editForm) editForm.addEventListener('submit', saveEditedMed);
-        
-        if (document.getElementById('settings-toggle')) document.getElementById('settings-toggle').addEventListener('click', () => {
-            const cachedPass = sessionStorage.getItem('medledger_session_key');
-            if (vaultPassInput && sessionLockControls) {
-                if (cachedPass) {
-                    vaultPassInput.value = cachedPass;
-                    sessionLockControls.style.display = 'flex';
-                } else {
-                    vaultPassInput.value = '';
-                    sessionLockControls.style.display = 'none';
-                }
-            }
-            if (settingsModal) {
-                settingsModal.showModal();
-                settingsModal.scrollTop = 0; 
-            }
-        });
-        
-        if (document.getElementById('btn-close-settings')) document.getElementById('btn-close-settings').addEventListener('click', () => { if (settingsModal) settingsModal.close(); });
-        
-        if (document.getElementById('help-toggle')) document.getElementById('help-toggle').addEventListener('click', () => {
-            if (helpModal) {
-                helpModal.showModal();
-                helpModal.scrollTop = 0; 
-            }
-        });
-        if (document.getElementById('btn-close-help')) document.getElementById('btn-close-help').addEventListener('click', () => { if (helpModal) helpModal.close(); });
-
-        if (peekBtn) peekBtn.addEventListener('click', togglePasswordVisibility);
-        if (btnLockVault) btnLockVault.addEventListener('click', lockVaultSession);
-        if (btnExportCSV) btnExportCSV.addEventListener('click', exportCSV);
-        if (btnExportHTML) btnExportHTML.addEventListener('click', exportHTMLReport);
-
-        const btnArchiveLogs = document.getElementById('btn-archive-logs');
-        if (btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
-        
-        const btnRestoreArchives = document.getElementById('btn-restore-archives');
-        if (btnRestoreArchives) btnRestoreArchives.addEventListener('click', restoreArchivedLogs);
-
-        if (heatmapRangeSelect) {
-            heatmapRangeSelect.addEventListener('change', calculateAdherence);
+    document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
+    document.getElementById('btn-submit-all').addEventListener('click', logAll);
+    addMedForm.addEventListener('submit', handleAddMed);
+    document.getElementById('btn-cancel-edit').addEventListener('click', () => editModal.close());
+    document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
+    editForm.addEventListener('submit', saveEditedMed);
+    
+    document.getElementById('settings-toggle').addEventListener('click', () => {
+        const cachedPass = sessionStorage.getItem('medledger_session_key');
+        if (cachedPass) {
+            vaultPassInput.value = cachedPass;
+            sessionLockControls.style.display = 'flex';
+        } else {
+            vaultPassInput.value = '';
+            sessionLockControls.style.display = 'none';
         }
+        settingsModal.showModal();
+        settingsModal.scrollTop = 0; 
+    });
+    
+    document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
+    
+    document.getElementById('help-toggle').addEventListener('click', () => {
+        helpModal.showModal();
+        helpModal.scrollTop = 0; 
+    });
+    document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
 
-        if (tabTodayBtn) tabTodayBtn.addEventListener('click', () => switchTab('today'));
-        if (tabHistoryBtn) tabHistoryBtn.addEventListener('click', () => switchTab('history'));
+    peekBtn.addEventListener('click', togglePasswordVisibility);
+    btnLockVault.addEventListener('click', lockVaultSession);
+    btnExportCSV.addEventListener('click', exportCSV);
+    btnExportHTML.addEventListener('click', exportHTMLReport);
 
-        if (document.getElementById('btn-export-vault')) document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
-        if (document.getElementById('import-vault-file')) document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
+    const btnArchiveLogs = document.getElementById('btn-archive-logs');
+    if(btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
+    
+    const btnRestoreArchives = document.getElementById('btn-restore-archives');
+    if(btnRestoreArchives) btnRestoreArchives.addEventListener('click', restoreArchivedLogs);
 
-        if (document.getElementById('btn-cloud-push')) document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
-        if (document.getElementById('btn-cloud-pull')) document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
-
-        document.addEventListener('keydown', (e) => {
-            if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
-                checked.length > 0 ? logSelected() : logAll();
-            }
-        });
-    } catch (err) {
-        console.error("Critical Boot Failure:", err);
-        if (statusBar) statusBar.textContent = "Initialization Error. Check Console.";
+    if (heatmapRangeSelect) {
+        heatmapRangeSelect.addEventListener('change', calculateAdherence);
     }
+
+    tabTodayBtn.addEventListener('click', () => switchTab('today'));
+    tabHistoryBtn.addEventListener('click', () => switchTab('history'));
+
+    document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
+    document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
+
+    document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
+    document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
+
+    // FIX: Scope keyboard shortcut to only the active checklist
+    document.addEventListener('keydown', (e) => {
+        if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
+            checked.length > 0 ? logSelected() : logAll();
+        }
+    });
 });
 
 // --- Theme Logic ---
 function updateThemeIcon(theme) {
-    if (!themeToggleBtn) return;
     if (theme === 'light') {
         themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     } else if (theme === 'hc') {
@@ -156,43 +141,36 @@ function initializeTheme() {
     if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    if (rootElement) rootElement.setAttribute('data-theme', savedTheme);
+    rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
-
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            let currentTheme = rootElement.getAttribute('data-theme');
-            let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
-            rootElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
-    }
 }
+
+themeToggleBtn.addEventListener('click', () => {
+    let currentTheme = rootElement.getAttribute('data-theme');
+    let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
+    rootElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+});
 
 // --- Tab Logic ---
 function switchTab(tab) {
-    try {
-        if (tab === 'today') {
-            if (tabTodayBtn) tabTodayBtn.classList.add('active');
-            if (tabHistoryBtn) tabHistoryBtn.classList.remove('active');
-            if (dailyScheduleView) dailyScheduleView.classList.remove('hidden-view');
-            if (logHistoryView) logHistoryView.classList.add('hidden-view');
-        } else {
-            if (tabHistoryBtn) tabHistoryBtn.classList.add('active');
-            if (tabTodayBtn) tabTodayBtn.classList.remove('active');
-            if (logHistoryView) logHistoryView.classList.remove('hidden-view');
-            if (dailyScheduleView) dailyScheduleView.classList.add('hidden-view');
-            calculateAdherence(); 
-        }
-    } catch (e) {
-        console.error("Tab switch failed:", e);
+    if (tab === 'today') {
+        tabTodayBtn.classList.add('active');
+        tabHistoryBtn.classList.remove('active');
+        dailyScheduleView.classList.remove('hidden-view');
+        logHistoryView.classList.add('hidden-view');
+    } else {
+        tabHistoryBtn.classList.add('active');
+        tabTodayBtn.classList.remove('active');
+        logHistoryView.classList.remove('hidden-view');
+        dailyScheduleView.classList.add('hidden-view');
+        calculateAdherence(); 
     }
 }
 
 window.addTimeField = function(containerId) {
     const container = document.getElementById(containerId);
-    if (!container) return;
     const input = document.createElement('input');
     input.type = 'time';
     input.className = 'time-input';
@@ -203,7 +181,6 @@ window.addTimeField = function(containerId) {
 
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
-    if (!container) return [];
     const inputs = container.querySelectorAll('input[type="time"]');
     let times = [];
     inputs.forEach(input => {
@@ -214,130 +191,45 @@ function getTimesFromContainer(containerId) {
 
 // --- Settings Logic ---
 function initSettings() {
-    if (toggleBabysitter) toggleBabysitter.checked = AppSettings.noBabysitter;
-    if (toggleExpert) toggleExpert.checked = AppSettings.expertMode;
-    if (toggleReminders) toggleReminders.checked = AppSettings.reminders;
-    if (toggleInventory) toggleInventory.checked = AppSettings.inventory;
+    toggleBabysitter.checked = AppSettings.noBabysitter;
+    toggleExpert.checked = AppSettings.expertMode;
+    toggleReminders.checked = AppSettings.reminders;
+    toggleInventory.checked = AppSettings.inventory;
 
-    if (newMedInventory) newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
+    if(newMedInventory) newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
 
-    if (toggleBabysitter) {
-        toggleBabysitter.addEventListener('change', (e) => {
-            AppSettings.noBabysitter = e.target.checked;
-            localStorage.setItem('cfg_noBabysitter', e.target.checked);
-        });
-    }
-
-    if (toggleExpert) {
-        toggleExpert.addEventListener('change', (e) => {
-            AppSettings.expertMode = e.target.checked;
-            localStorage.setItem('cfg_expertMode', e.target.checked);
-            loadChecklist(); 
-        });
-    }
-
-    if (toggleInventory) {
-        toggleInventory.addEventListener('change', (e) => {
-            AppSettings.inventory = e.target.checked;
-            localStorage.setItem('cfg_inventory', e.target.checked);
-            if(newMedInventory) newMedInventory.style.display = e.target.checked ? 'block' : 'none';
-            loadChecklist(); 
-        });
-    }
-
-    if (toggleReminders) {
-        toggleReminders.addEventListener('change', async (e) => {
-            AppSettings.reminders = e.target.checked;
-            localStorage.setItem('cfg_reminders', e.target.checked);
-            
-            if (AppSettings.reminders && Notification.permission !== 'granted') {
-                const permission = await Notification.requestPermission();
-                if (permission !== 'granted') {
-                    e.target.checked = false;
-                    AppSettings.reminders = false;
-                    localStorage.setItem('cfg_reminders', 'false');
-                    alert("Notification permission denied by your browser/OS.");
-                }
-            }
-        });
-    }
-}
-
-// --- Advanced Regimen DOM Injection ---
-function injectAdvancedUI() {
-    const advOptions = `
-        <option value="Every Other Day">Every Other Day</option>
-        <option value="Cycle 21/7">Cycle (21 On / 7 Off)</option>
-        <option value="Weekdays Only">Weekdays Only</option>
-        <option value="Weekends Only">Weekends Only</option>
-        <option value="Taper">Taper Schedule</option>
-    `;
-
-    const newFreq = document.getElementById('new-med-freq');
-    if (newFreq && newFreq.tagName === 'SELECT') {
-        newFreq.insertAdjacentHTML('beforeend', advOptions);
-        const taperHtml = `
-            <div id="new-taper-container" style="display:none; padding: 1rem; border: 1px dashed var(--border-color); border-radius: 6px; margin-top: 1rem; background: var(--bg-surface);">
-                <label style="font-size: 0.9rem; color: var(--text-secondary);">Taper Steps (Days & Dose)</label>
-                <div id="new-taper-steps" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;"></div>
-                <button type="button" class="btn btn-secondary" onclick="addTaperStep('new')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
-            </div>
-        `;
-        newFreq.insertAdjacentHTML('afterend', taperHtml);
-        newFreq.addEventListener('change', (e) => {
-            const container = document.getElementById('new-taper-container');
-            if (container) {
-                container.style.display = e.target.value === 'Taper' ? 'flex' : 'none';
-                container.style.flexDirection = 'column';
-            }
-        });
-    }
-
-    const editFreq = document.getElementById('edit-med-freq');
-    if (editFreq && editFreq.tagName === 'SELECT') {
-        editFreq.insertAdjacentHTML('beforeend', advOptions);
-        const taperHtmlEdit = `
-            <div id="edit-taper-container" style="display:none; padding: 1rem; border: 1px dashed var(--border-color); border-radius: 6px; margin-top: 1rem; background: var(--bg-surface);">
-                <label style="font-size: 0.9rem; color: var(--text-secondary);">Taper Steps (Days & Dose)</label>
-                <div id="edit-taper-steps" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;"></div>
-                <button type="button" class="btn btn-secondary" onclick="addTaperStep('edit')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
-            </div>
-        `;
-        editFreq.insertAdjacentHTML('afterend', taperHtmlEdit);
-        editFreq.addEventListener('change', (e) => {
-            const container = document.getElementById('edit-taper-container');
-            if (container) {
-                container.style.display = e.target.value === 'Taper' ? 'flex' : 'none';
-                container.style.flexDirection = 'column';
-            }
-        });
-    }
-}
-
-window.addTaperStep = function(mode, days = '', dose = '') {
-    const container = document.getElementById(`${mode}-taper-steps`);
-    if (!container) return;
-    const stepHtml = `
-        <div class="taper-step" style="display: flex; gap: 0.5rem; align-items: center;">
-            <input type="number" class="taper-days" placeholder="Days (e.g. 5)" value="${days}" style="width: 80px; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
-            <span style="color: var(--text-secondary);">@</span>
-            <input type="text" class="taper-dose" placeholder="Dose (e.g. 10mg)" value="${dose}" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
-            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 1.2rem; padding: 0 0.5rem;">&times;</button>
-        </div>
-    `;
-    container.insertAdjacentHTML('beforeend', stepHtml);
-}
-
-function getTaperSteps(mode) {
-    const container = document.getElementById(`${mode}-taper-steps`);
-    if (!container) return [];
-    const steps = [];
-    container.querySelectorAll('.taper-step').forEach(row => {
-        const days = parseInt(row.querySelector('.taper-days').value);
-        const dose = row.querySelector('.taper-dose').value.trim();
-        if (days && dose) steps.push({ days, dose });
+    toggleBabysitter.addEventListener('change', (e) => {
+        AppSettings.noBabysitter = e.target.checked;
+        localStorage.setItem('cfg_noBabysitter', e.target.checked);
     });
-    return steps;
+
+    toggleExpert.addEventListener('change', (e) => {
+        AppSettings.expertMode = e.target.checked;
+        localStorage.setItem('cfg_expertMode', e.target.checked);
+        loadChecklist(); 
+    });
+
+    toggleInventory.addEventListener('change', (e) => {
+        AppSettings.inventory = e.target.checked;
+        localStorage.setItem('cfg_inventory', e.target.checked);
+        if(newMedInventory) newMedInventory.style.display = e.target.checked ? 'block' : 'none';
+        loadChecklist(); 
+    });
+
+    toggleReminders.addEventListener('change', async (e) => {
+        AppSettings.reminders = e.target.checked;
+        localStorage.setItem('cfg_reminders', e.target.checked);
+        
+        if (AppSettings.reminders && Notification.permission !== 'granted') {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                e.target.checked = false;
+                AppSettings.reminders = false;
+                localStorage.setItem('cfg_reminders', 'false');
+                alert("Notification permission denied by your browser/OS.");
+            }
+        }
+    });
 }
 
 // --- Database Logic & Migration ---
@@ -381,28 +273,85 @@ function initDB() {
     };
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
-        if (statusBar) statusBar.textContent = "Database error.";
+        statusBar.textContent = "Database error.";
+    };
+}
+
+// --- Archiving Logic ---
+function archiveOldLogs() {
+    const days = parseInt(document.getElementById('archive-days').value) || 90;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const tx = db.transaction(["logs", "archived_logs"], "readwrite");
+    const logStore = tx.objectStore("logs");
+    const archiveStore = tx.objectStore("archived_logs");
+
+    logStore.openCursor().onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+            const log = cursor.value;
+            if (new Date(log.dateTaken) < cutoffDate) {
+                archiveStore.add(log);
+                cursor.delete();
+            }
+            cursor.continue();
+        }
+    };
+
+    tx.oncomplete = () => {
+        showVaultStatus(`Logs older than ${days} days moved to cold storage.`, "var(--success-color)");
+        refreshHistory();
+        calculateAdherence();
+    };
+}
+
+function restoreArchivedLogs() {
+    const tx = db.transaction(["logs", "archived_logs"], "readwrite");
+    const logStore = tx.objectStore("logs");
+    const archiveStore = tx.objectStore("archived_logs");
+
+    archiveStore.openCursor().onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+            logStore.add(cursor.value);
+            cursor.delete();
+            cursor.continue();
+        }
+    };
+
+    tx.oncomplete = () => {
+        showVaultStatus("All archives restored to active memory.", "var(--success-color)");
+        refreshHistory();
+        calculateAdherence();
     };
 }
 
 // --- Zero-Knowledge Interaction Engine ---
 async function checkLocalInteractions(newMedName) {
     try {
+        // 1. Fetch the static JSON matrix (loads locally, no external API call)
         const response = await fetch('interactions.json');
         const interactionDB = await response.json();
 
+        // 2. Get the user's active medications from IndexedDB
         const activeMeds = await new Promise(res => {
             db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result);
         });
 
+        // 3. Normalize the new medication name (lowercase, remove extra spaces)
         const newDrug = newMedName.toLowerCase().trim();
         let warnings = [];
 
+        // 4. Cross-reference the new drug against the active regimen
         activeMeds.forEach(med => {
             const activeDrug = med.name.toLowerCase().trim();
+
+            // Check Matrix: Does New Drug interact with Active Drug?
             if (interactionDB[newDrug] && interactionDB[newDrug][activeDrug]) {
                 warnings.push(`Warning with ${med.name}: ${interactionDB[newDrug][activeDrug]}`);
             }
+            // Check Matrix: Does Active Drug interact with New Drug?
             else if (interactionDB[activeDrug] && interactionDB[activeDrug][newDrug]) {
                 warnings.push(`Warning with ${med.name}: ${interactionDB[activeDrug][newDrug]}`);
             }
@@ -411,60 +360,58 @@ async function checkLocalInteractions(newMedName) {
         return warnings;
     } catch (err) {
         console.warn("Interaction DB not found or failed to load. Bypassing check.");
-        return []; 
+        return []; // Fails open so the app still works even if the JSON is missing
     }
 }
 
 // --- Configuration Logic (Add/Edit/Delete Meds) ---
 async function handleAddMed(e) {
     e.preventDefault();
-    const nameInput = document.getElementById('new-med-name') ? document.getElementById('new-med-name').value.trim() : "";
-    const doseInput = document.getElementById('new-med-dose') ? document.getElementById('new-med-dose').value.trim() : "";
-    const freqInput = document.getElementById('new-med-freq') ? document.getElementById('new-med-freq').value : "Daily";
-    const instructionsInput = document.getElementById('new-med-instructions') ? document.getElementById('new-med-instructions').value.trim() : "";
-    const sideEffectsInput = document.getElementById('new-med-side-effects') ? document.getElementById('new-med-side-effects').value.trim() : "";
-    const inventoryInput = document.getElementById('new-med-inventory') ? document.getElementById('new-med-inventory').value.trim() : "";
+    const nameInput = document.getElementById('new-med-name').value.trim();
+    const doseInput = document.getElementById('new-med-dose').value.trim();
+    const freqInput = document.getElementById('new-med-freq').value;
+    const instructionsInput = document.getElementById('new-med-instructions').value.trim();
+    const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
+    const inventoryInput = document.getElementById('new-med-inventory').value.trim();
     const timesArray = getTimesFromContainer('new-med-times-container');
-    const taperSteps = freqInput === 'Taper' ? getTaperSteps('new') : [];
 
     if (!nameInput || !doseInput) return;
 
+    // ==========================================
+    // ZERO-KNOWLEDGE INTERACTION CHECK
+    // ==========================================
     const warnings = await checkLocalInteractions(nameInput);
+
     if (warnings.length > 0) {
+        // If a clash is found, halt the save and force the user to confirm
         const alertMessage = `⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nDo you still want to add this medication to your regimen?`;
+
+        // If the user clicks "Cancel" on the warning, abort the save entirely
         if (!confirm(alertMessage)) {
             showVaultStatus("Medication aborted.", "var(--text-secondary)");
-            return; 
+            return;
         }
     }
+    // ==========================================
 
-    const newMed = { 
-        id: crypto.randomUUID(), 
-        name: nameInput, 
-        dose: doseInput, 
+    const newMed = {
+        id: crypto.randomUUID(),
+        name: nameInput,
+        dose: doseInput,
         frequency: freqInput,
-        taperSteps: taperSteps,
-        startDate: new Date().toISOString(),
         times: timesArray,
         instructions: instructionsInput,
         sideEffects: sideEffectsInput,
         inventory: AppSettings.inventory ? inventoryInput : ""
     };
-    
+
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").add(newMed);
 
     transaction.oncomplete = () => {
-        if (addMedForm) addMedForm.reset();
-        if (document.getElementById('new-med-freq')) document.getElementById('new-med-freq').value = 'Daily'; 
-        const taperContainer = document.getElementById('new-taper-container');
-        if (taperContainer) taperContainer.style.display = 'none';
-        
-        const timesContainer = document.getElementById('new-med-times-container');
-        if (timesContainer) {
-            timesContainer.innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
-        }
-        
+        addMedForm.reset();
+        document.getElementById('new-med-freq').value = 'Daily';
+        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
         if (warnings.length > 0) {
             showVaultStatus("Medication added with warnings.", "var(--danger-color)");
@@ -479,321 +426,228 @@ window.openEditModal = function(id) {
     request.onsuccess = () => {
         const med = request.result;
         if (med) {
-            if (document.getElementById('edit-med-id')) document.getElementById('edit-med-id').value = med.id;
-            if (document.getElementById('edit-med-name')) document.getElementById('edit-med-name').value = med.name;
-            if (document.getElementById('edit-med-dose')) document.getElementById('edit-med-dose').value = med.dose;
-            if (document.getElementById('edit-med-freq')) document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
-            if (document.getElementById('edit-med-instructions')) document.getElementById('edit-med-instructions').value = med.instructions || '';
-            if (document.getElementById('edit-med-side-effects')) document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
+            document.getElementById('edit-med-id').value = med.id;
+            document.getElementById('edit-med-name').value = med.name;
+            document.getElementById('edit-med-dose').value = med.dose;
+            document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
+            document.getElementById('edit-med-instructions').value = med.instructions || '';
+            document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
             
             if (AppSettings.inventory && editInventoryGroup) {
                 editInventoryGroup.style.display = 'block';
-                if (document.getElementById('edit-med-inventory')) document.getElementById('edit-med-inventory').value = med.inventory || '';
+                document.getElementById('edit-med-inventory').value = med.inventory || '';
             } else if (editInventoryGroup) {
                 editInventoryGroup.style.display = 'none';
-            }
-            
-            const editTaperContainer = document.getElementById('edit-taper-container');
-            const editTaperSteps = document.getElementById('edit-taper-steps');
-            if (editTaperSteps) editTaperSteps.innerHTML = ''; 
-            
-            if (med.frequency === 'Taper' && editTaperContainer) {
-                editTaperContainer.style.display = 'flex';
-                editTaperContainer.style.flexDirection = 'column';
-                if (med.taperSteps) {
-                    med.taperSteps.forEach(step => addTaperStep('edit', step.days, step.dose));
-                }
-            } else if (editTaperContainer) {
-                editTaperContainer.style.display = 'none';
             }
             
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
 
             const timesContainer = document.getElementById('edit-med-times-container');
-            if (timesContainer) {
-                timesContainer.innerHTML = ''; 
-                if (timesToRender.length === 0) {
-                    addTimeField('edit-med-times-container'); 
-                } else {
-                    timesToRender.forEach(timeVal => {
-                        addTimeField('edit-med-times-container');
-                        timesContainer.lastElementChild.value = timeVal;
-                    });
-                }
+            timesContainer.innerHTML = ''; 
+            
+            if (timesToRender.length === 0) {
+                addTimeField('edit-med-times-container'); 
+            } else {
+                timesToRender.forEach(timeVal => {
+                    addTimeField('edit-med-times-container');
+                    timesContainer.lastElementChild.value = timeVal;
+                });
             }
-            if (editModal) {
-                editModal.showModal();
-                editModal.scrollTop = 0; 
-            }
-            if (document.getElementById('edit-med-name')) document.getElementById('edit-med-name').focus(); 
+            editModal.showModal();
+            editModal.scrollTop = 0; 
+            document.getElementById('edit-med-name').focus(); 
         }
     };
 };
 
 function saveEditedMed(e) {
     e.preventDefault();
-    const id = document.getElementById('edit-med-id') ? document.getElementById('edit-med-id').value : "";
-    if (!id) return;
-    
-    const name = document.getElementById('edit-med-name') ? document.getElementById('edit-med-name').value.trim() : "";
-    const dose = document.getElementById('edit-med-dose') ? document.getElementById('edit-med-dose').value.trim() : "";
-    const freq = document.getElementById('edit-med-freq') ? document.getElementById('edit-med-freq').value : "Daily";
-    const instructions = document.getElementById('edit-med-instructions') ? document.getElementById('edit-med-instructions').value.trim() : "";
-    const sideEffects = document.getElementById('edit-med-side-effects') ? document.getElementById('edit-med-side-effects').value.trim() : ""; 
-    const inventory = AppSettings.inventory ? (document.getElementById('edit-med-inventory') ? document.getElementById('edit-med-inventory').value.trim() : "") : "";
+    const id = document.getElementById('edit-med-id').value;
+    const name = document.getElementById('edit-med-name').value.trim();
+    const dose = document.getElementById('edit-med-dose').value.trim();
+    const freq = document.getElementById('edit-med-freq').value;
+    const instructions = document.getElementById('edit-med-instructions').value.trim();
+    const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); 
+    const inventory = AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
-    const taperSteps = freq === 'Taper' ? getTaperSteps('edit') : [];
 
     const transaction = db.transaction(["meds"], "readwrite");
-    const medStore = transaction.objectStore("meds");
-    
-    medStore.get(id).onsuccess = (event) => {
-        const existingMed = event.target.result;
-        if (!existingMed) return;
-        
-        medStore.put({ 
-            id: id, 
-            name: name, 
-            dose: dose, 
-            frequency: freq,
-            taperSteps: taperSteps,
-            startDate: existingMed.startDate || new Date().toISOString(), 
-            times: timesArray,
-            instructions: instructions,
-            sideEffects: sideEffects,
-            inventory: inventory
-        });
-    };
+    transaction.objectStore("meds").put({ 
+        id: id, 
+        name: name, 
+        dose: dose, 
+        frequency: freq,
+        times: timesArray,
+        instructions: instructions,
+        sideEffects: sideEffects,
+        inventory: inventory
+    });
 
     transaction.oncomplete = () => {
-        if (editModal) editModal.close();
+        editModal.close();
         loadChecklist();
     };
 }
 
 function deleteMedication() {
     if (!AppSettings.noBabysitter && !confirm("Remove this medication completely from the regimen?")) return;
-    const id = document.getElementById('edit-med-id') ? document.getElementById('edit-med-id').value : null;
-    if (!id) return;
-    
+    const id = document.getElementById('edit-med-id').value;
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").delete(id);
 
     transaction.oncomplete = () => {
-        if (editModal) editModal.close();
+        editModal.close();
         loadChecklist();
     };
 }
 
-// --- Core Engine: State Resolution Simulator ---
-function getMedStateOnDate(med, targetDate) {
-    let state = { shouldRender: true, dose: med.dose, freqLabel: med.frequency };
-    
-    if (med.frequency === "As Needed") {
-        state.shouldRender = true;
-        return state;
-    }
-
-    if (med.startDate) {
-        const tDate = new Date(targetDate);
-        tDate.setHours(0,0,0,0);
-        const sDate = new Date(med.startDate);
-        sDate.setHours(0,0,0,0);
-        
-        // Math.round fixes the "daylight savings time" 23-hour day bug
-        const daysElapsed = Math.round((tDate - sDate) / (1000 * 60 * 60 * 24));
-        
-        if (isNaN(daysElapsed) || daysElapsed < 0) {
-            state.shouldRender = false; 
-            return state;
-        }
-
-        if (med.frequency === "Every Other Day" && daysElapsed % 2 !== 0) {
-            state.shouldRender = false;
-        } else if (med.frequency === "Cycle 21/7") {
-            const cycleDay = daysElapsed % 28;
-            if (cycleDay >= 21) state.shouldRender = false;
-            state.freqLabel = `Cycle (Day ${cycleDay + 1}/28)`;
-        } else if (med.frequency === "Weekdays Only" && (tDate.getDay() === 0 || tDate.getDay() === 6)) {
-            state.shouldRender = false;
-        } else if (med.frequency === "Weekends Only" && (tDate.getDay() !== 0 && tDate.getDay() !== 6)) {
-            state.shouldRender = false;
-        } else if (med.frequency === "Taper" && Array.isArray(med.taperSteps)) {
-            let runningDays = 0;
-            let activeStep = null;
-            for (let step of med.taperSteps) {
-                if (daysElapsed >= runningDays && daysElapsed < runningDays + step.days) {
-                    activeStep = step;
-                    break;
-                }
-                runningDays += step.days;
-            }
-            
-            if (activeStep) {
-                state.dose = activeStep.dose;
-                state.freqLabel = `Taper (Day ${daysElapsed + 1})`;
-            } else {
-                state.shouldRender = false; 
-            }
-        }
-    }
-    return state;
-}
-
 // --- Regimen Logic (Checklist & Logging) ---
 function loadChecklist() {
-    if (!checklistContainer || !db) return;
-    
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        try {
-            const rawMeds = medReq.result;
-            const logs = logReq.result;
-            checklistContainer.innerHTML = '';
+        const rawMeds = medReq.result;
+        const logs = logReq.result;
+        checklistContainer.innerHTML = '';
 
-            if (rawMeds.length === 0) {
-                checklistContainer.innerHTML = '<p style="color: var(--text-secondary);">No medications added yet.</p>';
-                if (statusBar) statusBar.textContent = "Ready.";
-                return;
+        if (rawMeds.length === 0) {
+            checklistContainer.innerHTML = '<p style="color: var(--text-secondary);">No medications added yet.</p>';
+            statusBar.textContent = "Ready.";
+            return;
+        }
+
+        rawMeds.sort((a, b) => {
+            const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
+            const weightA = freqWeight[a.frequency] || 99;
+            const weightB = freqWeight[b.frequency] || 99;
+            if (weightA !== weightB) return weightA - weightB;
+            return a.name.localeCompare(b.name);
+        });
+
+        const todayStr = new Date().toLocaleDateString();
+
+        rawMeds.forEach(med => {
+            let times = med.times && med.times.length > 0 ? med.times : [null];
+            const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
+            const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
+
+            // FIX: Escape double quotes so they don't break the HTML attribute
+            const safeMedName = med.name.replace(/"/g, '&quot;');
+
+            let inventoryBadgeHtml = '';
+            if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
+                const invCount = parseInt(med.inventory);
+                const isLow = invCount <= 10;
+                const badgeColor = isLow ? 'var(--danger-color)' : 'var(--text-secondary)';
+                const badgeBg = isLow ? 'rgba(239, 68, 68, 0.15)' : 'transparent';
+                const badgeBorder = isLow ? 'var(--danger-color)' : 'var(--border-color)';
+                inventoryBadgeHtml = `<span style="margin-left: 0.5rem; font-size: 0.75rem; background: ${badgeBg}; color: ${badgeColor}; padding: 0.1rem 0.5rem; border-radius: 12px; border: 1px solid ${badgeBorder}; font-weight: ${isLow ? 'bold' : 'normal'};">💊 ${invCount} left</span>`;
             }
 
-            rawMeds.sort((a, b) => {
-                const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
-                const weightA = freqWeight[a.frequency] || 99;
-                const weightB = freqWeight[b.frequency] || 99;
-                if (weightA !== weightB) return weightA - weightB;
-                return (a.name || "").localeCompare(b.name || "");
-            });
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.padding = '0';
+            card.style.overflow = 'hidden';
+            card.style.marginBottom = '1rem';
 
-            const todayStr = new Date().toLocaleDateString();
+            const headerHtml = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-surface);">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            ${med.name} ${freqHtml}
+                        </h3>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem; display: flex; align-items: center;">
+                            ${med.dose} ${inventoryBadgeHtml}
+                        </div>
+                    </div>
+                    <button type="button" class="icon-btn" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.25rem -0.25rem 0 0;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
 
-            rawMeds.forEach(med => {
-                const state = getMedStateOnDate(med, new Date());
-                if (!state.shouldRender) return; 
+            let checkboxesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
+            
+            times.forEach(t => {
+                const compositeLogId = t ? `${med.id}|${t}` : `${med.id}|none`;
+                const isCompletedToday = logs.some(log => 
+                    log.compositeId === compositeLogId && 
+                    new Date(log.dateTaken).toLocaleDateString() === todayStr
+                );
 
-                let times = med.times && med.times.length > 0 ? med.times : [null];
-                const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
-                const freqHtml = state.freqLabel ? `<span class="${freqClass}">${state.freqLabel}</span>` : '';
-
-                const safeMedName = med.name ? med.name.replace(/"/g, '&quot;') : "Unknown";
-
-                let inventoryBadgeHtml = '';
-                if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
-                    const invCount = parseInt(med.inventory);
-                    const isLow = invCount <= 10;
-                    const badgeColor = isLow ? 'var(--danger-color)' : 'var(--text-secondary)';
-                    const badgeBg = isLow ? 'rgba(239, 68, 68, 0.15)' : 'transparent';
-                    const badgeBorder = isLow ? 'var(--danger-color)' : 'var(--border-color)';
-                    inventoryBadgeHtml = `<span style="margin-left: 0.5rem; font-size: 0.75rem; background: ${badgeBg}; color: ${badgeColor}; padding: 0.1rem 0.5rem; border-radius: 12px; border: 1px solid ${badgeBorder}; font-weight: ${isLow ? 'bold' : 'normal'};">💊 ${invCount} left</span>`;
+                let timeLabel = "Take Dosage";
+                if (t) {
+                    const [h, m] = t.split(':');
+                    const period = h >= 12 ? 'PM' : 'AM';
+                    const formattedHour = h % 12 || 12;
+                    timeLabel = `@ ${formattedHour}:${m} ${period}`;
+                } else if (med.frequency === 'As Needed') {
+                    timeLabel = "Log PRN Dose";
                 }
 
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.padding = '0';
-                card.style.overflow = 'hidden';
-                card.style.marginBottom = '1rem';
+                const labelId = 'lbl-' + crypto.randomUUID();
 
-                const headerHtml = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--border-color); background-color: var(--bg-surface);">
-                        <div>
-                            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                ${safeMedName} ${freqHtml}
-                            </h3>
-                            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem; display: flex; align-items: center;">
-                                ${state.dose} ${inventoryBadgeHtml}
-                            </div>
-                        </div>
-                        <button type="button" class="icon-btn" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.25rem -0.25rem 0 0;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                        </button>
-                    </div>
+                checkboxesHtml += `
+                    <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="${labelId}" title="${AppSettings.expertMode && !isCompletedToday ? 'Double-click to instantly log' : ''}">
+                        <input type="checkbox" name="med" value="${compositeLogId}" data-name="${safeMedName}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
+                        <span class="med-details" style="width: 100%;">
+                            <span class="med-name" style="color: ${isCompletedToday ? 'var(--text-secondary)' : 'var(--text-primary)'};">${timeLabel}</span>
+                        </span>
+                    </label>
                 `;
 
-                let checkboxesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
-                
-                times.forEach(t => {
-                    const compositeLogId = t ? `${med.id}|${t}` : `${med.id}|none`;
-                    const isCompletedToday = logs.some(log => 
-                        log.compositeId === compositeLogId && 
-                        new Date(log.dateTaken).toLocaleDateString() === todayStr
-                    );
-
-                    let timeLabel = "Take Dosage";
-                    if (t) {
-                        const [h, m] = t.split(':');
-                        const period = h >= 12 ? 'PM' : 'AM';
-                        const formattedHour = h % 12 || 12;
-                        timeLabel = `@ ${formattedHour}:${m} ${period}`;
-                    } else if (med.frequency === 'As Needed') {
-                        timeLabel = "Log PRN Dose";
-                    }
-
-                    const labelId = 'lbl-' + crypto.randomUUID();
-
-                    checkboxesHtml += `
-                        <label class="med-item ${isCompletedToday ? 'completed' : ''}" id="${labelId}" title="${AppSettings.expertMode && !isCompletedToday ? 'Double-click to instantly log' : ''}">
-                            <input type="checkbox" name="med" value="${compositeLogId}" data-name="${safeMedName}" class="med-checkbox" ${isCompletedToday ? 'checked disabled' : ''}>
-                            <span class="med-details" style="width: 100%;">
-                                <span class="med-name" style="color: ${isCompletedToday ? 'var(--text-secondary)' : 'var(--text-primary)'};">${timeLabel}</span>
-                            </span>
-                        </label>
-                    `;
-
-                    if (AppSettings.expertMode && !isCompletedToday) {
-                        setTimeout(() => {
-                            const el = document.getElementById(labelId);
-                            if (el) {
-                                el.addEventListener('dblclick', (e) => {
-                                    e.preventDefault();
-                                    const checkbox = el.querySelector('input');
-                                    if (!checkbox.disabled) {
-                                        processBatchLog([{
-                                            compId: compositeLogId,
-                                            medName: med.name,
-                                            checkboxElement: checkbox
-                                        }]);
-                                    }
-                                });
-                            }
-                        }, 0);
-                    }
-                });
-                checkboxesHtml += '</div>';
-
-                let extrasHtml = '';
-                if (med.instructions || med.sideEffects) {
-                    extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 0.5rem;">`;
-                    
-                    if (med.instructions) {
-                        extrasHtml += `<div class="med-instructions-box" style="margin-top:0;"><i>${med.instructions}</i></div>`;
-                    }
-                    if (med.sideEffects) {
-                        extrasHtml += `<div style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                          ${med.sideEffects}
-                                       </div>`;
-                    }
-                    extrasHtml += `</div>`;
+                if (AppSettings.expertMode && !isCompletedToday) {
+                    setTimeout(() => {
+                        const el = document.getElementById(labelId);
+                        if (el) {
+                            el.addEventListener('dblclick', (e) => {
+                                e.preventDefault();
+                                const checkbox = el.querySelector('input');
+                                if (!checkbox.disabled) {
+                                    processBatchLog([{
+                                        compId: compositeLogId,
+                                        medName: med.name,
+                                        checkboxElement: checkbox
+                                    }]);
+                                }
+                            });
+                        }
+                    }, 0);
                 }
-
-                card.innerHTML = headerHtml + checkboxesHtml + extrasHtml;
-                checklistContainer.appendChild(card);
             });
-            updateStatus();
-        } catch (renderError) {
-            console.error("Checklist rendering failed:", renderError);
-        }
+            checkboxesHtml += '</div>';
+
+            let extrasHtml = '';
+            if (med.instructions || med.sideEffects) {
+                extrasHtml += `<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 0.5rem;">`;
+                
+                if (med.instructions) {
+                    extrasHtml += `<div class="med-instructions-box" style="margin-top:0;"><i>${med.instructions}</i></div>`;
+                }
+                if (med.sideEffects) {
+                    extrasHtml += `<div style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 0.35rem;">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                      ${med.sideEffects}
+                                   </div>`;
+                }
+                extrasHtml += `</div>`;
+            }
+
+            card.innerHTML = headerHtml + checkboxesHtml + extrasHtml;
+            checklistContainer.appendChild(card);
+        });
+        updateStatus();
     };
 }
 
 function logSelected() {
+    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
     const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
@@ -805,6 +659,7 @@ function logSelected() {
 }
 
 function logAll() {
+    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
     const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
@@ -865,6 +720,7 @@ function processBatchLog(items) {
         });
     }
 
+    // FIX: Unconditionally reload the checklist to guarantee sync
     transaction.oncomplete = () => {
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
@@ -882,69 +738,64 @@ function processBatchLog(items) {
 
 // --- History, Duplicate Tracking & Refund Logic ---
 function refreshHistory() {
-    if (!historyList || !db) return;
     const transaction = db.transaction(["logs"], "readonly");
     const request = transaction.objectStore("logs").getAll();
 
     request.onsuccess = () => {
-        try {
-            const logs = request.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
-            historyList.innerHTML = '';
+        const logs = request.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+        historyList.innerHTML = '';
+        
+        const tracker = {};
+        logs.forEach(log => {
+            if (log.targetTime) { 
+                const dayKey = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId;
+                tracker[dayKey] = (tracker[dayKey] || 0) + 1;
+            }
+        });
+
+        const recentLogs = logs.slice(0, 15);
+
+        if (recentLogs.length === 0) {
+            historyList.innerHTML = '<li style="color: var(--text-secondary); text-align:center; padding: 2rem;">No logs found.</li>';
+            return;
+        }
+
+        recentLogs.forEach(log => {
+            const dateObj = new Date(log.dateTaken);
+            const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateString = dateObj.toLocaleDateString();
             
-            const tracker = {};
-            logs.forEach(log => {
-                if (log.targetTime) { 
-                    const dayKey = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId;
-                    tracker[dayKey] = (tracker[dayKey] || 0) + 1;
-                }
-            });
-
-            const recentLogs = logs.slice(0, 15);
-
-            if (recentLogs.length === 0) {
-                historyList.innerHTML = '<li style="color: var(--text-secondary); text-align:center; padding: 2rem;">No logs found.</li>';
-                return;
+            let slotInfo = '';
+            if (log.targetTime) {
+                const [h, m] = log.targetTime.split(':');
+                const period = h >= 12 ? 'PM' : 'AM';
+                slotInfo = `<span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">(Scheduled ${h % 12 || 12}:${m} ${period})</span>`;
             }
 
-            recentLogs.forEach(log => {
-                const dateObj = new Date(log.dateTaken);
-                const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const dateString = dateObj.toLocaleDateString();
-                
-                let slotInfo = '';
-                if (log.targetTime) {
-                    const [h, m] = log.targetTime.split(':');
-                    const period = h >= 12 ? 'PM' : 'AM';
-                    slotInfo = `<span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">(Scheduled ${h % 12 || 12}:${m} ${period})</span>`;
+            let duplicateTag = '';
+            if (log.targetTime) {
+                const dayKey = dateString + '|' + log.compositeId;
+                if (tracker[dayKey] > 1) {
+                    duplicateTag = `<span style="margin-left: 0.5rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); color: var(--danger-color); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--danger-color);">Duplicate</span>`;
                 }
+            }
 
-                let duplicateTag = '';
-                if (log.targetTime) {
-                    const dayKey = dateString + '|' + log.compositeId;
-                    if (tracker[dayKey] > 1) {
-                        duplicateTag = `<span style="margin-left: 0.5rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); color: var(--danger-color); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--danger-color);">Duplicate</span>`;
-                    }
-                }
-
-                const li = document.createElement('li');
-                li.className = 'history-item';
-                li.innerHTML = `
-                    <div class="history-info" style="display:flex; flex-direction:column; gap:0.25rem;">
-                        <span class="history-med">${log.medName} ${slotInfo} ${duplicateTag}</span>
-                        <span class="history-time">${dateString} ${timeString}</span>
-                    </div>
-                    <button class="btn-delete-log icon-btn" onclick="deleteLog('${log.timestamp}')" aria-label="Delete Log" title="${AppSettings.noBabysitter ? 'Delete Instantly' : 'Delete'}">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </button>
-                `;
-                historyList.appendChild(li);
-            });
-        } catch (err) {
-            console.error("History rendering failed:", err);
-        }
+            const li = document.createElement('li');
+            li.className = 'history-item';
+            li.innerHTML = `
+                <div class="history-info" style="display:flex; flex-direction:column; gap:0.25rem;">
+                    <span class="history-med">${log.medName} ${slotInfo} ${duplicateTag}</span>
+                    <span class="history-time">${dateString} ${timeString}</span>
+                </div>
+                <button class="btn-delete-log icon-btn" onclick="deleteLog('${log.timestamp}')" aria-label="Delete Log" title="${AppSettings.noBabysitter ? 'Delete Instantly' : 'Delete'}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            `;
+            historyList.appendChild(li);
+        });
     };
 }
 
@@ -983,138 +834,120 @@ window.deleteLog = function(timestampKey) {
 };
 
 function calculateAdherence() {
-    if (!db) return; 
-    
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        try {
-            const meds = medReq.result;
-            const logs = logReq.result;
-            
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            
-            const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 30);
-            if (isNaN(range)) return; 
-            
-            let expected7DayDoses = 0;
-            let actualTaken7Day = 0;
-            let expectedDailyDosesMap = {}; 
-            const nonPrnMedIds = new Set();
+        const meds = medReq.result;
+        const logs = logReq.result;
 
-            for (let i = 0; i < range; i++) {
-                const simDate = new Date(today);
-                simDate.setDate(today.getDate() - i);
-                const dateStr = simDate.toLocaleDateString();
-                expectedDailyDosesMap[dateStr] = 0;
+        let expectedWeeklyDoses = 0;
+        let nonPrnMedIds = new Set();
+        let expectedDailyDoses = 0; 
+
+        meds.forEach(med => {
+            if (med.frequency !== "As Needed") {
+                nonPrnMedIds.add(med.id);
+                let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
                 
-                meds.forEach(med => {
-                    if (med.frequency !== "As Needed") {
-                        nonPrnMedIds.add(med.id);
-                        const state = getMedStateOnDate(med, simDate);
-                        
-                        if (state && state.shouldRender) {
-                            let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
-                            expectedDailyDosesMap[dateStr] += timeCount;
-                            
-                            if (i >= 1 && i <= 7) {
-                                expected7DayDoses += timeCount;
-                            }
-                        }
-                    }
-                });
-            }
-
-            const logCountsByDate = {};
-            const retroCountsByDate = {}; 
-
-            logs.forEach(log => {
-                if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
-                    const logDate = new Date(log.dateTaken);
-                    logDate.setHours(0,0,0,0);
-                    const localDateStr = logDate.toLocaleDateString();
-                    
-                    logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
-                    
-                    const daysDiff = Math.round((today - logDate) / (1000 * 60 * 60 * 24));
-                    if (daysDiff >= 1 && daysDiff <= 7) {
-                        actualTaken7Day++;
-                    }
-
-                    const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
-                    const claimedTime = new Date(log.dateTaken).getTime();
-                    const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
-                    if (deltaHours > 4) {
-                        retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
-                    }
-                }
-            });
-
-            if (adherenceScore && adherenceSubtext) {
-                let percent = expected7DayDoses === 0 ? 100 : Math.min(100, Math.round((actualTaken7Day / expected7DayDoses) * 100));
-                adherenceScore.textContent = `${percent}%`;
-                adherenceSubtext.textContent = `${actualTaken7Day} of ${expected7DayDoses} expected doses (Past 7 Days)`;
-
-                if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
-                else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
-                else adherenceScore.style.color = "var(--danger-color)"; 
-            }
-
-            const grid = document.getElementById('heatmap-grid');
-            if (!grid) return; 
-            grid.innerHTML = ''; 
-
-            for (let i = range - 1; i >= 0; i--) {
-                const targetDate = new Date();
-                targetDate.setDate(today.getDate() - i);
-                const dateStr = targetDate.toLocaleDateString();
-                const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
-                
-                const count = logCountsByDate[dateStr] || 0;
-                const retroCount = retroCountsByDate[dateStr] || 0;
-                const expectedForThisCell = expectedDailyDosesMap[dateStr] || 0;
-                let level = 0; 
-                
-                if (expectedForThisCell > 0) {
-                    if (count >= expectedForThisCell) level = 2; 
-                    else if (count > 0) level = 1; 
-                } else if (count > 0 && expectedForThisCell === 0) {
-                    level = 1;
-                }
-
-                const cell = document.createElement('div');
-                cell.className = `heatmap-cell level-${level}`;
-                
-                if (expectedForThisCell === 0 && count === 0) {
-                    cell.title = `${displayStr}: No doses scheduled`;
-                    cell.style.background = 'transparent';
-                    cell.style.border = '1px solid var(--border-color)';
-                } else if (level === 2) {
-                    cell.title = `${displayStr}: Perfect (${count} doses)`;
-                } else if (level === 1) {
-                    cell.title = `${displayStr}: Partial (${count} of ${expectedForThisCell} doses)`;
+                if (med.frequency === "Weekly") {
+                    expectedWeeklyDoses += timeCount; 
                 } else {
-                    cell.title = `${displayStr}: Missed doses`;
+                    expectedWeeklyDoses += (timeCount * 7); 
+                    expectedDailyDoses += timeCount;
                 }
-
-                if (retroCount > 0 && level > 0) {
-                    cell.style.opacity = '0.35'; 
-                    cell.title += ` ⚠️ (${retroCount} backdated)`;
-                }
-                
-                grid.appendChild(cell);
             }
-        } catch (calcError) {
-            console.error("Analytics Engine failed:", calcError);
+        });
+
+        const grid = document.getElementById('heatmap-grid');
+
+        if (expectedWeeklyDoses === 0) {
+            adherenceScore.textContent = "--%";
+            adherenceScore.style.color = "var(--text-primary)";
+            adherenceSubtext.textContent = "No scheduled medications";
+            if (grid) grid.innerHTML = '';
+            return;
+        }
+
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        let actualTaken = 0;
+
+        logs.forEach(log => {
+            const logDate = new Date(log.dateTaken);
+            if (logDate >= sevenDaysAgo && log.status === "taken" && nonPrnMedIds.has(log.medId)) {
+                actualTaken++;
+            }
+        });
+
+        let percent = Math.min(100, Math.round((actualTaken / expectedWeeklyDoses) * 100));
+        adherenceScore.textContent = `${percent}%`;
+        adherenceSubtext.textContent = `${actualTaken} of ${expectedWeeklyDoses} expected doses`;
+
+        if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
+        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
+        else adherenceScore.style.color = "var(--danger-color)"; 
+
+        if (!grid) return; 
+        
+        const range = parseInt(heatmapRangeSelect ? heatmapRangeSelect.value : 30);
+        grid.innerHTML = ''; 
+
+        const logCountsByDate = {};
+        const retroCountsByDate = {}; 
+
+        logs.forEach(log => {
+            if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
+                const localDateStr = new Date(log.dateTaken).toLocaleDateString();
+                logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+
+                const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
+                const claimedTime = new Date(log.dateTaken).getTime();
+                const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
+                
+                if (deltaHours > 4) {
+                    retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
+                }
+            }
+        });
+
+        const today = new Date();
+        
+        for (let i = range - 1; i >= 0; i--) {
+            const targetDate = new Date();
+            targetDate.setDate(today.getDate() - i);
+            const dateStr = targetDate.toLocaleDateString();
+            const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            
+            const count = logCountsByDate[dateStr] || 0;
+            const retroCount = retroCountsByDate[dateStr] || 0;
+            let level = 0; 
+            
+            if (expectedDailyDoses > 0) {
+                if (count >= expectedDailyDoses) level = 2; 
+                else if (count > 0) level = 1; 
+            }
+
+            const cell = document.createElement('div');
+            cell.className = `heatmap-cell level-${level}`;
+            
+            if (level === 2) cell.title = `${displayStr}: Perfect (${count} doses)`;
+            else if (level === 1) cell.title = `${displayStr}: Partial (${count} of ${expectedDailyDoses} doses)`;
+            else cell.title = `${displayStr}: Missed doses`;
+
+            if (retroCount > 0 && level > 0) {
+                cell.style.opacity = '0.35'; 
+                cell.title += ` ⚠️ (${retroCount} backdated)`;
+            }
+            
+            grid.appendChild(cell);
         }
     };
 }
 
 function updateStatus() {
-    if (!statusBar) return;
+    // FIX: Scope query to checklist
     const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     const total = document.querySelectorAll('#checklist-container .med-checkbox');
     if (total.length === 0) {
@@ -1157,14 +990,16 @@ async function promptToSavePassword(password) {
 function cacheSessionPassword(password) {
     if (password) {
         sessionStorage.setItem('medledger_session_key', password);
-        if(sessionLockControls) sessionLockControls.style.display = 'flex';
+        const lockControls = document.getElementById('session-lock-controls');
+        if(lockControls) lockControls.style.display = 'flex';
     }
 }
 
 function lockVaultSession() {
     sessionStorage.removeItem('medledger_session_key');
-    if (vaultPassInput) vaultPassInput.value = '';
-    if(sessionLockControls) sessionLockControls.style.display = 'none';
+    if(vaultPassInput) vaultPassInput.value = '';
+    const lockControls = document.getElementById('session-lock-controls');
+    if(lockControls) lockControls.style.display = 'none';
     showVaultStatus("Vault locked.", "var(--text-secondary)");
 }
 
@@ -1243,7 +1078,6 @@ function restoreDataToDB(parsedData) {
 }
 
 function togglePasswordVisibility() {
-    if (!vaultPassInput || !peekIcon) return;
     const isPassword = vaultPassInput.type === 'password';
     vaultPassInput.type = isPassword ? 'text' : 'password';
     if (isPassword) {
@@ -1412,7 +1246,7 @@ async function exportHTMLReport() {
 // --- LOCAL VAULT (File Export/Import) ---
 // ==========================================
 async function exportVaultLocal() {
-    const password = vaultPassInput ? vaultPassInput.value || sessionStorage.getItem('medledger_session_key') : sessionStorage.getItem('medledger_session_key');
+    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
     if (!password) { showVaultStatus("Password required for export.", "var(--danger-color)"); return; }
     
@@ -1427,7 +1261,7 @@ async function exportVaultLocal() {
         a.href = url; a.download = `MedLedger_${new Date().toISOString().split('T')[0]}.medvault`;
         a.click(); URL.revokeObjectURL(url);
         
-        if (vaultPassInput) vaultPassInput.value = password; 
+        vaultPassInput.value = password; 
         showVaultStatus("Local Export successful.", "var(--success-color)");
     } catch (err) { console.error(err); showVaultStatus("Export failed.", "var(--danger-color)"); }
 }
@@ -1435,7 +1269,7 @@ async function exportVaultLocal() {
 async function importVaultLocal(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const password = vaultPassInput ? vaultPassInput.value : null;
+    const password = vaultPassInput.value;
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--danger-color)"); e.target.value = ''; return; }
 
     const reader = new FileReader();
@@ -1443,7 +1277,7 @@ async function importVaultLocal(e) {
         try {
             const parsedData = await processEncryptedBlob(password, event.target.result);
             restoreDataToDB(parsedData);
-            if (vaultPassInput) vaultPassInput.value = ''; e.target.value = '';
+            vaultPassInput.value = ''; e.target.value = '';
             showVaultStatus("Local Import successful. Vault restored.", "var(--success-color)");
         } catch (err) {
             console.error(err); showVaultStatus("Decryption failed. Incorrect password?", "var(--danger-color)"); e.target.value = '';
@@ -1464,6 +1298,7 @@ window.initGoogleSync = function() {
             if (tokenResponse && tokenResponse.access_token) {
                 gapiToken = tokenResponse.access_token;
                 
+                // Cache the token with a 55-minute buffer (Google tokens expire at 60)
                 localStorage.setItem('gapi_token', gapiToken);
                 localStorage.setItem('gapi_token_expiry', Date.now() + (55 * 60 * 1000));
 
@@ -1476,6 +1311,7 @@ window.initGoogleSync = function() {
         },
     });
 
+    // On Load: Check if we have an unexpired token in the cache to stay signed in
     const savedToken = localStorage.getItem('gapi_token');
     const tokenExpiry = localStorage.getItem('gapi_token_expiry');
     
@@ -1523,7 +1359,7 @@ async function checkDriveForFile() {
 }
 
 async function pushToGoogleDrive() {
-    const password = vaultPassInput ? vaultPassInput.value || sessionStorage.getItem('medledger_session_key') : sessionStorage.getItem('medledger_session_key');
+    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--danger-color)"); return; }
     
@@ -1566,7 +1402,7 @@ async function pushToGoogleDrive() {
         });
         
         if (uploadRes.ok) {
-            if (vaultPassInput) vaultPassInput.value = password;
+            vaultPassInput.value = password;
             showVaultStatus("Successfully pushed securely to Drive.", "var(--success-color)");
         } else {
             throw new Error("Upload data failed.");
@@ -1578,7 +1414,7 @@ async function pushToGoogleDrive() {
 }
 
 async function pullFromGoogleDrive() {
-    const password = vaultPassInput ? vaultPassInput.value || sessionStorage.getItem('medledger_session_key') : sessionStorage.getItem('medledger_session_key');
+    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
     
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--danger-color)"); return; }
 
@@ -1606,7 +1442,7 @@ async function pullFromGoogleDrive() {
         const parsedData = await processEncryptedBlob(password, encryptedBase64);
         restoreDataToDB(parsedData);
         
-        if (vaultPassInput) vaultPassInput.value = password;
+        vaultPassInput.value = password;
         showVaultStatus("Successfully synced from Drive.", "var(--success-color)");
     } catch (err) {
         console.error(err);
@@ -1642,9 +1478,6 @@ function checkReminders() {
         rawMeds.forEach(med => {
             if (med.frequency === "As Needed") return;
 
-            const state = getMedStateOnDate(med, now);
-            if (!state || !state.shouldRender) return;
-
             let times = med.times || [];
             if (!med.times && med.time) times = [med.time]; 
 
@@ -1662,7 +1495,7 @@ function checkReminders() {
                             const formattedTime = `${h % 12 || 12}:${m} ${period}`;
                             
                             registration.showNotification("MedLedger Reminder", {
-                                body: `Pending: ${med.name} (${state.dose}) at ${formattedTime}`,
+                                body: `Pending: ${med.name} (${med.dose}) at ${formattedTime}`,
                                 icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzE4MTgxYiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjM2I4MmY2Ii8+PC9zdmc+",
                                 badge: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzE4MTgxYiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjM2I4MmY2Ii8+PC9zdmc+",
                                 requireInteraction: true
