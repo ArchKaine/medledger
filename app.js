@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     initDB();
     registerServiceWorker();
+    injectAdvancedUI(); // INJECTS ADVANCED REGIMEN DOM
 
     document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
     document.getElementById('btn-submit-all').addEventListener('click', logAll);
@@ -115,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
     document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
 
-    // FIX: Scope keyboard shortcut to only the active checklist
     document.addEventListener('keydown', (e) => {
         if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
@@ -232,6 +232,75 @@ function initSettings() {
     });
 }
 
+// --- Advanced Regimen DOM Injection ---
+function injectAdvancedUI() {
+    const advOptions = `
+        <option value="Every Other Day">Every Other Day</option>
+        <option value="Cycle 21/7">Cycle (21 On / 7 Off)</option>
+        <option value="Weekdays Only">Weekdays Only</option>
+        <option value="Weekends Only">Weekends Only</option>
+        <option value="Taper">Taper Schedule</option>
+    `;
+
+    const newFreq = document.getElementById('new-med-freq');
+    if (newFreq) {
+        newFreq.insertAdjacentHTML('beforeend', advOptions);
+        const taperHtml = `
+            <div id="new-taper-container" style="display:none; padding: 1rem; border: 1px dashed var(--border-color); border-radius: 6px; margin-top: 1rem; background: var(--bg-surface);">
+                <label style="font-size: 0.9rem; color: var(--text-secondary);">Taper Steps (Days & Dose)</label>
+                <div id="new-taper-steps" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;"></div>
+                <button type="button" class="btn btn-secondary" onclick="addTaperStep('new')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
+            </div>
+        `;
+        newFreq.closest('.form-group').insertAdjacentHTML('afterend', taperHtml);
+        newFreq.addEventListener('change', (e) => {
+            document.getElementById('new-taper-container').style.display = e.target.value === 'Taper' ? 'flex' : 'none';
+            document.getElementById('new-taper-container').style.flexDirection = 'column';
+        });
+    }
+
+    const editFreq = document.getElementById('edit-med-freq');
+    if (editFreq) {
+        editFreq.insertAdjacentHTML('beforeend', advOptions);
+        const taperHtmlEdit = `
+            <div id="edit-taper-container" style="display:none; padding: 1rem; border: 1px dashed var(--border-color); border-radius: 6px; margin-top: 1rem; background: var(--bg-surface);">
+                <label style="font-size: 0.9rem; color: var(--text-secondary);">Taper Steps (Days & Dose)</label>
+                <div id="edit-taper-steps" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;"></div>
+                <button type="button" class="btn btn-secondary" onclick="addTaperStep('edit')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
+            </div>
+        `;
+        editFreq.closest('.form-group').insertAdjacentHTML('afterend', taperHtmlEdit);
+        editFreq.addEventListener('change', (e) => {
+            document.getElementById('edit-taper-container').style.display = e.target.value === 'Taper' ? 'flex' : 'none';
+            document.getElementById('edit-taper-container').style.flexDirection = 'column';
+        });
+    }
+}
+
+window.addTaperStep = function(mode, days = '', dose = '') {
+    const container = document.getElementById(`${mode}-taper-steps`);
+    const stepHtml = `
+        <div class="taper-step" style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="number" class="taper-days" placeholder="Days (e.g. 5)" value="${days}" style="width: 80px; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+            <span style="color: var(--text-secondary);">@</span>
+            <input type="text" class="taper-dose" placeholder="Dose (e.g. 10mg)" value="${dose}" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 1.2rem; padding: 0 0.5rem;">&times;</button>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', stepHtml);
+}
+
+function getTaperSteps(mode) {
+    const container = document.getElementById(`${mode}-taper-steps`);
+    const steps = [];
+    container.querySelectorAll('.taper-step').forEach(row => {
+        const days = parseInt(row.querySelector('.taper-days').value);
+        const dose = row.querySelector('.taper-dose').value.trim();
+        if (days && dose) steps.push({ days, dose });
+    });
+    return steps;
+}
+
 // --- Database Logic & Migration ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -277,81 +346,24 @@ function initDB() {
     };
 }
 
-// --- Archiving Logic ---
-function archiveOldLogs() {
-    const days = parseInt(document.getElementById('archive-days').value) || 90;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-
-    const tx = db.transaction(["logs", "archived_logs"], "readwrite");
-    const logStore = tx.objectStore("logs");
-    const archiveStore = tx.objectStore("archived_logs");
-
-    logStore.openCursor().onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-            const log = cursor.value;
-            if (new Date(log.dateTaken) < cutoffDate) {
-                archiveStore.add(log);
-                cursor.delete();
-            }
-            cursor.continue();
-        }
-    };
-
-    tx.oncomplete = () => {
-        showVaultStatus(`Logs older than ${days} days moved to cold storage.`, "var(--success-color)");
-        refreshHistory();
-        calculateAdherence();
-    };
-}
-
-function restoreArchivedLogs() {
-    const tx = db.transaction(["logs", "archived_logs"], "readwrite");
-    const logStore = tx.objectStore("logs");
-    const archiveStore = tx.objectStore("archived_logs");
-
-    archiveStore.openCursor().onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-            logStore.add(cursor.value);
-            cursor.delete();
-            cursor.continue();
-        }
-    };
-
-    tx.oncomplete = () => {
-        showVaultStatus("All archives restored to active memory.", "var(--success-color)");
-        refreshHistory();
-        calculateAdherence();
-    };
-}
-
 // --- Zero-Knowledge Interaction Engine ---
 async function checkLocalInteractions(newMedName) {
     try {
-        // 1. Fetch the static JSON matrix (loads locally, no external API call)
         const response = await fetch('interactions.json');
         const interactionDB = await response.json();
 
-        // 2. Get the user's active medications from IndexedDB
         const activeMeds = await new Promise(res => {
             db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result);
         });
 
-        // 3. Normalize the new medication name (lowercase, remove extra spaces)
         const newDrug = newMedName.toLowerCase().trim();
         let warnings = [];
 
-        // 4. Cross-reference the new drug against the active regimen
         activeMeds.forEach(med => {
             const activeDrug = med.name.toLowerCase().trim();
-
-            // Check Matrix: Does New Drug interact with Active Drug?
             if (interactionDB[newDrug] && interactionDB[newDrug][activeDrug]) {
                 warnings.push(`Warning with ${med.name}: ${interactionDB[newDrug][activeDrug]}`);
             }
-            // Check Matrix: Does Active Drug interact with New Drug?
             else if (interactionDB[activeDrug] && interactionDB[activeDrug][newDrug]) {
                 warnings.push(`Warning with ${med.name}: ${interactionDB[activeDrug][newDrug]}`);
             }
@@ -360,7 +372,7 @@ async function checkLocalInteractions(newMedName) {
         return warnings;
     } catch (err) {
         console.warn("Interaction DB not found or failed to load. Bypassing check.");
-        return []; // Fails open so the app still works even if the JSON is missing
+        return []; 
     }
 }
 
@@ -374,43 +386,39 @@ async function handleAddMed(e) {
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory').value.trim();
     const timesArray = getTimesFromContainer('new-med-times-container');
+    const taperSteps = freqInput === 'Taper' ? getTaperSteps('new') : [];
 
     if (!nameInput || !doseInput) return;
 
-    // ==========================================
-    // ZERO-KNOWLEDGE INTERACTION CHECK
-    // ==========================================
     const warnings = await checkLocalInteractions(nameInput);
-
     if (warnings.length > 0) {
-        // If a clash is found, halt the save and force the user to confirm
         const alertMessage = `⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nDo you still want to add this medication to your regimen?`;
-
-        // If the user clicks "Cancel" on the warning, abort the save entirely
         if (!confirm(alertMessage)) {
             showVaultStatus("Medication aborted.", "var(--text-secondary)");
-            return;
+            return; 
         }
     }
-    // ==========================================
 
-    const newMed = {
-        id: crypto.randomUUID(),
-        name: nameInput,
-        dose: doseInput,
+    const newMed = { 
+        id: crypto.randomUUID(), 
+        name: nameInput, 
+        dose: doseInput, 
         frequency: freqInput,
+        taperSteps: taperSteps,
+        startDate: new Date().toISOString(), // Core requirement for Advanced Logic
         times: timesArray,
         instructions: instructionsInput,
         sideEffects: sideEffectsInput,
         inventory: AppSettings.inventory ? inventoryInput : ""
     };
-
+    
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").add(newMed);
 
     transaction.oncomplete = () => {
         addMedForm.reset();
-        document.getElementById('new-med-freq').value = 'Daily';
+        document.getElementById('new-med-freq').value = 'Daily'; 
+        document.getElementById('new-taper-container').style.display = 'none';
         document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
         if (warnings.length > 0) {
@@ -438,6 +446,21 @@ window.openEditModal = function(id) {
                 document.getElementById('edit-med-inventory').value = med.inventory || '';
             } else if (editInventoryGroup) {
                 editInventoryGroup.style.display = 'none';
+            }
+            
+            // Handle Taper UI Restore
+            const editTaperContainer = document.getElementById('edit-taper-container');
+            const editTaperSteps = document.getElementById('edit-taper-steps');
+            editTaperSteps.innerHTML = ''; 
+            
+            if (med.frequency === 'Taper') {
+                editTaperContainer.style.display = 'flex';
+                editTaperContainer.style.flexDirection = 'column';
+                if (med.taperSteps) {
+                    med.taperSteps.forEach(step => addTaperStep('edit', step.days, step.dose));
+                }
+            } else {
+                editTaperContainer.style.display = 'none';
             }
             
             let timesToRender = med.times || [];
@@ -471,18 +494,27 @@ function saveEditedMed(e) {
     const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); 
     const inventory = AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
+    const taperSteps = freq === 'Taper' ? getTaperSteps('edit') : [];
 
     const transaction = db.transaction(["meds"], "readwrite");
-    transaction.objectStore("meds").put({ 
-        id: id, 
-        name: name, 
-        dose: dose, 
-        frequency: freq,
-        times: timesArray,
-        instructions: instructions,
-        sideEffects: sideEffects,
-        inventory: inventory
-    });
+    const medStore = transaction.objectStore("meds");
+    
+    medStore.get(id).onsuccess = (event) => {
+        const existingMed = event.target.result;
+        
+        medStore.put({ 
+            id: id, 
+            name: name, 
+            dose: dose, 
+            frequency: freq,
+            taperSteps: taperSteps,
+            startDate: existingMed.startDate || new Date().toISOString(), // Persist original date!
+            times: timesArray,
+            instructions: instructions,
+            sideEffects: sideEffects,
+            inventory: inventory
+        });
+    };
 
     transaction.oncomplete = () => {
         editModal.close();
@@ -500,6 +532,61 @@ function deleteMedication() {
         editModal.close();
         loadChecklist();
     };
+}
+
+// --- Core Engine: State Resolution Simulator ---
+// This acts as a time-machine for both the Checklist and the Adherence Heatmap
+function getMedStateOnDate(med, targetDate) {
+    let state = { shouldRender: true, dose: med.dose, freqLabel: med.frequency };
+    
+    if (med.frequency === "As Needed") {
+        state.shouldRender = true;
+        return state;
+    }
+
+    if (med.startDate) {
+        const tDate = new Date(targetDate);
+        tDate.setHours(0,0,0,0);
+        const sDate = new Date(med.startDate);
+        sDate.setHours(0,0,0,0);
+        
+        const daysElapsed = Math.floor((tDate - sDate) / (1000 * 60 * 60 * 24));
+        
+        if (daysElapsed < 0) {
+            state.shouldRender = false; // Does not exist yet in history
+            return state;
+        }
+
+        if (med.frequency === "Every Other Day" && daysElapsed % 2 !== 0) {
+            state.shouldRender = false;
+        } else if (med.frequency === "Cycle 21/7") {
+            const cycleDay = daysElapsed % 28;
+            if (cycleDay >= 21) state.shouldRender = false;
+            state.freqLabel = `Cycle (Day ${cycleDay + 1}/28)`;
+        } else if (med.frequency === "Weekdays Only" && (tDate.getDay() === 0 || tDate.getDay() === 6)) {
+            state.shouldRender = false;
+        } else if (med.frequency === "Weekends Only" && (tDate.getDay() !== 0 && tDate.getDay() !== 6)) {
+            state.shouldRender = false;
+        } else if (med.frequency === "Taper" && med.taperSteps) {
+            let runningDays = 0;
+            let activeStep = null;
+            for (let step of med.taperSteps) {
+                if (daysElapsed >= runningDays && daysElapsed < runningDays + step.days) {
+                    activeStep = step;
+                    break;
+                }
+                runningDays += step.days;
+            }
+            
+            if (activeStep) {
+                state.dose = activeStep.dose;
+                state.freqLabel = `Taper (Day ${daysElapsed + 1})`;
+            } else {
+                state.shouldRender = false; // Taper is fully completed
+            }
+        }
+    }
+    return state;
 }
 
 // --- Regimen Logic (Checklist & Logging) ---
@@ -530,11 +617,13 @@ function loadChecklist() {
         const todayStr = new Date().toLocaleDateString();
 
         rawMeds.forEach(med => {
+            const state = getMedStateOnDate(med, new Date());
+            if (!state.shouldRender) return; // Time-engine says this drug doesn't happen today
+
             let times = med.times && med.times.length > 0 ? med.times : [null];
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
-            const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
+            const freqHtml = state.freqLabel ? `<span class="${freqClass}">${state.freqLabel}</span>` : '';
 
-            // FIX: Escape double quotes so they don't break the HTML attribute
             const safeMedName = med.name.replace(/"/g, '&quot;');
 
             let inventoryBadgeHtml = '';
@@ -560,7 +649,7 @@ function loadChecklist() {
                             ${med.name} ${freqHtml}
                         </h3>
                         <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem; display: flex; align-items: center;">
-                            ${med.dose} ${inventoryBadgeHtml}
+                            ${state.dose} ${inventoryBadgeHtml}
                         </div>
                     </div>
                     <button type="button" class="icon-btn" onclick="openEditModal('${med.id}')" aria-label="Edit" style="margin: -0.25rem -0.25rem 0 0;">
@@ -647,7 +736,6 @@ function loadChecklist() {
 }
 
 function logSelected() {
-    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
     const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
@@ -659,7 +747,6 @@ function logSelected() {
 }
 
 function logAll() {
-    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
     const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
@@ -720,7 +807,6 @@ function processBatchLog(items) {
         });
     }
 
-    // FIX: Unconditionally reload the checklist to guarantee sync
     transaction.oncomplete = () => {
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
@@ -841,79 +927,79 @@ function calculateAdherence() {
     tx.oncomplete = () => {
         const meds = medReq.result;
         const logs = logReq.result;
-
-        let expectedWeeklyDoses = 0;
-        let nonPrnMedIds = new Set();
-        let expectedDailyDoses = 0; 
-
-        meds.forEach(med => {
-            if (med.frequency !== "As Needed") {
-                nonPrnMedIds.add(med.id);
-                let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
-                
-                if (med.frequency === "Weekly") {
-                    expectedWeeklyDoses += timeCount; 
-                } else {
-                    expectedWeeklyDoses += (timeCount * 7); 
-                    expectedDailyDoses += timeCount;
-                }
-            }
-        });
-
-        const grid = document.getElementById('heatmap-grid');
-
-        if (expectedWeeklyDoses === 0) {
-            adherenceScore.textContent = "--%";
-            adherenceScore.style.color = "var(--text-primary)";
-            adherenceSubtext.textContent = "No scheduled medications";
-            if (grid) grid.innerHTML = '';
-            return;
-        }
-
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        let actualTaken = 0;
-
-        logs.forEach(log => {
-            const logDate = new Date(log.dateTaken);
-            if (logDate >= sevenDaysAgo && log.status === "taken" && nonPrnMedIds.has(log.medId)) {
-                actualTaken++;
-            }
-        });
-
-        let percent = Math.min(100, Math.round((actualTaken / expectedWeeklyDoses) * 100));
-        adherenceScore.textContent = `${percent}%`;
-        adherenceSubtext.textContent = `${actualTaken} of ${expectedWeeklyDoses} expected doses`;
-
-        if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
-        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
-        else adherenceScore.style.color = "var(--danger-color)"; 
-
-        if (!grid) return; 
+        
+        const today = new Date();
+        today.setHours(0,0,0,0);
         
         const range = parseInt(heatmapRangeSelect ? heatmapRangeSelect.value : 30);
-        grid.innerHTML = ''; 
+        
+        let expected7DayDoses = 0;
+        let actualTaken7Day = 0;
+        let expectedDailyDosesMap = {}; 
+        const nonPrnMedIds = new Set();
+
+        // RUNNING THE 90-DAY TIME MACHINE
+        for (let i = 0; i < range; i++) {
+            const simDate = new Date(today);
+            simDate.setDate(today.getDate() - i);
+            const dateStr = simDate.toLocaleDateString();
+            expectedDailyDosesMap[dateStr] = 0;
+            
+            meds.forEach(med => {
+                if (med.frequency !== "As Needed") {
+                    nonPrnMedIds.add(med.id);
+                    const state = getMedStateOnDate(med, simDate);
+                    
+                    if (state.shouldRender) {
+                        let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
+                        expectedDailyDosesMap[dateStr] += timeCount;
+                        
+                        // Accumulate only the past 7 days for the % score (Days 1 to 7 to exclude partial current day)
+                        if (i >= 1 && i <= 7) {
+                            expected7DayDoses += timeCount;
+                        }
+                    }
+                }
+            });
+        }
 
         const logCountsByDate = {};
         const retroCountsByDate = {}; 
 
         logs.forEach(log => {
             if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
-                const localDateStr = new Date(log.dateTaken).toLocaleDateString();
+                const logDate = new Date(log.dateTaken);
+                logDate.setHours(0,0,0,0);
+                const localDateStr = logDate.toLocaleDateString();
+                
                 logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+                
+                const daysDiff = Math.round((today - logDate) / (1000 * 60 * 60 * 24));
+                if (daysDiff >= 1 && daysDiff <= 7) {
+                    actualTaken7Day++;
+                }
 
                 const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
                 const claimedTime = new Date(log.dateTaken).getTime();
                 const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
-                
                 if (deltaHours > 4) {
                     retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
                 }
             }
         });
 
-        const today = new Date();
-        
+        let percent = expected7DayDoses === 0 ? 100 : Math.min(100, Math.round((actualTaken7Day / expected7DayDoses) * 100));
+        adherenceScore.textContent = `${percent}%`;
+        adherenceSubtext.textContent = `${actualTaken7Day} of ${expected7DayDoses} expected doses (Past 7 Days)`;
+
+        if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
+        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
+        else adherenceScore.style.color = "var(--danger-color)"; 
+
+        const grid = document.getElementById('heatmap-grid');
+        if (!grid) return; 
+        grid.innerHTML = ''; 
+
         for (let i = range - 1; i >= 0; i--) {
             const targetDate = new Date();
             targetDate.setDate(today.getDate() - i);
@@ -922,19 +1008,31 @@ function calculateAdherence() {
             
             const count = logCountsByDate[dateStr] || 0;
             const retroCount = retroCountsByDate[dateStr] || 0;
+            const expectedForThisCell = expectedDailyDosesMap[dateStr] || 0;
             let level = 0; 
             
-            if (expectedDailyDoses > 0) {
-                if (count >= expectedDailyDoses) level = 2; 
+            if (expectedForThisCell > 0) {
+                if (count >= expectedForThisCell) level = 2; 
                 else if (count > 0) level = 1; 
+            } else if (count > 0 && expectedForThisCell === 0) {
+                // Rare edge case: they took a scheduled pill on an off-day
+                level = 1;
             }
 
             const cell = document.createElement('div');
             cell.className = `heatmap-cell level-${level}`;
             
-            if (level === 2) cell.title = `${displayStr}: Perfect (${count} doses)`;
-            else if (level === 1) cell.title = `${displayStr}: Partial (${count} of ${expectedDailyDoses} doses)`;
-            else cell.title = `${displayStr}: Missed doses`;
+            if (expectedForThisCell === 0 && count === 0) {
+                cell.title = `${displayStr}: No doses scheduled`;
+                cell.style.background = 'transparent'; // Shows empty if nothing was scheduled
+                cell.style.border = '1px solid var(--border-color)';
+            } else if (level === 2) {
+                cell.title = `${displayStr}: Perfect (${count} doses)`;
+            } else if (level === 1) {
+                cell.title = `${displayStr}: Partial (${count} of ${expectedForThisCell} doses)`;
+            } else {
+                cell.title = `${displayStr}: Missed doses`;
+            }
 
             if (retroCount > 0 && level > 0) {
                 cell.style.opacity = '0.35'; 
@@ -947,7 +1045,6 @@ function calculateAdherence() {
 }
 
 function updateStatus() {
-    // FIX: Scope query to checklist
     const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     const total = document.querySelectorAll('#checklist-container .med-checkbox');
     if (total.length === 0) {
@@ -1298,7 +1395,6 @@ window.initGoogleSync = function() {
             if (tokenResponse && tokenResponse.access_token) {
                 gapiToken = tokenResponse.access_token;
                 
-                // Cache the token with a 55-minute buffer (Google tokens expire at 60)
                 localStorage.setItem('gapi_token', gapiToken);
                 localStorage.setItem('gapi_token_expiry', Date.now() + (55 * 60 * 1000));
 
@@ -1311,7 +1407,6 @@ window.initGoogleSync = function() {
         },
     });
 
-    // On Load: Check if we have an unexpired token in the cache to stay signed in
     const savedToken = localStorage.getItem('gapi_token');
     const tokenExpiry = localStorage.getItem('gapi_token_expiry');
     
@@ -1478,6 +1573,9 @@ function checkReminders() {
         rawMeds.forEach(med => {
             if (med.frequency === "As Needed") return;
 
+            const state = getMedStateOnDate(med, now);
+            if (!state.shouldRender) return;
+
             let times = med.times || [];
             if (!med.times && med.time) times = [med.time]; 
 
@@ -1495,7 +1593,7 @@ function checkReminders() {
                             const formattedTime = `${h % 12 || 12}:${m} ${period}`;
                             
                             registration.showNotification("MedLedger Reminder", {
-                                body: `Pending: ${med.name} (${med.dose}) at ${formattedTime}`,
+                                body: `Pending: ${med.name} (${state.dose}) at ${formattedTime}`,
                                 icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzE4MTgxYiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjM2I4MmY2Ii8+PC9zdmc+",
                                 badge: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzE4MTgxYiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBmaWxsPSIjM2I4MmY2Ii8+PC9zdmc+",
                                 requireInteraction: true
