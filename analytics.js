@@ -1,5 +1,5 @@
-}// ==========================================
-// analytics.js - MedLedger Analytics Engine
+// ==========================================
+// analytics.js - MedLedger Analytics Engine (Calendar View)
 // Handles Adherence Heatmap, Gamification Streaks, and Deep-Dives
 // ==========================================
 
@@ -56,13 +56,13 @@ function calculateAdherence() {
                 const simDate = new Date(today);
                 simDate.setDate(today.getDate() - i);
                 const dateStr = simDate.toLocaleDateString();
-                // We add a 'pending' array for the new 3rd state
                 dailyMedDetails[dateStr] = { expected: [...dailyExpectedBlueprint], taken: [], pending: [], missed: [], retroCount: 0 };
             }
 
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
             let actualTaken7Day = 0;
+            const logCountsByDate = {};
 
             // 3. Tally the Logs
             logs.forEach(log => {
@@ -71,6 +71,7 @@ function calculateAdherence() {
                     const localDateStr = logDate.toLocaleDateString();
                     
                     if (logDate >= sevenDaysAgo) actualTaken7Day++;
+                    logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
                     
                     if (dailyMedDetails[localDateStr]) {
                         dailyMedDetails[localDateStr].taken.push(log.medName);
@@ -100,18 +101,14 @@ function calculateAdherence() {
                         // It was NOT taken. Let's find out why.
                         if (isToday) {
                             if (exp.time !== null && exp.time > currentHourStr) {
-                                // Specific time hasn't happened yet
-                                details.pending.push(exp.name);
+                                details.pending.push(exp.name); // Time hasn't happened yet
                             } else if (exp.time === null) {
-                                // Unscheduled daily med, due by end of day
-                                details.pending.push(exp.name); 
+                                details.pending.push(exp.name); // Unscheduled daily med, due by end of day
                             } else {
-                                // The clock passed the target time
-                                details.missed.push(exp.name);
+                                details.missed.push(exp.name); // Clock passed target time
                             }
                         } else {
-                            // If it's a past day and wasn't taken, it's missed forever
-                            details.missed.push(exp.name);
+                            details.missed.push(exp.name); // Past day, missed forever
                         }
                     }
                 });
@@ -151,9 +148,8 @@ function calculateAdherence() {
                 const details = dailyMedDetails[dateStr];
                 
                 if (details && details.expected.length > 0) {
-                    // For streaks, a day is "perfect" if there are 0 missed meds
                     if (details.missed.length === 0) {
-                        tempStreak++;
+                        tempStreak++; // A day is "perfect" if there are 0 MISSED meds (pending is fine)
                         if (tempStreak > longestStreak) longestStreak = tempStreak;
                     } else {
                         if (i !== 0) tempStreak = 0; // Break streak if not today
@@ -167,7 +163,7 @@ function calculateAdherence() {
             if (streakEl) streakEl.textContent = currentStreak;
             if (maxStreakEl) maxStreakEl.textContent = longestStreak;
 
-            // 7. Render the Grid
+            // 7. Render the Calendar Grid
             const grid = document.getElementById('heatmap-grid');
             const detailsPanel = document.getElementById('heatmap-details');
             if (!grid) return; 
@@ -175,10 +171,19 @@ function calculateAdherence() {
             grid.innerHTML = ''; 
             if(detailsPanel) detailsPanel.style.display = 'none';
 
+            // Inject the Weekday Headers
+            const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            weekdays.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'heatmap-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+
             const startSimDate = new Date(today);
             startSimDate.setDate(today.getDate() - (range - 1));
             
-            // Pads the start of the grid so rows always start on Sunday
+            // Pad the start of the grid so rows always align perfectly with Sunday
             const startDayOfWeek = startSimDate.getDay();
             for(let p = 0; p < startDayOfWeek; p++) {
                 const spacer = document.createElement('div');
@@ -207,21 +212,24 @@ function calculateAdherence() {
                 const cell = document.createElement('div');
                 cell.className = `heatmap-cell level-${level}`;
                 
-                // Transparent border for days with zero activity scheduled
+                // Inject the Day of the Month into the box
+                cell.textContent = targetDate.getDate();
+
+                // Transparent styling for days with zero activity scheduled
                 if (details.expected.length === 0 && details.taken.length === 0) {
                     cell.style.background = 'transparent';
-                    cell.style.border = '1px solid var(--border-color)';
+                    cell.style.borderColor = 'var(--border-color)';
                 }
 
-                // Add the ghost opacity marker if necessary
+                // Ghost log styling
                 if (details && details.retroCount > 0 && level > 0) {
-                    cell.style.opacity = '0.35'; 
+                    cell.style.opacity = '0.45'; // Slightly faded but keeps the date readable
                 }
                 
                 // Tap-To-Inspect Interactivity
                 cell.addEventListener('click', () => {
                     document.querySelectorAll('.heatmap-cell').forEach(c => c.style.outline = 'none');
-                    cell.style.outline = '2px solid var(--primary-color)';
+                    cell.style.outline = '2px solid var(--accent-color)';
                     
                     if (detailsPanel) {
                         let html = `<div style="font-weight: 600; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem;">${displayStr}</div>`;
@@ -232,7 +240,7 @@ function calculateAdherence() {
                                 html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--success-color);">✔️ Taken:</span> ${[...new Set(details.taken)].join(', ')}</div>`;
                             }
                             if (details.pending.length > 0) {
-                                html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--accent-color);">⏳ Pending:</span> ${[...new Set(details.pending)].join(', ')}</div>`;
+                                html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--accent-hover);">⏳ Pending:</span> ${[...new Set(details.pending)].join(', ')}</div>`;
                             }
                             if (details.missed.length > 0) {
                                 html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--danger-color);">❌ Missed:</span> ${[...new Set(details.missed)].join(', ')}</div>`;
