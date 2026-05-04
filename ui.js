@@ -96,6 +96,26 @@ function getTimesFromContainer(containerId) {
     return [...new Set(times)].sort();
 }
 
+// --- Complex Scheduling UI Toggles ---
+function handleFrequencyToggle(freqId, specificDaysId, cyclicId) {
+    const freqSelect = document.getElementById(freqId);
+    const specificDaysDiv = document.getElementById(specificDaysId);
+    const cyclicDiv = document.getElementById(cyclicId);
+
+    if (!freqSelect || !specificDaysDiv || !cyclicDiv) return;
+
+    freqSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        specificDaysDiv.style.display = (val === 'Specific Days') ? 'block' : 'none';
+        cyclicDiv.style.display = (val === 'Cyclic') ? 'flex' : 'none';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    handleFrequencyToggle('new-med-freq', 'new-med-specific-days', 'new-med-cyclic');
+    handleFrequencyToggle('edit-med-freq', 'edit-med-specific-days', 'edit-med-cyclic');
+});
+
 // --- Settings Initializer ---
 function initSettings() {
     const toggleBabysitter = document.getElementById('toggle-babysitter');
