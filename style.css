@@ -702,3 +702,54 @@ input[type="time"] { flex: 1; min-width: 120px; }
     color: #18181b; /* Dark text for contrast */
     border-color: var(--success-color);
 }
+
+/* --- Analytics Insights Styling --- */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.insight-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.insight-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.insight-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.insight-detail {
+    font-size: 0.8rem;
+    color: var(--accent-color);
+}
+
+.block-bar-container {
+    height: 8px;
+    background: rgba(161, 161, 170, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+}
+
+.block-bar-fill {
+    height: 100%;
+    background: var(--success-color);
+    transition: width 0.3s ease;
+}
