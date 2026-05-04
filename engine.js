@@ -1,6 +1,6 @@
 // ==========================================
 // engine.js - MedLedger Core Logic
-// Checklist, Lookups, Refills, and High-Fidelity Reports
+// Checklist, Clinical Lookups, Refills, and High-Fidelity Reports
 // ==========================================
 
 // --- Clinical Data Fetcher (OpenFDA + Wikidata) ---
@@ -8,7 +8,6 @@ async function fetchDrugInfo(drugName) {
     const info = { description: "", indications: "" };
     const cleanName = drugName.toLowerCase().trim();
     try {
-        // 1. Wikidata Summary
         const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${cleanName}&languages=en&props=descriptions&format=json&origin=*`;
         const wikiRes = await fetch(wikiUrl);
         if (wikiRes.ok) {
@@ -16,7 +15,6 @@ async function fetchDrugInfo(drugName) {
             const entityId = Object.keys(data.entities)[0];
             if (entityId !== "-1") info.description = data.entities[entityId].descriptions?.en?.value || "";
         }
-        // 2. OpenFDA Label Data
         const fdaUrl = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${cleanName}"&limit=1`;
         const fdaRes = await fetch(fdaUrl);
         if (fdaRes.ok) {
@@ -59,7 +57,7 @@ function archiveOldLogs() {
         }
     };
     tx.oncomplete = () => {
-        if(typeof showVaultStatus === 'function') showVaultStatus(`History older than ${days} days moved to storage.`, "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus(`Old logs archived.`, "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
@@ -76,30 +74,13 @@ function restoreArchivedLogs() {
         }
     };
     tx.oncomplete = () => {
-        if(typeof showVaultStatus === 'function') showVaultStatus("All archives restored.", "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Archives restored.", "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
 }
 
-// --- Zero-Knowledge Interaction Engine ---
-async function checkLocalInteractions(newMedName) {
-    try {
-        const res = await fetch('interactions.json');
-        const db_int = await res.json();
-        const activeMeds = await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
-        const drug = newMedName.toLowerCase().trim();
-        let warnings = [];
-        activeMeds.forEach(m => {
-            const active = m.name.toLowerCase().trim();
-            if (db_int[drug]?.[active]) warnings.push(`Warning with ${m.name}: ${db_int[drug][active]}`);
-            else if (db_int[active]?.[drug]) warnings.push(`Warning with ${m.name}: ${db_int[active][drug]}`);
-        });
-        return warnings;
-    } catch (err) { return []; }
-}
-
-// --- Configuration Logic (Add/Edit/Delete) ---
+// --- Configuration Logic ---
 async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
@@ -112,12 +93,9 @@ async function handleAddMed(e) {
 
     if (!nameInput || !doseInput) return;
 
-    const warnings = await checkLocalInteractions(nameInput);
-    if (warnings.length > 0 && !confirm(`⚠️ INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
-
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked) {
-        if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Checking databases...", "var(--accent-color)");
         clinicalData = await fetchDrugInfo(nameInput);
     }
 
@@ -143,7 +121,7 @@ async function handleAddMed(e) {
         document.getElementById('new-med-freq').value = 'Daily';
         document.getElementById('new-med-specific-days').style.display = 'none';
         document.getElementById('new-med-cyclic').style.display = 'none';
-        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary);">`;
+        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">`;
         loadChecklist();
         if(typeof showVaultStatus === 'function') showVaultStatus("Medication added.", "var(--success-color)");
     };
@@ -200,9 +178,9 @@ async function saveEditedMed(e) {
     let description = existing.description || "";
     let indications = existing.indications || "";
     if (document.getElementById('toggle-lookup')?.checked && existing.name !== name) {
-        const clinicalData = await fetchDrugInfo(name);
-        description = clinicalData.description;
-        indications = clinicalData.indications;
+        const clinical = await fetchDrugInfo(name);
+        description = clinical.description;
+        indications = clinical.indications;
     }
 
     const freq = document.getElementById('edit-med-freq').value;
@@ -211,7 +189,7 @@ async function saveEditedMed(e) {
         frequency: freq, times: getTimesFromContainer('edit-med-times-container'),
         instructions: document.getElementById('edit-med-instructions').value.trim(),
         sideEffects: document.getElementById('edit-med-side-effects').value.trim(),
-        inventory: document.getElementById('edit-med-inventory')?.value.trim() || "",
+        inventory: AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "",
         specificDays: freq === 'Specific Days' ? Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value)) : [],
         cycleOn: parseInt(document.getElementById('edit-med-cycle-on').value) || null,
         cycleOff: parseInt(document.getElementById('edit-med-cycle-off').value) || null,
@@ -254,7 +232,6 @@ function loadChecklist() {
         if (rawMeds.length === 0) { container.innerHTML = '<p style="color:var(--text-secondary);">No medications added.</p>'; return; }
 
         rawMeds.sort((a, b) => a.name.localeCompare(b.name));
-
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.toLocaleDateString();
         let visibleCount = 0;
@@ -285,9 +262,9 @@ function loadChecklist() {
                 timesHtml += `
                     <label class="med-item ${taken ? 'completed' : ''}" style="padding: 0.5rem 1rem;">
                         <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
-                        <span class="med-details"><span>${t ? `@ ${t}` : 'Log Dosage'}</span></span>
+                        <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
                     </label>
-                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.5rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:4px; border-radius:4px;"></div>` : ''}
+                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:4px; border-radius:4px;"></div>` : ''}
                 `;
             });
             timesHtml += '</div>';
@@ -357,15 +334,16 @@ function refreshHistory() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
-        const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
-        list.innerHTML = logs.slice(0, 15).map(l => `
+        const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken)).slice(0, 15);
+        list.innerHTML = logs.map(l => `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
+                    <strong>${l.medName}</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</span>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
-            </li>`).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
+            </li>
+        `).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
     };
 }
 
@@ -387,12 +365,15 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- High-Fidelity Exports ---
+// --- HIGH-FIDELITY CLINICAL EXPORTS ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
+
+    const prnLogs = logs.filter(l => !l.targetTime);
+    const lowInvMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
 
     const grouped = {};
     logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
@@ -403,45 +384,48 @@ async function exportHTMLReport() {
 
     let clinicalBody = "";
     Object.keys(grouped).forEach(date => {
-        clinicalBody += `<div style="margin-bottom:30px;"><div style="background:#f1f5f9; padding:8px 15px; border-radius:4px; font-weight:700; color:#334155; margin-bottom:10px;">${date}</div>
-        <table style="width:100%; border-collapse:collapse; font-size:13px;">
-            ${grouped[date].map(l => `<tr>
-                <td style="padding:10px; border-bottom:1px solid #f1f5f9; width:90px;"><strong>${new Date(l.dateTaken).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</strong></td>
-                <td style="padding:10px; border-bottom:1px solid #f1f5f9;"><strong>${l.medName}</strong> ${l.prnReason ? `<br><span style="color:#2563eb; font-style:italic;">📝 ${l.prnReason}</span>`:''}</td>
-                <td style="padding:10px; border-bottom:1px solid #f1f5f9; text-align:right; color:#64748b;">${l.targetTime || 'As Needed'}</td>
-            </tr>`).join('')}
-        </table></div>`;
+        clinicalBody += `<div class="date-group"><div class="date-header">${date}</div><table class="clinical-table"><thead><tr><th style="width: 100px;">Time</th><th>Medication & Context</th><th style="width: 120px; text-align: center;">Target</th></tr></thead><tbody>`;
+        clinicalBody += grouped[date].map(l => {
+            const time = new Date(l.dateTaken).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            const isPrn = !l.targetTime;
+            return `<tr class="${isPrn ? 'prn-row' : ''}"><td><strong>${time}</strong></td><td><div class="med-name-cell">${l.medName} ${isPrn ? '<span class="prn-badge">As Needed</span>' : ''}</div>${l.prnReason ? `<div class="note-box">📝 ${l.prnReason}</div>`:''}</td><td style="text-align: center; color: #64748b;">${l.targetTime || '--'}</td></tr>`;
+        }).join('');
+        clinicalBody += `</tbody></table></div>`;
     });
 
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clinical Summary</title><style>
-        body { font-family: -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
-        .paper { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 850px; margin: auto; border-top: 8px solid #2563eb; }
-        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 25px; }
-        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: #f8fafc; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #e2e8f0; }
-        .refill-box { background: #fff1f2; border: 1px solid #fecdd3; padding: 15px; border-radius: 6px; margin-bottom: 30px; }
-    </style></head><body><div class="paper">
-        <div class="header"><div><h1>Clinical Adherence Summary</h1><p>Patient: <strong>Brian E Turner</strong><br>Generated: ${new Date().toLocaleString()}</p></div><div style="text-align:right;"><h2 style="color:#2563eb; margin:0;">MedLedger</h2><p style="font-size:12px; color:#64748b;">Self-Reported Data</p></div></div>
-        <div class="stat-grid"><div class="stat-card"><strong>${logs.length}</strong><br><small>Total Doses</small></div><div class="stat-card"><strong>${logs.filter(l => !l.targetTime).length}</strong><br><small>PRN Instances</small></div><div class="stat-card"><strong>${meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10).length}</strong><br><small>Low Supply</small></div></div>
-        <h2 style="font-size:18px; border-bottom:2px solid #2563eb; display:inline-block; margin-bottom:20px; padding-right:20px;">Detailed Adherence Logs</h2>${clinicalBody}
-    </div></body></html>`;
+    const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div><strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
+    const html = getClinicalTemplate(clinicalBody, logs.length, prnLogs.length, lowInvMeds.length, refillHtml);
     const blob = new Blob([html], { type: 'text/html' });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "MedLedger_Clinical_Summary.html"; a.click();
 }
 
-async function exportCSV() {
-    const logs = await new Promise(r => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => r(e.target.result));
-    if (!logs.length) return;
-    let csv = "Date,Time,Medication,Target,PRN Reason\n";
-    logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
-        const d = new Date(l.dateTaken);
-        csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},"${l.medName}",${l.targetTime || 'PRN'},"${(l.prnReason || '')}"\n`;
-    });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
+function getClinicalTemplate(body, total, prn, low, refill) {
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Clinical Summary</title><style>
+        body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
+        .report-paper { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; border-top: 8px solid #2563eb; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+        .patient-meta { font-size: 14px; color: #64748b; }
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: #f1f5f9; padding: 15px; border-radius: 6px; text-align: center; }
+        .stat-val { font-size: 20px; font-weight: 800; color: #2563eb; }
+        .stat-lab { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; }
+        .date-group { margin-bottom: 40px; }
+        .date-header { font-size: 16px; font-weight: 700; background: #e2e8f0; padding: 8px 15px; border-radius: 4px; margin-bottom: 10px; }
+        .clinical-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .clinical-table th { text-align: left; padding: 10px; border-bottom: 1px solid #cbd5e1; }
+        .clinical-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .med-name-cell { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .prn-badge { background: #dbeafe; color: #1e40af; font-size: 10px; padding: 2px 6px; border-radius: 10px; text-transform: uppercase; }
+        .prn-row { background-color: #f0f9ff; }
+        .note-box { margin-top: 4px; font-style: italic; color: #2563eb; }
+        .refill-section { background: #fff1f2; border: 1px solid #fecdd3; padding: 20px; border-radius: 8px; margin-top: 30px; }
+        .btn-print { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 20px; }
+        @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
+    </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper"><div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div><div class="stat-grid"><div class="stat-card"><div class="stat-val">${total}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${pr}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${low}</div><div class="stat-lab">Meds Needing Refill</div></div></div>${refill}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${body}<div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 }
 
-// --- Local Notifications ---
+// --- Background Reminders ---
 function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
@@ -471,7 +455,6 @@ function checkReminders() {
 }
 setInterval(checkReminders, 60000);
 
-// --- Rollover Logic ---
 let lastDate = new Date().toLocaleDateString();
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
