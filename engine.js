@@ -108,7 +108,6 @@ async function handleAddMed(e) {
         }
     }
 
-    // Capture Complex Scheduling Data
     const specificDaysChecked = Array.from(document.querySelectorAll('input[name="new-med-days"]:checked')).map(cb => parseInt(cb.value));
     const cycleOn = parseInt(document.getElementById('new-med-cycle-on').value) || 0;
     const cycleOff = parseInt(document.getElementById('new-med-cycle-off').value) || 0;
@@ -124,7 +123,6 @@ async function handleAddMed(e) {
         sideEffects: sideEffectsInput,
         inventory: AppSettings.inventory ? inventoryInput : "",
         
-        // Complex Scheduling Fields
         specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
         cycleOn: freqInput === 'Cyclic' ? cycleOn : null,
         cycleOff: freqInput === 'Cyclic' ? cycleOff : null,
@@ -139,7 +137,6 @@ async function handleAddMed(e) {
         if (addMedForm) addMedForm.reset();
         document.getElementById('new-med-freq').value = 'Daily';
         
-        // Reset complex UI toggles
         document.getElementById('new-med-specific-days').style.display = 'none';
         document.getElementById('new-med-cyclic').style.display = 'none';
         
@@ -173,7 +170,6 @@ window.openEditModal = function(id) {
                 editInventoryGroup.style.display = 'none';
             }
             
-            // Populate Complex UI Values
             const specificDaysDiv = document.getElementById('edit-med-specific-days');
             const cyclicDiv = document.getElementById('edit-med-cyclic');
             if(specificDaysDiv) specificDaysDiv.style.display = (med.frequency === 'Specific Days') ? 'block' : 'none';
@@ -188,7 +184,6 @@ window.openEditModal = function(id) {
             document.getElementById('edit-med-cycle-off').value = med.cycleOff || '';
             document.getElementById('edit-med-cycle-start').value = med.cycleStartDate || '';
             
-            // Times rendering
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
 
@@ -222,7 +217,6 @@ function saveEditedMed(e) {
     const inventory = AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
 
-    // Capture Complex Scheduling Data
     const specificDaysChecked = Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value));
     const cycleOn = parseInt(document.getElementById('edit-med-cycle-on').value) || 0;
     const cycleOff = parseInt(document.getElementById('edit-med-cycle-off').value) || 0;
@@ -262,6 +256,36 @@ function deleteMedication() {
     };
 }
 
+// --- Quick Refill API ---
+window.refillMed = function(id, amount) {
+    let addAmount = 0;
+    if (amount === 'custom') {
+        const inputEl = document.getElementById(`refill-custom-${id}`);
+        addAmount = parseInt(inputEl.value) || 0;
+    } else {
+        addAmount = parseInt(amount) || 0;
+    }
+
+    if (addAmount <= 0) return;
+
+    const transaction = db.transaction(["meds"], "readwrite");
+    const medStore = transaction.objectStore("meds");
+    const request = medStore.get(id);
+
+    request.onsuccess = () => {
+        const med = request.result;
+        if (med) {
+            let currentInv = parseInt(med.inventory) || 0;
+            med.inventory = currentInv + addAmount;
+            medStore.put(med);
+        }
+    };
+
+    transaction.oncomplete = () => {
+        loadChecklist(); 
+    };
+};
+
 // --- Regimen Logic (Checklist & Logging) ---
 function loadChecklist() {
     const checklistContainer = document.getElementById('checklist-container');
@@ -298,9 +322,6 @@ function loadChecklist() {
         let visibleMedsCount = 0;
 
         rawMeds.forEach(med => {
-            // =====================================
-            // PHASE 2: Date-Math Filter
-            // =====================================
             let shouldRender = true;
             
             if (med.frequency === "Specific Days" && med.specificDays) {
@@ -311,23 +332,20 @@ function loadChecklist() {
                 cycleStart.setHours(0,0,0,0);
                 
                 if (todayDate < cycleStart) {
-                    shouldRender = false; // Cycle hasn't started
+                    shouldRender = false; 
                 } else {
                     const diffTime = Math.abs(todayDate - cycleStart);
                     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                     const cycleLength = parseInt(med.cycleOn) + parseInt(med.cycleOff);
                     const dayInCycle = diffDays % cycleLength;
                     
-                    // Hide it if we are currently in an "Off" phase
                     if (dayInCycle >= parseInt(med.cycleOn)) shouldRender = false;
                 }
             }
 
-            // Always render PRN (As Needed) pills, skip scheduled pills that are "Off" today
             if (!shouldRender && med.frequency !== "As Needed") return;
             
             visibleMedsCount++;
-            // =====================================
 
             let times = med.times && med.times.length > 0 ? med.times : [null];
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
@@ -343,6 +361,8 @@ function loadChecklist() {
             const safeMedName = med.name.replace(/"/g, '&quot;');
 
             let inventoryBadgeHtml = '';
+            let refillHtml = '';
+
             if (AppSettings.inventory && med.inventory !== undefined && med.inventory !== "") {
                 const invCount = parseInt(med.inventory);
                 const isLow = invCount <= 10;
@@ -350,6 +370,25 @@ function loadChecklist() {
                 const badgeBg = isLow ? 'rgba(239, 68, 68, 0.15)' : 'transparent';
                 const badgeBorder = isLow ? 'var(--danger-color)' : 'var(--border-color)';
                 inventoryBadgeHtml = `<span style="margin-left: 0.5rem; font-size: 0.75rem; background: ${badgeBg}; color: ${badgeColor}; padding: 0.1rem 0.5rem; border-radius: 12px; border: 1px solid ${badgeBorder}; font-weight: ${isLow ? 'bold' : 'normal'};">💊 ${invCount} left</span>`;
+                
+                if (isLow) {
+                    refillHtml = `
+                        <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); background-color: rgba(239, 68, 68, 0.05); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                            <span style="color: var(--danger-color); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                Low Supply
+                            </span>
+                            <div style="display: flex; gap: 0.5rem; align-items: stretch;">
+                                <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="refillMed('${med.id}', 30)">+30</button>
+                                <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="refillMed('${med.id}', 90)">+90</button>
+                                <div style="display: flex; align-items: stretch;">
+                                    <input type="number" id="refill-custom-${med.id}" placeholder="Qty" style="width: 50px; padding: 0.25rem; font-size: 0.8rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px 0 0 4px; color: var(--text-primary); border-right: none;" min="1">
+                                    <button type="button" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; border-radius: 0 4px 4px 0;" onclick="refillMed('${med.id}', 'custom')">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
             }
 
             const card = document.createElement('div');
@@ -444,7 +483,7 @@ function loadChecklist() {
                 extrasHtml += `</div>`;
             }
 
-            card.innerHTML = headerHtml + checkboxesHtml + extrasHtml;
+            card.innerHTML = headerHtml + checkboxesHtml + extrasHtml + refillHtml;
             checklistContainer.appendChild(card);
         });
         
