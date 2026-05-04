@@ -446,6 +446,15 @@ function loadChecklist() {
                     </label>
                 `;
 
+                // --- NEW PRN REASON TRACKER ---
+                if (med.frequency === 'As Needed' && !isCompletedToday) {
+                    checkboxesHtml += `
+                        <div style="padding-left: 2.25rem; margin-top: -0.25rem; margin-bottom: 0.5rem;">
+                            <input type="text" id="prn-reason-${compositeLogId}" placeholder="Reason / Symptom (e.g., Headache 7/10)" style="width: 100%; max-width: 300px; padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+                        </div>
+                    `;
+                }
+
                 if (AppSettings.expertMode && !isCompletedToday) {
                     setTimeout(() => {
                         const el = document.getElementById(labelId);
@@ -542,6 +551,10 @@ function processBatchLog(items) {
         
         decrements[coreId] = (decrements[coreId] || 0) + 1;
         
+        // --- NEW PRN REASON EXTRACTION ---
+        const reasonInput = document.getElementById(`prn-reason-${item.compId}`);
+        const prnReason = reasonInput ? reasonInput.value.trim() : "";
+        
         logStore.add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(), 
             dateTaken: baseTimestamp, 
@@ -550,7 +563,8 @@ function processBatchLog(items) {
             targetTime: targetTime,
             compositeId: item.compId,
             medName: item.medName,
-            status: "taken"
+            status: "taken",
+            prnReason: prnReason
         });
     });
 
@@ -629,6 +643,12 @@ function refreshHistory() {
                     duplicateTag = `<span style="margin-left: 0.5rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); color: var(--danger-color); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid var(--danger-color);">Duplicate</span>`;
                 }
             }
+            
+            // --- NEW PRN HISTORY RENDER ---
+            let prnTag = '';
+            if (log.prnReason) {
+                prnTag = `<div style="font-size: 0.8rem; color: var(--accent-color); margin-top: 0.15rem;">📝 ${log.prnReason}</div>`;
+            }
 
             const li = document.createElement('li');
             li.className = 'history-item';
@@ -636,6 +656,7 @@ function refreshHistory() {
                 <div class="history-info" style="display:flex; flex-direction:column; gap:0.25rem;">
                     <span class="history-med">${log.medName} ${slotInfo} ${duplicateTag}</span>
                     <span class="history-time">${dateString} ${timeString}</span>
+                    ${prnTag}
                 </div>
                 <button class="btn-delete-log icon-btn" onclick="deleteLog('${log.timestamp}')" aria-label="Delete Log" title="${AppSettings.noBabysitter ? 'Delete Instantly' : 'Delete'}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -697,7 +718,7 @@ async function exportCSV() {
 
     logs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
 
-    let csvContent = "Date,Time Taken,Medication,Scheduled Target,Status,System Logged Time\n";
+    let csvContent = "Date,Time Taken,Medication,Scheduled Target,Status,System Logged Time,PRN Reason\n";
 
     logs.forEach(log => {
         const dateObj = new Date(log.dateTaken);
@@ -719,7 +740,9 @@ async function exportCSV() {
             systemLogStr = `${sysDate.toLocaleDateString()} ${sysDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         }
 
-        csvContent += `${dateStr},${timeStr},${safeMedName},${targetStr},${log.status},${systemLogStr}\n`;
+        let safePrnReason = log.prnReason ? `"${log.prnReason.replace(/"/g, '""')}"` : "N/A";
+
+        csvContent += `${dateStr},${timeStr},${safeMedName},${targetStr},${log.status},${systemLogStr},${safePrnReason}\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -760,11 +783,13 @@ async function exportHTMLReport() {
             targetStr = `${h % 12 || 12}:${m} ${period}`;
         }
 
+        let prnStr = log.prnReason ? `<br><span style="font-size: 0.85em; color: #4f46e5;">Reason: ${log.prnReason}</span>` : "";
+
         rowsHtml += `
             <tr>
                 <td>${dateStr}</td>
                 <td>${timeStr}</td>
-                <td><strong>${log.medName}</strong></td>
+                <td><strong>${log.medName}</strong>${prnStr}</td>
                 <td>${targetStr}</td>
                 <td class="status-${log.status}">${log.status.toUpperCase()}</td>
             </tr>
