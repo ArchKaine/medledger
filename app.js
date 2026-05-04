@@ -58,75 +58,81 @@ const heatmapRangeSelect = document.getElementById('heatmap-range');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    initializeTheme();
-    initSettings();
-    initDB();
-    registerServiceWorker();
-    injectAdvancedUI(); // Safely injects the Taper DOM
+    try {
+        initializeTheme();
+        initSettings();
+        initDB();
+        registerServiceWorker();
+        
+        // Wrapped in a try-catch so it cannot kill the global listeners if an HTML element is missing
+        try { injectAdvancedUI(); } catch (e) { console.warn("Taper UI bypass:", e); }
 
-    document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
-    document.getElementById('btn-submit-all').addEventListener('click', logAll);
-    addMedForm.addEventListener('submit', handleAddMed);
-    document.getElementById('btn-cancel-edit').addEventListener('click', () => editModal.close());
-    document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
-    editForm.addEventListener('submit', saveEditedMed);
-    
-    document.getElementById('settings-toggle').addEventListener('click', () => {
-        const cachedPass = sessionStorage.getItem('medledger_session_key');
-        if (cachedPass) {
-            vaultPassInput.value = cachedPass;
-            sessionLockControls.style.display = 'flex';
-        } else {
-            vaultPassInput.value = '';
-            sessionLockControls.style.display = 'none';
+        if (document.getElementById('btn-submit-selected')) document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
+        if (document.getElementById('btn-submit-all')) document.getElementById('btn-submit-all').addEventListener('click', logAll);
+        if (addMedForm) addMedForm.addEventListener('submit', handleAddMed);
+        if (document.getElementById('btn-cancel-edit')) document.getElementById('btn-cancel-edit').addEventListener('click', () => editModal.close());
+        if (document.getElementById('btn-delete-med')) document.getElementById('btn-delete-med').addEventListener('click', deleteMedication);
+        if (editForm) editForm.addEventListener('submit', saveEditedMed);
+        
+        if (document.getElementById('settings-toggle')) document.getElementById('settings-toggle').addEventListener('click', () => {
+            const cachedPass = sessionStorage.getItem('medledger_session_key');
+            if (cachedPass) {
+                vaultPassInput.value = cachedPass;
+                sessionLockControls.style.display = 'flex';
+            } else {
+                vaultPassInput.value = '';
+                sessionLockControls.style.display = 'none';
+            }
+            settingsModal.showModal();
+            settingsModal.scrollTop = 0; 
+        });
+        
+        if (document.getElementById('btn-close-settings')) document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
+        
+        if (document.getElementById('help-toggle')) document.getElementById('help-toggle').addEventListener('click', () => {
+            helpModal.showModal();
+            helpModal.scrollTop = 0; 
+        });
+        if (document.getElementById('btn-close-help')) document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
+
+        if (peekBtn) peekBtn.addEventListener('click', togglePasswordVisibility);
+        if (btnLockVault) btnLockVault.addEventListener('click', lockVaultSession);
+        if (btnExportCSV) btnExportCSV.addEventListener('click', exportCSV);
+        if (btnExportHTML) btnExportHTML.addEventListener('click', exportHTMLReport);
+
+        const btnArchiveLogs = document.getElementById('btn-archive-logs');
+        if(btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
+        
+        const btnRestoreArchives = document.getElementById('btn-restore-archives');
+        if(btnRestoreArchives) btnRestoreArchives.addEventListener('click', restoreArchivedLogs);
+
+        if (heatmapRangeSelect) {
+            heatmapRangeSelect.addEventListener('change', calculateAdherence);
         }
-        settingsModal.showModal();
-        settingsModal.scrollTop = 0; 
-    });
-    
-    document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.close());
-    
-    document.getElementById('help-toggle').addEventListener('click', () => {
-        helpModal.showModal();
-        helpModal.scrollTop = 0; 
-    });
-    document.getElementById('btn-close-help').addEventListener('click', () => helpModal.close());
 
-    peekBtn.addEventListener('click', togglePasswordVisibility);
-    btnLockVault.addEventListener('click', lockVaultSession);
-    btnExportCSV.addEventListener('click', exportCSV);
-    btnExportHTML.addEventListener('click', exportHTMLReport);
+        if (tabTodayBtn) tabTodayBtn.addEventListener('click', () => switchTab('today'));
+        if (tabHistoryBtn) tabHistoryBtn.addEventListener('click', () => switchTab('history'));
 
-    const btnArchiveLogs = document.getElementById('btn-archive-logs');
-    if(btnArchiveLogs) btnArchiveLogs.addEventListener('click', archiveOldLogs);
-    
-    const btnRestoreArchives = document.getElementById('btn-restore-archives');
-    if(btnRestoreArchives) btnRestoreArchives.addEventListener('click', restoreArchivedLogs);
+        if (document.getElementById('btn-export-vault')) document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
+        if (document.getElementById('import-vault-file')) document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
+        if (document.getElementById('btn-cloud-push')) document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
+        if (document.getElementById('btn-cloud-pull')) document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
 
-    if (heatmapRangeSelect) {
-        heatmapRangeSelect.addEventListener('change', calculateAdherence);
+        document.addEventListener('keydown', (e) => {
+            if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
+                checked.length > 0 ? logSelected() : logAll();
+            }
+        });
+    } catch (criticalError) {
+        console.error("Critical Load Error:", criticalError);
     }
-
-    tabTodayBtn.addEventListener('click', () => switchTab('today'));
-    tabHistoryBtn.addEventListener('click', () => switchTab('history'));
-
-    document.getElementById('btn-export-vault').addEventListener('click', exportVaultLocal);
-    document.getElementById('import-vault-file').addEventListener('change', importVaultLocal);
-
-    document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
-    document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
-
-    document.addEventListener('keydown', (e) => {
-        if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
-            e.preventDefault();
-            const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
-            checked.length > 0 ? logSelected() : logAll();
-        }
-    });
 });
 
 // --- Theme Logic ---
 function updateThemeIcon(theme) {
+    if (!themeToggleBtn) return;
     if (theme === 'light') {
         themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
     } else if (theme === 'hc') {
@@ -141,36 +147,43 @@ function initializeTheme() {
     if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    rootElement.setAttribute('data-theme', savedTheme);
+    if (rootElement) rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 }
 
-themeToggleBtn.addEventListener('click', () => {
-    let currentTheme = rootElement.getAttribute('data-theme');
-    let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
-    rootElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-});
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+        let currentTheme = rootElement.getAttribute('data-theme');
+        let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
+        rootElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+    });
+}
 
 // --- Tab Logic ---
 function switchTab(tab) {
-    if (tab === 'today') {
-        tabTodayBtn.classList.add('active');
-        tabHistoryBtn.classList.remove('active');
-        dailyScheduleView.classList.remove('hidden-view');
-        logHistoryView.classList.add('hidden-view');
-    } else {
-        tabHistoryBtn.classList.add('active');
-        tabTodayBtn.classList.remove('active');
-        logHistoryView.classList.remove('hidden-view');
-        dailyScheduleView.classList.add('hidden-view');
-        calculateAdherence(); 
+    try {
+        if (tab === 'today') {
+            if (tabTodayBtn) tabTodayBtn.classList.add('active');
+            if (tabHistoryBtn) tabHistoryBtn.classList.remove('active');
+            if (dailyScheduleView) dailyScheduleView.classList.remove('hidden-view');
+            if (logHistoryView) logHistoryView.classList.add('hidden-view');
+        } else {
+            if (tabHistoryBtn) tabHistoryBtn.classList.add('active');
+            if (tabTodayBtn) tabTodayBtn.classList.remove('active');
+            if (logHistoryView) logHistoryView.classList.remove('hidden-view');
+            if (dailyScheduleView) dailyScheduleView.classList.add('hidden-view');
+            calculateAdherence(); 
+        }
+    } catch (err) {
+        console.error("Tab switch failed:", err);
     }
 }
 
 window.addTimeField = function(containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     const input = document.createElement('input');
     input.type = 'time';
     input.className = 'time-input';
@@ -192,32 +205,32 @@ function getTimesFromContainer(containerId) {
 
 // --- Settings Logic ---
 function initSettings() {
-    toggleBabysitter.checked = AppSettings.noBabysitter;
-    toggleExpert.checked = AppSettings.expertMode;
-    toggleReminders.checked = AppSettings.reminders;
-    toggleInventory.checked = AppSettings.inventory;
+    if (toggleBabysitter) toggleBabysitter.checked = AppSettings.noBabysitter;
+    if (toggleExpert) toggleExpert.checked = AppSettings.expertMode;
+    if (toggleReminders) toggleReminders.checked = AppSettings.reminders;
+    if (toggleInventory) toggleInventory.checked = AppSettings.inventory;
 
     if(newMedInventory) newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
 
-    toggleBabysitter.addEventListener('change', (e) => {
+    if (toggleBabysitter) toggleBabysitter.addEventListener('change', (e) => {
         AppSettings.noBabysitter = e.target.checked;
         localStorage.setItem('cfg_noBabysitter', e.target.checked);
     });
 
-    toggleExpert.addEventListener('change', (e) => {
+    if (toggleExpert) toggleExpert.addEventListener('change', (e) => {
         AppSettings.expertMode = e.target.checked;
         localStorage.setItem('cfg_expertMode', e.target.checked);
         loadChecklist(); 
     });
 
-    toggleInventory.addEventListener('change', (e) => {
+    if (toggleInventory) toggleInventory.addEventListener('change', (e) => {
         AppSettings.inventory = e.target.checked;
         localStorage.setItem('cfg_inventory', e.target.checked);
         if(newMedInventory) newMedInventory.style.display = e.target.checked ? 'block' : 'none';
         loadChecklist(); 
     });
 
-    toggleReminders.addEventListener('change', async (e) => {
+    if (toggleReminders) toggleReminders.addEventListener('change', async (e) => {
         AppSettings.reminders = e.target.checked;
         localStorage.setItem('cfg_reminders', e.target.checked);
         
@@ -233,7 +246,7 @@ function initSettings() {
     });
 }
 
-// --- Advanced Regimen DOM Injection (PATCHED FOR SAFETY) ---
+// --- Advanced Regimen DOM Injection (Safeguarded) ---
 function injectAdvancedUI() {
     const advOptions = `
         <option value="Every Other Day">Every Other Day</option>
@@ -244,7 +257,7 @@ function injectAdvancedUI() {
     `;
 
     const newFreq = document.getElementById('new-med-freq');
-    if (newFreq) {
+    if (newFreq && newFreq.tagName === 'SELECT') {
         newFreq.insertAdjacentHTML('beforeend', advOptions);
         const taperHtml = `
             <div id="new-taper-container" style="display:none; padding: 1rem; border: 1px dashed var(--border-color); border-radius: 6px; margin-top: 1rem; background: var(--bg-surface);">
@@ -253,7 +266,6 @@ function injectAdvancedUI() {
                 <button type="button" class="btn btn-secondary" onclick="addTaperStep('new')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
             </div>
         `;
-        // Safe Injection: Directly after the select element
         newFreq.insertAdjacentHTML('afterend', taperHtml);
         newFreq.addEventListener('change', (e) => {
             const container = document.getElementById('new-taper-container');
@@ -265,7 +277,7 @@ function injectAdvancedUI() {
     }
 
     const editFreq = document.getElementById('edit-med-freq');
-    if (editFreq) {
+    if (editFreq && editFreq.tagName === 'SELECT') {
         editFreq.insertAdjacentHTML('beforeend', advOptions);
         const taperHtmlEdit = `
             <div id="edit-taper-container" style="display:none; padding: 1rem; border: 1px dashed var(--border-color); border-radius: 6px; margin-top: 1rem; background: var(--bg-surface);">
@@ -274,7 +286,6 @@ function injectAdvancedUI() {
                 <button type="button" class="btn btn-secondary" onclick="addTaperStep('edit')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
             </div>
         `;
-        // Safe Injection: Directly after the select element
         editFreq.insertAdjacentHTML('afterend', taperHtmlEdit);
         editFreq.addEventListener('change', (e) => {
             const container = document.getElementById('edit-taper-container');
@@ -353,7 +364,7 @@ function initDB() {
     };
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
-        statusBar.textContent = "Database error.";
+        if (statusBar) statusBar.textContent = "Database error.";
     };
 }
 
@@ -390,11 +401,11 @@ async function checkLocalInteractions(newMedName) {
 // --- Configuration Logic (Add/Edit/Delete Meds) ---
 async function handleAddMed(e) {
     e.preventDefault();
-    const nameInput = document.getElementById('new-med-name').value.trim();
-    const doseInput = document.getElementById('new-med-dose').value.trim();
-    const freqInput = document.getElementById('new-med-freq').value;
-    const instructionsInput = document.getElementById('new-med-instructions').value.trim();
-    const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
+    const nameInput = document.getElementById('new-med-name') ? document.getElementById('new-med-name').value.trim() : "";
+    const doseInput = document.getElementById('new-med-dose') ? document.getElementById('new-med-dose').value.trim() : "";
+    const freqInput = document.getElementById('new-med-freq') ? document.getElementById('new-med-freq').value : "Daily";
+    const instructionsInput = document.getElementById('new-med-instructions') ? document.getElementById('new-med-instructions').value.trim() : "";
+    const sideEffectsInput = document.getElementById('new-med-side-effects') ? document.getElementById('new-med-side-effects').value.trim() : "";
     const inventoryInput = document.getElementById('new-med-inventory') ? document.getElementById('new-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('new-med-times-container');
     const taperSteps = freqInput === 'Taper' ? getTaperSteps('new') : [];
@@ -427,8 +438,8 @@ async function handleAddMed(e) {
     transaction.objectStore("meds").add(newMed);
 
     transaction.oncomplete = () => {
-        addMedForm.reset();
-        document.getElementById('new-med-freq').value = 'Daily'; 
+        if (addMedForm) addMedForm.reset();
+        if (document.getElementById('new-med-freq')) document.getElementById('new-med-freq').value = 'Daily'; 
         const taperContainer = document.getElementById('new-taper-container');
         if (taperContainer) taperContainer.style.display = 'none';
         
@@ -451,16 +462,16 @@ window.openEditModal = function(id) {
     request.onsuccess = () => {
         const med = request.result;
         if (med) {
-            document.getElementById('edit-med-id').value = med.id;
-            document.getElementById('edit-med-name').value = med.name;
-            document.getElementById('edit-med-dose').value = med.dose;
-            document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
-            document.getElementById('edit-med-instructions').value = med.instructions || '';
-            document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
+            if (document.getElementById('edit-med-id')) document.getElementById('edit-med-id').value = med.id;
+            if (document.getElementById('edit-med-name')) document.getElementById('edit-med-name').value = med.name;
+            if (document.getElementById('edit-med-dose')) document.getElementById('edit-med-dose').value = med.dose;
+            if (document.getElementById('edit-med-freq')) document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
+            if (document.getElementById('edit-med-instructions')) document.getElementById('edit-med-instructions').value = med.instructions || '';
+            if (document.getElementById('edit-med-side-effects')) document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
             
             if (AppSettings.inventory && editInventoryGroup) {
                 editInventoryGroup.style.display = 'block';
-                document.getElementById('edit-med-inventory').value = med.inventory || '';
+                if (document.getElementById('edit-med-inventory')) document.getElementById('edit-med-inventory').value = med.inventory || '';
             } else if (editInventoryGroup) {
                 editInventoryGroup.style.display = 'none';
             }
@@ -494,21 +505,25 @@ window.openEditModal = function(id) {
                     });
                 }
             }
-            editModal.showModal();
-            editModal.scrollTop = 0; 
-            document.getElementById('edit-med-name').focus(); 
+            if (editModal) {
+                editModal.showModal();
+                editModal.scrollTop = 0; 
+            }
+            if (document.getElementById('edit-med-name')) document.getElementById('edit-med-name').focus(); 
         }
     };
 };
 
 function saveEditedMed(e) {
     e.preventDefault();
-    const id = document.getElementById('edit-med-id').value;
-    const name = document.getElementById('edit-med-name').value.trim();
-    const dose = document.getElementById('edit-med-dose').value.trim();
-    const freq = document.getElementById('edit-med-freq').value;
-    const instructions = document.getElementById('edit-med-instructions').value.trim();
-    const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); 
+    const id = document.getElementById('edit-med-id') ? document.getElementById('edit-med-id').value : "";
+    if (!id) return;
+    
+    const name = document.getElementById('edit-med-name') ? document.getElementById('edit-med-name').value.trim() : "";
+    const dose = document.getElementById('edit-med-dose') ? document.getElementById('edit-med-dose').value.trim() : "";
+    const freq = document.getElementById('edit-med-freq') ? document.getElementById('edit-med-freq').value : "Daily";
+    const instructions = document.getElementById('edit-med-instructions') ? document.getElementById('edit-med-instructions').value.trim() : "";
+    const sideEffects = document.getElementById('edit-med-side-effects') ? document.getElementById('edit-med-side-effects').value.trim() : ""; 
     const inventory = AppSettings.inventory ? (document.getElementById('edit-med-inventory') ? document.getElementById('edit-med-inventory').value.trim() : "") : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
     const taperSteps = freq === 'Taper' ? getTaperSteps('edit') : [];
@@ -518,6 +533,7 @@ function saveEditedMed(e) {
     
     medStore.get(id).onsuccess = (event) => {
         const existingMed = event.target.result;
+        if (!existingMed) return;
         
         medStore.put({ 
             id: id, 
@@ -534,19 +550,21 @@ function saveEditedMed(e) {
     };
 
     transaction.oncomplete = () => {
-        editModal.close();
+        if (editModal) editModal.close();
         loadChecklist();
     };
 }
 
 function deleteMedication() {
     if (!AppSettings.noBabysitter && !confirm("Remove this medication completely from the regimen?")) return;
-    const id = document.getElementById('edit-med-id').value;
+    const id = document.getElementById('edit-med-id') ? document.getElementById('edit-med-id').value : null;
+    if (!id) return;
+    
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").delete(id);
 
     transaction.oncomplete = () => {
-        editModal.close();
+        if (editModal) editModal.close();
         loadChecklist();
     };
 }
@@ -568,7 +586,7 @@ function getMedStateOnDate(med, targetDate) {
         
         const daysElapsed = Math.floor((tDate - sDate) / (1000 * 60 * 60 * 24));
         
-        if (daysElapsed < 0) {
+        if (isNaN(daysElapsed) || daysElapsed < 0) {
             state.shouldRender = false; 
             return state;
         }
@@ -583,7 +601,7 @@ function getMedStateOnDate(med, targetDate) {
             state.shouldRender = false;
         } else if (med.frequency === "Weekends Only" && (tDate.getDay() !== 0 && tDate.getDay() !== 6)) {
             state.shouldRender = false;
-        } else if (med.frequency === "Taper" && med.taperSteps) {
+        } else if (med.frequency === "Taper" && Array.isArray(med.taperSteps)) {
             let runningDays = 0;
             let activeStep = null;
             for (let step of med.taperSteps) {
@@ -607,6 +625,7 @@ function getMedStateOnDate(med, targetDate) {
 
 // --- Regimen Logic (Checklist & Logging) ---
 function loadChecklist() {
+    if (!checklistContainer) return;
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
@@ -618,7 +637,7 @@ function loadChecklist() {
 
         if (rawMeds.length === 0) {
             checklistContainer.innerHTML = '<p style="color: var(--text-secondary);">No medications added yet.</p>';
-            statusBar.textContent = "Ready.";
+            if (statusBar) statusBar.textContent = "Ready.";
             return;
         }
 
@@ -840,6 +859,7 @@ function processBatchLog(items) {
 
 // --- History, Duplicate Tracking & Refund Logic ---
 function refreshHistory() {
+    if (!historyList) return;
     const transaction = db.transaction(["logs"], "readonly");
     const request = transaction.objectStore("logs").getAll();
 
@@ -936,128 +956,138 @@ window.deleteLog = function(timestampKey) {
 };
 
 function calculateAdherence() {
+    if (!db) return; // Prevent synchronous crash if DB isn't ready
+    
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        const meds = medReq.result;
-        const logs = logReq.result;
-        
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        
-        const range = parseInt(heatmapRangeSelect ? heatmapRangeSelect.value : 30);
-        
-        let expected7DayDoses = 0;
-        let actualTaken7Day = 0;
-        let expectedDailyDosesMap = {}; 
-        const nonPrnMedIds = new Set();
-
-        for (let i = 0; i < range; i++) {
-            const simDate = new Date(today);
-            simDate.setDate(today.getDate() - i);
-            const dateStr = simDate.toLocaleDateString();
-            expectedDailyDosesMap[dateStr] = 0;
+        try {
+            const meds = medReq.result;
+            const logs = logReq.result;
             
-            meds.forEach(med => {
-                if (med.frequency !== "As Needed") {
-                    nonPrnMedIds.add(med.id);
-                    const state = getMedStateOnDate(med, simDate);
-                    
-                    if (state.shouldRender) {
-                        let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
-                        expectedDailyDosesMap[dateStr] += timeCount;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 30);
+            if (isNaN(range)) return; // Safety exit
+            
+            let expected7DayDoses = 0;
+            let actualTaken7Day = 0;
+            let expectedDailyDosesMap = {}; 
+            const nonPrnMedIds = new Set();
+
+            for (let i = 0; i < range; i++) {
+                const simDate = new Date(today);
+                simDate.setDate(today.getDate() - i);
+                const dateStr = simDate.toLocaleDateString();
+                expectedDailyDosesMap[dateStr] = 0;
+                
+                meds.forEach(med => {
+                    if (med.frequency !== "As Needed") {
+                        nonPrnMedIds.add(med.id);
+                        const state = getMedStateOnDate(med, simDate);
                         
-                        if (i >= 1 && i <= 7) {
-                            expected7DayDoses += timeCount;
+                        if (state && state.shouldRender) {
+                            let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
+                            expectedDailyDosesMap[dateStr] += timeCount;
+                            
+                            if (i >= 1 && i <= 7) {
+                                expected7DayDoses += timeCount;
+                            }
                         }
+                    }
+                });
+            }
+
+            const logCountsByDate = {};
+            const retroCountsByDate = {}; 
+
+            logs.forEach(log => {
+                if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
+                    const logDate = new Date(log.dateTaken);
+                    logDate.setHours(0,0,0,0);
+                    const localDateStr = logDate.toLocaleDateString();
+                    
+                    logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+                    
+                    const daysDiff = Math.round((today - logDate) / (1000 * 60 * 60 * 24));
+                    if (daysDiff >= 1 && daysDiff <= 7) {
+                        actualTaken7Day++;
+                    }
+
+                    const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
+                    const claimedTime = new Date(log.dateTaken).getTime();
+                    const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
+                    if (deltaHours > 4) {
+                        retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
                     }
                 }
             });
-        }
 
-        const logCountsByDate = {};
-        const retroCountsByDate = {}; 
+            if (adherenceScore && adherenceSubtext) {
+                let percent = expected7DayDoses === 0 ? 100 : Math.min(100, Math.round((actualTaken7Day / expected7DayDoses) * 100));
+                adherenceScore.textContent = `${percent}%`;
+                adherenceSubtext.textContent = `${actualTaken7Day} of ${expected7DayDoses} expected doses (Past 7 Days)`;
 
-        logs.forEach(log => {
-            if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
-                const logDate = new Date(log.dateTaken);
-                logDate.setHours(0,0,0,0);
-                const localDateStr = logDate.toLocaleDateString();
+                if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
+                else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
+                else adherenceScore.style.color = "var(--danger-color)"; 
+            }
+
+            const grid = document.getElementById('heatmap-grid');
+            if (!grid) return; 
+            grid.innerHTML = ''; 
+
+            for (let i = range - 1; i >= 0; i--) {
+                const targetDate = new Date();
+                targetDate.setDate(today.getDate() - i);
+                const dateStr = targetDate.toLocaleDateString();
+                const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
                 
-                logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+                const count = logCountsByDate[dateStr] || 0;
+                const retroCount = retroCountsByDate[dateStr] || 0;
+                const expectedForThisCell = expectedDailyDosesMap[dateStr] || 0;
+                let level = 0; 
                 
-                const daysDiff = Math.round((today - logDate) / (1000 * 60 * 60 * 24));
-                if (daysDiff >= 1 && daysDiff <= 7) {
-                    actualTaken7Day++;
+                if (expectedForThisCell > 0) {
+                    if (count >= expectedForThisCell) level = 2; 
+                    else if (count > 0) level = 1; 
+                } else if (count > 0 && expectedForThisCell === 0) {
+                    level = 1;
                 }
 
-                const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
-                const claimedTime = new Date(log.dateTaken).getTime();
-                const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
-                if (deltaHours > 4) {
-                    retroCountsByDate[localDateStr] = (retroCountsByDate[localDateStr] || 0) + 1;
+                const cell = document.createElement('div');
+                cell.className = `heatmap-cell level-${level}`;
+                
+                if (expectedForThisCell === 0 && count === 0) {
+                    cell.title = `${displayStr}: No doses scheduled`;
+                    cell.style.background = 'transparent';
+                    cell.style.border = '1px solid var(--border-color)';
+                } else if (level === 2) {
+                    cell.title = `${displayStr}: Perfect (${count} doses)`;
+                } else if (level === 1) {
+                    cell.title = `${displayStr}: Partial (${count} of ${expectedForThisCell} doses)`;
+                } else {
+                    cell.title = `${displayStr}: Missed doses`;
                 }
+
+                if (retroCount > 0 && level > 0) {
+                    cell.style.opacity = '0.35'; 
+                    cell.title += ` ⚠️ (${retroCount} backdated)`;
+                }
+                
+                grid.appendChild(cell);
             }
-        });
-
-        let percent = expected7DayDoses === 0 ? 100 : Math.min(100, Math.round((actualTaken7Day / expected7DayDoses) * 100));
-        adherenceScore.textContent = `${percent}%`;
-        adherenceSubtext.textContent = `${actualTaken7Day} of ${expected7DayDoses} expected doses (Past 7 Days)`;
-
-        if (percent >= 90) adherenceScore.style.color = "var(--success-color)";
-        else if (percent >= 75) adherenceScore.style.color = "#f59e0b"; 
-        else adherenceScore.style.color = "var(--danger-color)"; 
-
-        const grid = document.getElementById('heatmap-grid');
-        if (!grid) return; 
-        grid.innerHTML = ''; 
-
-        for (let i = range - 1; i >= 0; i--) {
-            const targetDate = new Date();
-            targetDate.setDate(today.getDate() - i);
-            const dateStr = targetDate.toLocaleDateString();
-            const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
-            
-            const count = logCountsByDate[dateStr] || 0;
-            const retroCount = retroCountsByDate[dateStr] || 0;
-            const expectedForThisCell = expectedDailyDosesMap[dateStr] || 0;
-            let level = 0; 
-            
-            if (expectedForThisCell > 0) {
-                if (count >= expectedForThisCell) level = 2; 
-                else if (count > 0) level = 1; 
-            } else if (count > 0 && expectedForThisCell === 0) {
-                level = 1;
-            }
-
-            const cell = document.createElement('div');
-            cell.className = `heatmap-cell level-${level}`;
-            
-            if (expectedForThisCell === 0 && count === 0) {
-                cell.title = `${displayStr}: No doses scheduled`;
-                cell.style.background = 'transparent';
-                cell.style.border = '1px solid var(--border-color)';
-            } else if (level === 2) {
-                cell.title = `${displayStr}: Perfect (${count} doses)`;
-            } else if (level === 1) {
-                cell.title = `${displayStr}: Partial (${count} of ${expectedForThisCell} doses)`;
-            } else {
-                cell.title = `${displayStr}: Missed doses`;
-            }
-
-            if (retroCount > 0 && level > 0) {
-                cell.style.opacity = '0.35'; 
-                cell.title += ` ⚠️ (${retroCount} backdated)`;
-            }
-            
-            grid.appendChild(cell);
+        } catch (calcError) {
+            console.error("Analytics Engine failed:", calcError);
         }
     };
 }
 
 function updateStatus() {
+    if (!statusBar) return;
     const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     const total = document.querySelectorAll('#checklist-container .med-checkbox');
     if (total.length === 0) {
@@ -1188,6 +1218,7 @@ function restoreDataToDB(parsedData) {
 }
 
 function togglePasswordVisibility() {
+    if (!vaultPassInput || !peekIcon) return;
     const isPassword = vaultPassInput.type === 'password';
     vaultPassInput.type = isPassword ? 'text' : 'password';
     if (isPassword) {
@@ -1356,7 +1387,7 @@ async function exportHTMLReport() {
 // --- LOCAL VAULT (File Export/Import) ---
 // ==========================================
 async function exportVaultLocal() {
-    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
+    const password = vaultPassInput ? vaultPassInput.value || sessionStorage.getItem('medledger_session_key') : sessionStorage.getItem('medledger_session_key');
     
     if (!password) { showVaultStatus("Password required for export.", "var(--danger-color)"); return; }
     
@@ -1371,7 +1402,7 @@ async function exportVaultLocal() {
         a.href = url; a.download = `MedLedger_${new Date().toISOString().split('T')[0]}.medvault`;
         a.click(); URL.revokeObjectURL(url);
         
-        vaultPassInput.value = password; 
+        if (vaultPassInput) vaultPassInput.value = password; 
         showVaultStatus("Local Export successful.", "var(--success-color)");
     } catch (err) { console.error(err); showVaultStatus("Export failed.", "var(--danger-color)"); }
 }
@@ -1379,7 +1410,7 @@ async function exportVaultLocal() {
 async function importVaultLocal(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const password = vaultPassInput.value;
+    const password = vaultPassInput ? vaultPassInput.value : null;
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--danger-color)"); e.target.value = ''; return; }
 
     const reader = new FileReader();
@@ -1387,7 +1418,7 @@ async function importVaultLocal(e) {
         try {
             const parsedData = await processEncryptedBlob(password, event.target.result);
             restoreDataToDB(parsedData);
-            vaultPassInput.value = ''; e.target.value = '';
+            if (vaultPassInput) vaultPassInput.value = ''; e.target.value = '';
             showVaultStatus("Local Import successful. Vault restored.", "var(--success-color)");
         } catch (err) {
             console.error(err); showVaultStatus("Decryption failed. Incorrect password?", "var(--danger-color)"); e.target.value = '';
@@ -1467,7 +1498,7 @@ async function checkDriveForFile() {
 }
 
 async function pushToGoogleDrive() {
-    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
+    const password = vaultPassInput ? vaultPassInput.value || sessionStorage.getItem('medledger_session_key') : sessionStorage.getItem('medledger_session_key');
     
     if (!password) { showVaultStatus("Password required to encrypt before push.", "var(--danger-color)"); return; }
     
@@ -1510,7 +1541,7 @@ async function pushToGoogleDrive() {
         });
         
         if (uploadRes.ok) {
-            vaultPassInput.value = password;
+            if (vaultPassInput) vaultPassInput.value = password;
             showVaultStatus("Successfully pushed securely to Drive.", "var(--success-color)");
         } else {
             throw new Error("Upload data failed.");
@@ -1522,7 +1553,7 @@ async function pushToGoogleDrive() {
 }
 
 async function pullFromGoogleDrive() {
-    const password = vaultPassInput.value || sessionStorage.getItem('medledger_session_key');
+    const password = vaultPassInput ? vaultPassInput.value || sessionStorage.getItem('medledger_session_key') : sessionStorage.getItem('medledger_session_key');
     
     if (!password) { showVaultStatus("Password required to decrypt.", "var(--danger-color)"); return; }
 
@@ -1550,7 +1581,7 @@ async function pullFromGoogleDrive() {
         const parsedData = await processEncryptedBlob(password, encryptedBase64);
         restoreDataToDB(parsedData);
         
-        vaultPassInput.value = password;
+        if (vaultPassInput) vaultPassInput.value = password;
         showVaultStatus("Successfully synced from Drive.", "var(--success-color)");
     } catch (err) {
         console.error(err);
@@ -1587,7 +1618,7 @@ function checkReminders() {
             if (med.frequency === "As Needed") return;
 
             const state = getMedStateOnDate(med, now);
-            if (!state.shouldRender) return;
+            if (!state || !state.shouldRender) return;
 
             let times = med.times || [];
             if (!med.times && med.time) times = [med.time]; 
