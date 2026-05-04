@@ -115,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cloud-push').addEventListener('click', pushToGoogleDrive);
     document.getElementById('btn-cloud-pull').addEventListener('click', pullFromGoogleDrive);
 
-    // FIX: Scope keyboard shortcut to only the active checklist
     document.addEventListener('keydown', (e) => {
         if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
@@ -330,28 +329,22 @@ function restoreArchivedLogs() {
 // --- Zero-Knowledge Interaction Engine ---
 async function checkLocalInteractions(newMedName) {
     try {
-        // 1. Fetch the static JSON matrix (loads locally, no external API call)
         const response = await fetch('interactions.json');
         const interactionDB = await response.json();
 
-        // 2. Get the user's active medications from IndexedDB
         const activeMeds = await new Promise(res => {
             db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result);
         });
 
-        // 3. Normalize the new medication name (lowercase, remove extra spaces)
         const newDrug = newMedName.toLowerCase().trim();
         let warnings = [];
 
-        // 4. Cross-reference the new drug against the active regimen
         activeMeds.forEach(med => {
             const activeDrug = med.name.toLowerCase().trim();
 
-            // Check Matrix: Does New Drug interact with Active Drug?
             if (interactionDB[newDrug] && interactionDB[newDrug][activeDrug]) {
                 warnings.push(`Warning with ${med.name}: ${interactionDB[newDrug][activeDrug]}`);
             }
-            // Check Matrix: Does Active Drug interact with New Drug?
             else if (interactionDB[activeDrug] && interactionDB[activeDrug][newDrug]) {
                 warnings.push(`Warning with ${med.name}: ${interactionDB[activeDrug][newDrug]}`);
             }
@@ -360,7 +353,7 @@ async function checkLocalInteractions(newMedName) {
         return warnings;
     } catch (err) {
         console.warn("Interaction DB not found or failed to load. Bypassing check.");
-        return []; // Fails open so the app still works even if the JSON is missing
+        return []; 
     }
 }
 
@@ -377,22 +370,15 @@ async function handleAddMed(e) {
 
     if (!nameInput || !doseInput) return;
 
-    // ==========================================
-    // ZERO-KNOWLEDGE INTERACTION CHECK
-    // ==========================================
     const warnings = await checkLocalInteractions(nameInput);
 
     if (warnings.length > 0) {
-        // If a clash is found, halt the save and force the user to confirm
         const alertMessage = `⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nDo you still want to add this medication to your regimen?`;
-
-        // If the user clicks "Cancel" on the warning, abort the save entirely
         if (!confirm(alertMessage)) {
             showVaultStatus("Medication aborted.", "var(--text-secondary)");
             return;
         }
     }
-    // ==========================================
 
     const newMed = {
         id: crypto.randomUUID(),
@@ -534,7 +520,6 @@ function loadChecklist() {
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
 
-            // FIX: Escape double quotes so they don't break the HTML attribute
             const safeMedName = med.name.replace(/"/g, '&quot;');
 
             let inventoryBadgeHtml = '';
@@ -647,7 +632,6 @@ function loadChecklist() {
 }
 
 function logSelected() {
-    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
     const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
@@ -659,7 +643,6 @@ function logSelected() {
 }
 
 function logAll() {
-    // FIX: Scope query rigidly to the checklist, ignoring Settings toggles
     const checkboxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     if (checkboxes.length === 0) return;
     const items = Array.from(checkboxes).map(cb => ({
@@ -720,12 +703,13 @@ function processBatchLog(items) {
         });
     }
 
-    // FIX: Unconditionally reload the checklist to guarantee sync
     transaction.oncomplete = () => {
         if (manualTimeInput) manualTimeInput.value = '';
         updateStatus();
         refreshHistory(); 
         loadChecklist(); 
+        // Trigger analytics engine if present
+        if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
 
     transaction.onerror = () => {
@@ -828,13 +812,12 @@ window.deleteLog = function(timestampKey) {
 
     transaction.oncomplete = () => {
         refreshHistory();
-        calculateAdherence();
         loadChecklist(); 
+        if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
 };
 
 function updateStatus() {
-    // FIX: Scope query to checklist
     const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     const total = document.querySelectorAll('#checklist-container .med-checkbox');
     if (total.length === 0) {
@@ -960,7 +943,7 @@ function restoreDataToDB(parsedData) {
     transaction.oncomplete = () => {
         loadChecklist(); 
         refreshHistory();
-        calculateAdherence();
+        if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
 }
 
@@ -1411,7 +1394,7 @@ document.addEventListener('visibilitychange', () => {
             lastCheckedDate = currentDate;
             loadChecklist(); 
             refreshHistory(); 
-            calculateAdherence(); 
+            if(typeof calculateAdherence === 'function') calculateAdherence(); 
         }
     }
 });
