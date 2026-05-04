@@ -27,7 +27,7 @@
                 <button id="settings-toggle" aria-label="Settings" class="icon-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                 </button>
 
@@ -92,6 +92,7 @@
                         <input type="date" id="new-med-cycle-start" style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
                     </div>
                 </div>
+
                 <div class="inline-form" style="margin-bottom: 0.5rem;">
                     <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 2;">
                     <input type="text" id="new-med-side-effects" placeholder="Side Effects to Watch" style="flex: 2;">
@@ -166,7 +167,7 @@
         </section>
     </main>
 
-    <dialog id="help-modal" class="card modal" style="max-height: 85vh; overflow-y: auto; max-width: 500px;">
+    <dialog id="help-modal" class="card modal" style="max-height: 85vh; overflow-y: auto; max-width: 600px;">
         <h2>User Guide & Warnings</h2>
         
         <div class="help-section">
@@ -184,17 +185,19 @@
             <ul>
                 <li><b>iOS / Safari:</b> Tap the <b>Share</b> button at the bottom of the screen and select <b>"Add to Home Screen"</b>.</li>
                 <li><b>Android / Chrome:</b> Tap the <b>Menu (⋮)</b> at the top right and select <b>"Install App"</b> or <b>"Add to Home screen"</b>.</li>
-                <li>Once installed, the app will run entirely offline and can trigger local push notifications.</li>
+                <li>Once installed, the app runs offline natively.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>💊 2. Adding Medications</h3>
-            <p>Use the "Add Medication" box at the top of the screen to build your list.</p>
+            <h3>💊 2. Adding Medications & Scheduling</h3>
+            <p>Use the "Add Medication" box to build your list. MedLedger supports highly complex scheduling.</p>
             <ul>
-                <li>Type the <b>Name</b> and <b>Dosage</b> (like 10mg).</li>
-                <li><b>Times:</b> Tap the clock box to set exactly when you take it. If a pill requires morning, noon, and night doses, click <b>"+ Add Time"</b> to create three separate timers for that one pill.</li>
-                <li><b>Instructions & Side Effects:</b> Type any special rules or symptoms to watch out for. These will display permanently under the pill's name.</li>
+                <li><b>Daily / Morning / Night / Weekly:</b> Standard schedules. Tap "+ Add Time" to create multiple specific reminders (e.g., 8:00 AM and 8:00 PM).</li>
+                <li><b>As Needed (PRN):</b> For things like pain relievers. They always appear on your daily list, but never count against your adherence streaks if you don't take them.</li>
+                <li><b>Specific Days:</b> Select exactly which days of the week a pill should appear (e.g., Mondays, Wednesdays, Fridays). It will automatically hide itself on the off days.</li>
+                <li><b>Cyclic (On/Off):</b> Used for medications like birth control. Set the "Days On" (e.g., 21), the "Days Off" (e.g., 7), and the date the cycle begins. The app handles the math and hides the pill during the "Off" phase.</li>
+                <li><b>Zero-Knowledge Safety:</b> MedLedger contains a local interaction database. It will explicitly warn you if you attempt to combine dangerous medications (like mixing Warfarin and Aspirin).</li>
             </ul>
         </div>
 
@@ -204,53 +207,53 @@
             <ul>
                 <li>Tap the square checkbox next to a time slot to select it.</li>
                 <li>Tap <b>Log Selected</b> to record only what you checked, or <b>Log All</b> to instantly record the entire day's list.</li>
-                <li><b>Forgot to log earlier?</b> If you took a pill hours ago but forgot to tap it, use the "Time Taken" calendar box to set the <i>actual</i> time you took it before clicking Log. Leave it blank if you are taking it right now.</li>
+                <li><b>Time Machine (Backdating):</b> If you took a pill hours ago but forgot to tap it, use the "Time Taken" calendar box to set the <i>actual</i> time you took it before clicking Log. Leave it blank if you are taking it exactly right now.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>✏️ 4. Fixing Mistakes & History</h3>
-            <p>Your history and routines are fully editable.</p>
+            <h3>📊 4. Tracking Your Progress (Analytics)</h3>
+            <p>The History tab features clinical-grade analytics to monitor your consistency.</p>
             <ul>
-                <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, side effects, or dose.</li>
-                <li><b>Delete a Pill:</b> Tap the Pencil Icon, then tap the red <b>Delete</b> button to remove it from your routine forever.</li>
-                <li><b>Undo a Log:</b> Accidentally checked something off? Navigate to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen and refund the pill to your inventory.</li>
-                <li><b>Duplicate Warnings:</b> If you accidentally double-log a scheduled pill, the History tab will flag it with a red <b>Duplicate</b> badge. Delete the extra entry to fix your records and refund your pill inventory.</li>
+                <li><b>Consistency Grid (Calendar):</b> A visual calendar of your habits. 
+                    <br>🟩 <b>Green:</b> Perfect day.
+                    <br>🟨 <b>Yellow:</b> Partial day (missed some, took some).
+                    <br>⬜ <b>Gray:</b> Empty or missed day.
+                </li>
+                <li><b>Pending vs Missed:</b> A day stays Green if you haven't taken a pill <i>yet</i>, provided its scheduled time hasn't passed. Once the clock passes the target time, it becomes Missed.</li>
+                <li><b>Ghost Logs (Faded Squares):</b> If a calendar square is faded, it means you completed the day, but one or more doses were logged retroactively (using the Time Machine box).</li>
+                <li><b>Tap-To-Inspect:</b> Tap any square on the calendar to view a granular breakdown of exactly what was Taken, Pending, and Missed on that date.</li>
+                <li><b>Streak Engine:</b> Tracks your current and longest unbroken streaks of taking all scheduled medications. (PRN pills and off-cycle days do not break streaks).</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>⚙️ 5. Settings & Customization</h3>
-            <p>Tap the <b>Gear Icon</b> at the top of the screen to access Settings.</p>
+            <h3>✏️ 5. Fixing Mistakes</h3>
             <ul>
-                <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due.</li>
-                <li><b>Expert Mode:</b> Turns on "Double-Clicking". You can double-tap any item on the checklist to log it instantly.</li>
-                <li><b>Enable Pill Tracker:</b> Opt-in to track your physical pill inventory and get warnings when running low.</li>
-                <li><b>Data Management:</b> Move old history logs to cold storage to keep the app fast. Restore them anytime you need to generate a complete report.</li>
-                <li><b>No Babysitter Mode:</b> Turns off the "Are you sure?" pop-ups when deleting history logs.</li>
+                <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, or cycle.</li>
+                <li><b>Undo a Log:</b> Accidentally checked something off? Go to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will un-check the box in today's regimen and refund the pill to your inventory.</li>
+                <li><b>Duplicate Warnings:</b> If you accidentally double-log a scheduled pill, the History tab flags it with a red <b>Duplicate</b> badge.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>🔐 6. Backups & The Data Vault</h3>
-            <p>Your data is completely private. You hold the keys.</p>
+            <h3>⚙️ 6. Settings & Customization</h3>
+            <p>Tap the <b>Gear Icon</b> to access power-user Settings.</p>
             <ul>
-                <li><b>Session Unlock:</b> Type your password <b>once</b> to unlock the vault for your current session. A green indicator will appear. You can now Push, Pull, or Backup multiple times without re-typing your password.</li>
-                <li><b>Locking the Vault:</b> The vault automatically secures itself when you close the browser tab. To secure it manually before walking away, tap the <b>Lock Now</b> button.</li>
-                <li><b>Cloud Sync:</b> Click "Sign in to Google" to authorize the app. Once your vault is unlocked, use the Push and Pull buttons to securely sync your encrypted data to a hidden folder in your Drive.</li>
-                <li><b>Clinician Reports:</b> Use the export buttons to download a printable HTML file or spreadsheet of your adherence history.</li>
+                <li><b>Local Reminders:</b> Let your phone send push notifications when a pill is due.</li>
+                <li><b>Expert Mode:</b> Double-click any item on the checklist to log it instantly. Press <code>Ctrl + Enter</code> to batch log.</li>
+                <li><b>Pill Tracker:</b> Opt-in to track physical pill inventory. A warning badge appears when you drop below 10 pills.</li>
+                <li><b>Data Archival:</b> Move old history logs to cold storage to keep the app lightning fast. Restore them anytime you need to generate a complete report.</li>
             </ul>
         </div>
 
         <div class="help-section">
-            <h3>📊 7. Tracking Your Progress</h3>
-            <p>The History tab features built-in analytics to monitor your consistency.</p>
+            <h3>🔐 7. The Encrypted Vault & Sync</h3>
+            <p>Your data is completely private. You hold the encryption keys.</p>
             <ul>
-                <li><b>7-Day Adherence:</b> A quick percentage score showing how precisely you have followed your scheduled regimen over the last week.</li>
-                <li><b>Streak Engine:</b> Tracks your current and longest unbroken streaks of taking all scheduled medications.</li>
-                <li><b>Consistency Grid (Heatmap):</b> A visual calendar of your habits. A <b>Green</b> square means you took all scheduled doses that day, <b>Yellow</b> means partial completion, and <b>Gray</b> means missed doses. Use the dropdown menu to view your 7-day, 30-day, or 90-day trends.</li>
-                <li><b>Tap-To-Inspect:</b> Tap on any square in the heatmap calendar to view a granular breakdown of exactly what was scheduled, taken, and missed on that specific day.</li>
-                <li><b>Ghost Logs (Faded Squares):</b> If a square is green but faded/transparent, it means you completed the day, but one or more doses were logged retroactively (using the Time Taken box to backdate them hours later). This helps distinguish real-time tracking from fuzzy memory fills.</li>
+                <li><b>Session Unlock:</b> Type your Master Password <b>once</b> to unlock the vault for your session. A green indicator will appear.</li>
+                <li><b>Backup Device:</b> Encrypts your database into a secure <code>.medvault</code> file to store on a USB drive or email to yourself. Use "Restore Device" to load it on a new phone.</li>
+                <li><b>Google Drive Sync:</b> Click "Sign in to Google." Use Push/Pull to securely sync your encrypted <code>.medvault</code> file directly to an invisible, protected AppData folder in your Google Drive.</li>
             </ul>
         </div>
 
