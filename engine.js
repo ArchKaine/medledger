@@ -1,30 +1,35 @@
 // ==========================================
 // engine.js - MedLedger Core Logic
-// Checklist, Clinical Lookups, Refills, and High-Fidelity Reports
+// Checklist, Clinical Data, Refills, and High-Fidelity Reports
 // ==========================================
 
-// --- Clinical Data Fetcher (OpenFDA + Wikidata) ---
+// --- Clinical Data Fetcher (Integrated) ---
 async function fetchDrugInfo(drugName) {
     const info = { description: "", indications: "" };
     const cleanName = drugName.toLowerCase().trim();
     try {
+        // 1. Wikidata Lookup (Plain English Summary)
         const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${cleanName}&languages=en&props=descriptions&format=json&origin=*`;
         const wikiRes = await fetch(wikiUrl);
         if (wikiRes.ok) {
-            const data = await wikiRes.json();
-            const entityId = Object.keys(data.entities)[0];
-            if (entityId !== "-1") info.description = data.entities[entityId].descriptions?.en?.value || "";
+            const wikiData = await wikiRes.json();
+            const entities = wikiData.entities;
+            const entityId = Object.keys(entities)[0];
+            if (entityId !== "-1") {
+                info.description = entities[entityId].descriptions?.en?.value || "";
+            }
         }
+        // 2. OpenFDA Lookup (Official Clinical Indications)
         const fdaUrl = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${cleanName}"&limit=1`;
         const fdaRes = await fetch(fdaUrl);
         if (fdaRes.ok) {
-            const data = await fdaRes.json();
-            if (data.results && data.results[0]) {
-                const raw = data.results[0].indications_and_usage?.[0] || "";
+            const fdaData = await fdaRes.json();
+            if (fdaData.results && fdaData.results[0]) {
+                const raw = fdaData.results[0].indications_and_usage?.[0] || "";
                 info.indications = raw.split('.').slice(0, 2).join('.') + '.';
             }
         }
-    } catch (err) { console.warn("Clinical lookup bypassed."); }
+    } catch (err) { console.warn("Clinical lookup bypassed due to network error."); }
     return info;
 }
 
@@ -41,23 +46,26 @@ function getTimesFromContainer(containerId) {
 // --- Archiving Logic ---
 function archiveOldLogs() {
     const archiveDaysEl = document.getElementById('archive-days');
-    const days = parseInt(archiveDaysEl?.value || 90);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
+    const days = parseInt(archiveDaysEl ? archiveDaysEl.value : 90) || 90;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
 
     const tx = db.transaction(["logs", "archived_logs"], "readwrite");
-    tx.objectStore("logs").openCursor().onsuccess = (e) => {
+    const logStore = tx.objectStore("logs");
+    const archiveStore = tx.objectStore("archived_logs");
+
+    logStore.openCursor().onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) {
-            if (new Date(cursor.value.dateTaken) < cutoff) {
-                tx.objectStore("archived_logs").add(cursor.value);
+            if (new Date(cursor.value.dateTaken) < cutoffDate) {
+                archiveStore.add(cursor.value);
                 cursor.delete();
             }
             cursor.continue();
         }
     };
     tx.oncomplete = () => {
-        if(typeof showVaultStatus === 'function') showVaultStatus(`Old logs archived.`, "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus(`History older than ${days} days archived.`, "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
@@ -65,22 +73,41 @@ function archiveOldLogs() {
 
 function restoreArchivedLogs() {
     const tx = db.transaction(["logs", "archived_logs"], "readwrite");
-    tx.objectStore("archived_logs").openCursor().onsuccess = (e) => {
+    const logStore = tx.objectStore("logs");
+    const archiveStore = tx.objectStore("archived_logs");
+    archiveStore.openCursor().onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) {
-            tx.objectStore("logs").add(cursor.value);
+            logStore.add(cursor.value);
             cursor.delete();
             cursor.continue();
         }
     };
     tx.oncomplete = () => {
-        if(typeof showVaultStatus === 'function') showVaultStatus("Archives restored.", "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Archives restored to active memory.", "var(--success-color)");
         refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     };
 }
 
-// --- Configuration Logic ---
+// --- Zero-Knowledge Interaction Engine ---
+async function checkLocalInteractions(newMedName) {
+    try {
+        const res = await fetch('interactions.json');
+        const db_int = await res.json();
+        const activeMeds = await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
+        const drug = newMedName.toLowerCase().trim();
+        let warnings = [];
+        activeMeds.forEach(m => {
+            const active = m.name.toLowerCase().trim();
+            if (db_int[drug]?.[active]) warnings.push(`Warning with ${m.name}: ${db_int[drug][active]}`);
+            else if (db_int[active]?.[drug]) warnings.push(`Warning with ${m.name}: ${db_int[active][drug]}`);
+        });
+        return warnings;
+    } catch (err) { return []; }
+}
+
+// --- Configuration Logic (Add/Edit/Delete) ---
 async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
@@ -93,9 +120,13 @@ async function handleAddMed(e) {
 
     if (!nameInput || !doseInput) return;
 
+    const warnings = await checkLocalInteractions(nameInput);
+    if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
+
+    // Clinical Lookup Integration
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked) {
-        if(typeof showVaultStatus === 'function') showVaultStatus("Checking databases...", "var(--accent-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
         clinicalData = await fetchDrugInfo(nameInput);
     }
 
@@ -121,7 +152,7 @@ async function handleAddMed(e) {
         document.getElementById('new-med-freq').value = 'Daily';
         document.getElementById('new-med-specific-days').style.display = 'none';
         document.getElementById('new-med-cyclic').style.display = 'none';
-        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">`;
+        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary);">`;
         loadChecklist();
         if(typeof showVaultStatus === 'function') showVaultStatus("Medication added.", "var(--success-color)");
     };
@@ -129,7 +160,8 @@ async function handleAddMed(e) {
 
 window.openEditModal = function(id) {
     if (typeof db === 'undefined') return;
-    db.transaction(["meds"], "readonly").objectStore("meds").get(id).onsuccess = (e) => {
+    const tx = db.transaction(["meds"], "readonly");
+    tx.objectStore("meds").get(id).onsuccess = (e) => {
         const med = e.target.result;
         if (!med) return;
         document.getElementById('edit-med-id').value = med.id;
@@ -161,8 +193,14 @@ window.openEditModal = function(id) {
         const container = document.getElementById('edit-med-times-container');
         container.innerHTML = ''; 
         const times = med.times || [];
-        if (times.length === 0) addTimeField('edit-med-times-container');
-        else times.forEach(t => { addTimeField('edit-med-times-container'); if(container.lastElementChild) container.lastElementChild.value = t; });
+        if (times.length === 0) {
+            if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
+        } else {
+            times.forEach(t => {
+                if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
+                if(container.lastElementChild) container.lastElementChild.value = t;
+            });
+        }
         document.getElementById('edit-med-modal')?.showModal();
     };
 };
@@ -178,9 +216,9 @@ async function saveEditedMed(e) {
     let description = existing.description || "";
     let indications = existing.indications || "";
     if (document.getElementById('toggle-lookup')?.checked && existing.name !== name) {
-        const clinical = await fetchDrugInfo(name);
-        description = clinical.description;
-        indications = clinical.indications;
+        const clinicalData = await fetchDrugInfo(name);
+        description = clinicalData.description;
+        indications = clinicalData.indications;
     }
 
     const freq = document.getElementById('edit-med-freq').value;
@@ -210,9 +248,10 @@ window.refillMed = function(id, amount) {
     const qty = amount === 'custom' ? (parseInt(document.getElementById(`refill-custom-${id}`).value) || 0) : parseInt(amount);
     if (qty <= 0) return;
     const tx = db.transaction(["meds"], "readwrite");
-    tx.objectStore("meds").get(id).onsuccess = (e) => {
+    const medStore = tx.objectStore("meds");
+    medStore.get(id).onsuccess = (e) => {
         const m = e.target.result;
-        if (m) { m.inventory = (parseInt(m.inventory) || 0) + qty; tx.objectStore("meds").put(m); }
+        if (m) { m.inventory = (parseInt(m.inventory) || 0) + qty; medStore.put(m); }
     };
     tx.oncomplete = loadChecklist;
 };
@@ -221,6 +260,7 @@ window.refillMed = function(id, amount) {
 function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container || typeof db === 'undefined') return;
+    
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
@@ -229,9 +269,13 @@ function loadChecklist() {
         const rawMeds = medReq.result;
         const logs = logReq.result;
         container.innerHTML = '';
-        if (rawMeds.length === 0) { container.innerHTML = '<p style="color:var(--text-secondary);">No medications added.</p>'; return; }
+        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary);">No medications added.</p>'; return; }
 
-        rawMeds.sort((a, b) => a.name.localeCompare(b.name));
+        rawMeds.sort((a, b) => {
+            const weights = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5, "Specific Days": 6, "Cyclic": 7 };
+            return (weights[a.frequency] || 99) - (weights[b.frequency] || 99) || a.name.localeCompare(b.name);
+        });
+
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.toLocaleDateString();
         let visibleCount = 0;
@@ -243,11 +287,12 @@ function loadChecklist() {
                 const start = new Date(med.cycleStartDate + 'T00:00:00');
                 if (today < start) shouldRender = false;
                 else {
-                    const diff = Math.floor(Math.abs(today - start) / 86400000);
+                    const diffDays = Math.floor(Math.abs(today - start) / 86400000);
                     const cycleLen = (parseInt(med.cycleOn) + parseInt(med.cycleOff));
-                    if ((diff % cycleLen) >= parseInt(med.cycleOn)) shouldRender = false;
+                    if ((diffDays % cycleLen) >= parseInt(med.cycleOn)) shouldRender = false;
                 }
             }
+
             if (!shouldRender && med.frequency !== "As Needed") return;
             visibleCount++;
 
@@ -262,9 +307,9 @@ function loadChecklist() {
                 timesHtml += `
                     <label class="med-item ${taken ? 'completed' : ''}" style="padding: 0.5rem 1rem;">
                         <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
-                        <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
+                        <span class="med-details"><span>${t ? `@ ${t}` : 'Log Dosage'}</span></span>
                     </label>
-                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:4px; border-radius:4px;"></div>` : ''}
+                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.5rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
                 `;
             });
             timesHtml += '</div>';
@@ -287,7 +332,7 @@ function loadChecklist() {
                 ${(med.instructions || med.sideEffects || med.description) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px;">
                     ${med.instructions ? `<div><i>${med.instructions}</i></div>` : ''}
                     ${med.sideEffects ? `<div>ℹ️ ${med.sideEffects}</div>` : ''}
-                    ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
+                    ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Clinical Info:</strong> ${med.description}</div>` : ''}
                 </div>` : ''}
                 ${refillBanner}
             `;
@@ -302,8 +347,7 @@ function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
-    const manual = document.getElementById('manual-time')?.value;
-    const timestamp = manual ? new Date(manual).toISOString() : new Date().toISOString();
+    const timestamp = document.getElementById('manual-time')?.value ? new Date(document.getElementById('manual-time').value).toISOString() : new Date().toISOString();
 
     checked.forEach(cb => {
         const [id, target] = cb.value.split('|');
@@ -334,21 +378,27 @@ function refreshHistory() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
-        const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken)).slice(0, 15);
-        list.innerHTML = logs.map(l => `
+        const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+        const tracker = {};
+        logs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
+        
+        list.innerHTML = logs.slice(0, 15).map(l => {
+            const isDup = l.targetTime && tracker[new Date(l.dateTaken).toLocaleDateString() + '|' + l.compositeId] > 1;
+            return `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</span>
+                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px;">DUP</span>' : ''}
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
-            </li>
-        `).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
+            </li>`;
+        }).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
     };
 }
 
 window.deleteLog = function(ts) {
-    if (!AppSettings.noBabysitter && !confirm("Delete log entry?")) return;
+    if (!AppSettings.noBabysitter && !confirm("Delete entry?")) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
     tx.objectStore("logs").get(ts).onsuccess = (e) => {
         const log = e.target.result;
@@ -365,16 +415,14 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- HIGH-FIDELITY CLINICAL EXPORTS ---
+// --- High-Fidelity Exports (Grouped by Date) ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
 
-    const prnLogs = logs.filter(l => !l.targetTime);
     const lowInvMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
-
     const grouped = {};
     logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken).toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
@@ -386,22 +434,16 @@ async function exportHTMLReport() {
     Object.keys(grouped).forEach(date => {
         clinicalBody += `<div class="date-group"><div class="date-header">${date}</div><table class="clinical-table"><thead><tr><th style="width: 100px;">Time</th><th>Medication & Context</th><th style="width: 120px; text-align: center;">Target</th></tr></thead><tbody>`;
         clinicalBody += grouped[date].map(l => {
-            const time = new Date(l.dateTaken).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            const timeStr = new Date(l.dateTaken).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
             const isPrn = !l.targetTime;
-            return `<tr class="${isPrn ? 'prn-row' : ''}"><td><strong>${time}</strong></td><td><div class="med-name-cell">${l.medName} ${isPrn ? '<span class="prn-badge">As Needed</span>' : ''}</div>${l.prnReason ? `<div class="note-box">📝 ${l.prnReason}</div>`:''}</td><td style="text-align: center; color: #64748b;">${l.targetTime || '--'}</td></tr>`;
+            return `<tr class="${isPrn ? 'prn-row' : ''}"><td><strong>${timeStr}</strong></td><td><div class="med-name-cell">${l.medName} ${isPrn ? '<span class="prn-badge">As Needed</span>' : ''}</div>${l.prnReason ? `<div class="note-box">📝 ${l.prnReason}</div>`:''}</td><td style="text-align: center; color: #64748b;">${l.targetTime || '--'}</td></tr>`;
         }).join('');
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div><strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
+    const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
-    const html = getClinicalTemplate(clinicalBody, logs.length, prnLogs.length, lowInvMeds.length, refillHtml);
-    const blob = new Blob([html], { type: 'text/html' });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "MedLedger_Clinical_Summary.html"; a.click();
-}
-
-function getClinicalTemplate(body, total, prn, low, refill) {
-    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Clinical Summary</title><style>
+    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
         .report-paper { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; border-top: 8px solid #2563eb; }
         .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
@@ -422,10 +464,28 @@ function getClinicalTemplate(body, total, prn, low, refill) {
         .refill-section { background: #fff1f2; border: 1px solid #fecdd3; padding: 20px; border-radius: 8px; margin-top: 30px; }
         .btn-print { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 20px; }
         @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
-    </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper"><div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div><div class="stat-grid"><div class="stat-card"><div class="stat-val">${total}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${pr}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${low}</div><div class="stat-lab">Meds Needing Refill</div></div></div>${refill}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${body}<div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
+    </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper">
+    <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
+    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInvMeds.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
+    ${refillHtml}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${clinicalBody}
+    <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Clinical_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
 }
 
-// --- Background Reminders ---
+async function exportCSV() {
+    const logs = await new Promise(r => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => r(e.target.result));
+    if (!logs.length) return;
+    let csv = "Date,Time,Medication,Target,Status,PRN Reason\n";
+    logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
+        const d = new Date(l.dateTaken);
+        csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},"${l.medName}",${l.targetTime || 'PRN'},${l.status},"${(l.prnReason || '')}"\n`;
+    });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
+}
+
+// --- Reminders & Utility ---
 function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
