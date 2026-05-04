@@ -1,72 +1,122 @@
 // ==========================================
-// help.js - MedLedger Documentation & Help
-// Handles Onboarding and Feature Explanations
+// help.js - MedLedger User Guide & System Documentation
 // ==========================================
 
 const HelpContent = {
-    overview: `
-        <h3>Welcome to MedLedger</h3>
-        <p>MedLedger is a private, zero-knowledge medication tracker. All data stays on your device.</p>
+    warnings: `
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger-color); padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h3 style="color: var(--danger-color); margin-top: 0;">⚠️ Critical Warnings</h3>
+            <p>Because this app respects your privacy, your data lives <strong>only on your device</strong>. There is no central server.</p>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>No Password Recovery:</strong> If you set an encryption password for your Data Vault and forget it, your exported backups and cloud syncs are permanently unreadable. There is no "Forgot Password" button.</li>
+                <li><strong>Browser Data:</strong> Your active schedule lives inside your browser's local storage. If you clear site data/cookies without a backup, your ledger is erased. <strong>Always backup to Device or Push to Cloud first!</strong></li>
+            </ul>
+        </div>
+    `,
+    installation: `
+        <section style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--accent-color);">📱 1. Installation & Offline Use</h3>
+            <p>MedLedger is a Progressive Web App (PWA). You don't download it from an app store.</p>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>iOS / Safari:</strong> Tap the Share button at the bottom of the screen and select "Add to Home Screen".</li>
+                <li><strong>Android / Chrome:</strong> Tap the Menu (⋮) at the top right and select "Install App" or "Add to Home screen".</li>
+            </ul>
+            <p>Once installed, the app runs offline natively.</p>
+        </section>
+    `,
+    scheduling: `
+        <section style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--accent-color);">💊 2. Adding Medications & Scheduling</h3>
+            <p>MedLedger supports highly complex scheduling logic:</p>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>Standard Schedules:</strong> Tap "+ Add Time" for multiple reminders (e.g., 8:00 AM and 8:00 PM).</li>
+                <li><strong>As Needed (PRN):</strong> Appear on your daily list but never count against streaks if skipped.</li>
+                <li><strong>Specific Days:</strong> Select exact days (e.g., M/W/F). The pill hides itself on off-days.</li>
+                <li><strong>Cyclic (On/Off):</strong> Set "Days On" and "Days Off" (e.g., birth control). The app handles the math.</li>
+                <li><strong>Zero-Knowledge Safety:</strong> Local interaction warnings will trigger if you combine dangerous medications.</li>
+            </ul>
+        </section>
     `,
     logging: `
-        <h4>📝 Logging Doses</h4>
-        <ul>
-            <li><strong>Scheduled:</strong> Check the box next to the time to log a dose at that specific target.</li>
-            <li><strong>As Needed (PRN):</strong> Use the text box to record symptoms (e.g., "Headache 5/10") before checking the box.</li>
-            <li><strong>Manual Time:</strong> Use the "Log Manually" button to record doses taken at a different time than "Now."</li>
-        </ul>
+        <section style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--accent-color);">✅ 3. Logging Your Daily Regimen</h3>
+            <p>The "Today's Regimen" list resets automatically at midnight.</p>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li>Tap the square checkbox next to a time slot to select it.</li>
+                <li><strong>Log Selected:</strong> Record only checked items. <strong>Log All:</strong> Record the entire day.</li>
+                <li><strong>Time Machine (Backdating):</strong> If you took a pill hours ago, use the "Time Taken" box to set the actual time before clicking Log.</li>
+            </ul>
+        </section>
     `,
-    inventory: `
-        <h4>📦 Supply & Refills</h4>
-        <p>If Inventory Tracking is enabled in Settings, the app will count down each dose logged.</p>
-        <ul>
-            <li><strong>Low Supply:</strong> A red banner appears when you have 10 or fewer doses left.</li>
-            <li><strong>Quick Refill:</strong> Use the +30 or +90 buttons on the card to instantly restock.</li>
-        </ul>
+    analytics: `
+        <section style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--accent-color);">📊 4. Tracking Your Progress</h3>
+            <p>The History tab features clinical-grade consistency analytics:</p>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>Consistency Grid:</strong> 🟩 Perfect Day | 🟨 Partial Day | ⬜ Empty/Missed.</li>
+                <li><strong>Pending vs Missed:</strong> Days stay Green until a scheduled target time is passed without a log.</li>
+                <li><strong>Ghost Logs:</strong> Faded squares indicate one or more doses were logged retroactively via the Time Machine.</li>
+                <li><strong>Tap-To-Inspect:</strong> Tap any calendar square for a granular breakdown of Taken vs Missed.</li>
+            </ul>
+        </section>
     `,
-    clinical: `
-        <h4>🔬 Clinical Lookups</h4>
-        <p>When enabled, MedLedger queries <strong>OpenFDA</strong> and <strong>Wikidata</strong> to provide summaries and official usage indications for your medications.</p>
-        <p><i>Note: Lookups require an internet connection and will update the "Drug Reference" section in your Edit Modals.</i></p>
+    mistakes: `
+        <section style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--accent-color);">✏️ 5. Fixing Mistakes</h3>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>Edit a Pill:</strong> Tap the Pencil Icon to change times, instructions, or cycles.</li>
+                <li><strong>Undo a Log:</strong> Tap the Trash icon in the History Log to refund a pill and uncheck the box.</li>
+                <li><strong>Duplicate Warnings:</strong> Red badges flag any accidental double-logging of scheduled pills.</li>
+            </ul>
+        </section>
     `,
-    privacy: `
-        <h4>🛡️ Data & Privacy</h4>
-        <p>Your health data is <strong>never</strong> uploaded to a server. MedLedger uses IndexedDB to store everything locally in your browser's private storage.</p>
+    vault: `
+        <section style="margin-bottom: 1.5rem;">
+            <h3 style="color: var(--accent-color);">🔐 7. The Encrypted Vault & Sync</h3>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>Backup Device:</strong> Encrypts your database into a .medvault file for local storage.</li>
+                <li><strong>Google Drive Sync:</strong> Securely syncs your encrypted file to an invisible AppData folder in your Drive.</li>
+            </ul>
+        </section>
+    `,
+    footer: `
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; display: flex; gap: 1rem; font-size: 0.8rem; opacity: 0.7;">
+            <a href="#" style="color: var(--text-primary);">Privacy Policy</a>
+            <a href="#" style="color: var(--text-primary);">Terms of Service</a>
+        </div>
     `
 };
 
 function openHelpModal() {
     let helpModal = document.getElementById('help-modal');
     
-    // Create modal if it doesn't exist in HTML
     if (!helpModal) {
         helpModal = document.createElement('dialog');
         helpModal.id = 'help-modal';
         helpModal.className = 'modal';
         helpModal.innerHTML = `
-            <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-content" style="max-width: 600px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1rem;">
-                    <h2 style="margin:0;">System Help</h2>
+                    <h2 style="margin:0;">User Guide & Warnings</h2>
                     <button class="icon-btn" onclick="document.getElementById('help-modal').close()" type="button">✕</button>
                 </div>
-                <div id="help-container" style="max-height: 70vh; overflow-y: auto; padding-right: 0.5rem;"></div>
-                <button class="btn btn-primary" style="width:100%; margin-top:1.5rem;" onclick="document.getElementById('help-modal').close()" type="button">Got it</button>
+                <div id="help-scroll-area" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                    ${HelpContent.warnings}
+                    ${HelpContent.installation}
+                    ${HelpContent.scheduling}
+                    ${HelpContent.logging}
+                    ${HelpContent.analytics}
+                    ${HelpContent.mistakes}
+                    ${HelpContent.vault}
+                    ${HelpContent.footer}
+                </div>
+                <button class="btn btn-primary" style="width:100%; margin-top:1.5rem;" onclick="document.getElementById('help-modal').close()" type="button">Close Guide</button>
             </div>
         `;
         document.body.appendChild(helpModal);
     }
 
-    const container = document.getElementById('help-container');
-    container.innerHTML = `
-        ${HelpContent.overview}
-        ${HelpContent.logging}
-        ${HelpContent.inventory}
-        ${HelpContent.clinical}
-        ${HelpContent.privacy}
-    `;
-
     helpModal.showModal();
 }
 
-// Global assignment
 window.openHelpModal = openHelpModal;
