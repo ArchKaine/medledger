@@ -337,11 +337,13 @@ function loadChecklist() {
     };
 }
 
-// --- 6. Logging Logic ---
+// --- 6. Logging Logic (Supports "Time Machine" backdating) ---
 function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
+    
+    // Time Machine: Use manual time if provided, otherwise use current time
     const manualInput = document.getElementById('manual-time')?.value;
     const timestamp = manualInput ? new Date(manualInput).toISOString() : new Date().toISOString();
 
@@ -350,9 +352,15 @@ function logSelected() {
         const reason = document.getElementById(`prn-reason-${cb.value}`)?.value || "";
         tx.objectStore("logs").add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
-            dateTaken: timestamp, systemLoggedTime: Date.now(), medId: id,
-            targetTime: target === 'none' ? null : target, compositeId: cb.value,
-            medName: cb.getAttribute('data-name'), status: "taken", prnReason: reason
+            dateTaken: timestamp, 
+            systemLoggedTime: Date.now(), 
+            medId: id,
+            targetTime: target === 'none' ? null : target, 
+            compositeId: cb.value,
+            medName: cb.getAttribute('data-name'), 
+            status: "taken", 
+            prnReason: reason,
+            isBackdated: !!manualInput // Tracked for analytics "Ghost Log" faded effect
         });
         if (AppSettings.inventory) {
             tx.objectStore("meds").get(id).onsuccess = (e) => {
@@ -379,11 +387,12 @@ function refreshHistory() {
         logs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
         
         list.innerHTML = logs.slice(0, 15).map(l => {
+            // Duplicate badge logic mentioned in Help
             const isDup = l.targetTime && tracker[new Date(l.dateTaken).toLocaleDateString() + '|' + l.compositeId] > 1;
             return `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px;">DUP</span>' : ''}
+                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px; font-weight:bold;">DUPLICATE</span>' : ''}
                     <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
@@ -411,7 +420,7 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- 7. High-Fidelity Exports ---
+// --- High-Fidelity Exports (Grouped by Date) ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
@@ -481,7 +490,7 @@ async function exportCSV() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
 }
 
-// --- 8. Persistence & Initialisation ---
+// --- 7. Persistence & Initialisation ---
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
@@ -494,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('medledger_clinical_lookups', e.target.checked);
         });
 
-        // References external refreshAllClinicalData from clinical.js
+        // FORCE REFRESH ON FIRST LOAD
         if (toggle.checked && localStorage.getItem('medledger_initial_fetch_done') !== 'true') {
             const checkDB = setInterval(() => {
                 if (typeof db !== 'undefined' && typeof refreshAllClinicalData === 'function') {
