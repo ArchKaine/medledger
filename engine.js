@@ -8,7 +8,7 @@ async function fetchDrugInfo(drugName) {
     const info = { description: "", indications: "" };
     const cleanName = drugName.toLowerCase().trim();
     try {
-        // 1. Wikidata Lookup (Plain English Summary)
+        // Wikidata Lookup (Plain English Summary)
         const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${cleanName}&languages=en&props=descriptions&format=json&origin=*`;
         const wikiRes = await fetch(wikiUrl);
         if (wikiRes.ok) {
@@ -19,7 +19,7 @@ async function fetchDrugInfo(drugName) {
                 info.description = entities[entityId].descriptions?.en?.value || "";
             }
         }
-        // 2. OpenFDA Lookup (Official Clinical Indications)
+        // OpenFDA Lookup (Official Clinical Indications)
         const fdaUrl = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${cleanName}"&limit=1`;
         const fdaRes = await fetch(fdaUrl);
         if (fdaRes.ok) {
@@ -43,7 +43,30 @@ function getTimesFromContainer(containerId) {
     return [...new Set(times)].sort();
 }
 
-// --- 3. Archiving Logic ---
+// --- 3. Maintenance: Force Refresh All Clinical Data ---
+async function refreshAllClinicalData() {
+    if (!confirm("This will overwrite existing clinical descriptions for all medications on this device. Continue?")) return;
+    
+    if(typeof showVaultStatus === 'function') showVaultStatus("Updating all medications...", "var(--accent-color)");
+    
+    const tx = db.transaction(["meds"], "readwrite");
+    const medStore = tx.objectStore("meds");
+    const meds = await new Promise(res => medStore.getAll().onsuccess = e => res(e.target.result));
+
+    for (const med of meds) {
+        const freshData = await fetchDrugInfo(med.name);
+        med.description = freshData.description;
+        med.indications = freshData.indications;
+        medStore.put(med);
+    }
+
+    tx.oncomplete = () => {
+        loadChecklist();
+        if(typeof showVaultStatus === 'function') showVaultStatus("Database fully updated.", "var(--success-color)");
+    };
+}
+
+// --- 4. Archiving Logic ---
 function archiveOldLogs() {
     const archiveDaysEl = document.getElementById('archive-days');
     const days = parseInt(archiveDaysEl ? archiveDaysEl.value : 90) || 90;
@@ -90,7 +113,7 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- 4. Zero-Knowledge Interaction Engine ---
+// --- 5. Zero-Knowledge Interaction Engine ---
 async function checkLocalInteractions(newMedName) {
     try {
         const res = await fetch('interactions.json');
@@ -107,7 +130,7 @@ async function checkLocalInteractions(newMedName) {
     } catch (err) { return []; }
 }
 
-// --- 5. Configuration Logic (Add/Edit/Delete) ---
+// --- 6. Configuration Logic (Add/Edit/Delete) ---
 async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
@@ -202,7 +225,7 @@ window.openEditModal = function(id) {
             });
         }
 
-        // --- LOOKUP DATA DISPLAY IN MODAL ---
+        // --- LOOKUP DATA DISPLAY IN EDIT MODAL ---
         let clinicalPanel = document.getElementById('modal-clinical-info');
         if (!clinicalPanel) {
             clinicalPanel = document.createElement('div');
@@ -259,7 +282,7 @@ async function saveEditedMed(e) {
 }
 
 function deleteMedication() {
-    if (!AppSettings.noBabysitter && !confirm("Remove this medication?")) return;
+    if (!AppSettings.noBabysitter && !confirm("Remove medication?")) return;
     const id = document.getElementById('edit-med-id').value;
     const tx = db.transaction(["meds"], "readwrite");
     tx.objectStore("meds").delete(id);
@@ -278,7 +301,7 @@ window.refillMed = function(id, amount) {
     tx.oncomplete = loadChecklist;
 };
 
-// --- 6. Regimen Logic ---
+// --- 7. Regimen Logic ---
 function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container || typeof db === 'undefined') return;
@@ -364,7 +387,7 @@ function loadChecklist() {
     };
 }
 
-// --- 7. Logging Logic ---
+// --- 8. Logging Logic ---
 function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
@@ -410,7 +433,8 @@ function refreshHistory() {
             return `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</span>
+                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px;">DUP</span>' : ''}
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
@@ -437,13 +461,14 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- 8. High-Fidelity Grouped Clinical Report ---
+// --- 9. High-Fidelity Exports ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
 
+    const lowInvMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
     const grouped = {};
     logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken).toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
@@ -462,8 +487,7 @@ async function exportHTMLReport() {
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const lowInv = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
-    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
+    const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
     const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
@@ -488,7 +512,7 @@ async function exportHTMLReport() {
         @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
     </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper">
     <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
-    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInv.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
+    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInvMeds.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
     ${refillHtml}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${clinicalBody}
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 
@@ -507,7 +531,23 @@ async function exportCSV() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
 }
 
-// --- 9. Utilities & Rollover ---
+// --- 10. Persistence & Initialisation ---
+document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('toggle-lookup');
+    if (toggle) {
+        // DEFAULT TO TRUE if no setting exists
+        if (localStorage.getItem('medledger_clinical_lookups') === null) {
+            localStorage.setItem('medledger_clinical_lookups', 'true');
+        }
+        toggle.checked = localStorage.getItem('medledger_clinical_lookups') === 'true';
+        
+        toggle.addEventListener('change', (e) => {
+            localStorage.setItem('medledger_clinical_lookups', e.target.checked);
+        });
+    }
+});
+
+// --- Notifications & Rollover ---
 function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
