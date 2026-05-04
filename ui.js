@@ -48,13 +48,27 @@ function switchTab(tab) {
     if (tab === 'today') {
         if(tabTodayBtn) tabTodayBtn.classList.add('active');
         if(tabHistoryBtn) tabHistoryBtn.classList.remove('active');
-        if(dailyScheduleView) dailyScheduleView.classList.remove('hidden-view');
-        if(logHistoryView) logHistoryView.classList.add('hidden-view');
+        
+        if(dailyScheduleView) {
+            dailyScheduleView.classList.remove('hidden-view');
+            dailyScheduleView.classList.add('active-view');
+        }
+        if(logHistoryView) {
+            logHistoryView.classList.add('hidden-view');
+            logHistoryView.classList.remove('active-view');
+        }
     } else {
         if(tabHistoryBtn) tabHistoryBtn.classList.add('active');
         if(tabTodayBtn) tabTodayBtn.classList.remove('active');
-        if(logHistoryView) logHistoryView.classList.remove('hidden-view');
-        if(dailyScheduleView) dailyScheduleView.classList.add('hidden-view');
+        
+        if(logHistoryView) {
+            logHistoryView.classList.remove('hidden-view');
+            logHistoryView.classList.add('active-view');
+        }
+        if(dailyScheduleView) {
+            dailyScheduleView.classList.add('hidden-view');
+            dailyScheduleView.classList.remove('active-view');
+        }
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
     }
 }
