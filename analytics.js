@@ -1,10 +1,10 @@
 // ==========================================
-// analytics.js - MedLedger Analytics Engine (V1.0 Compatible)
+// analytics.js - MedLedger Analytics Engine
 // Handles Adherence Heatmap, Gamification Streaks, and Deep-Dives
 // ==========================================
 
 function calculateAdherence() {
-    if (typeof db === 'undefined' || !db) return; // Wait for app.js to initialize DB
+    if (typeof db === 'undefined' || !db) return; 
     
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
@@ -18,15 +18,18 @@ function calculateAdherence() {
             const today = new Date();
             today.setHours(0,0,0,0);
             
+            // The real-time clock for the "Pending vs Missed" logic
+            const realNow = new Date();
+            const currentHourStr = realNow.getHours().toString().padStart(2, '0') + ':' + realNow.getMinutes().toString().padStart(2, '0');
+            
             const heatmapRangeSelect = document.getElementById('heatmap-range');
-            const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 90);
+            const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 30);
             if (isNaN(range)) return; 
             
             let expectedWeeklyDoses = 0;
-            let expectedDailyDoses = 0; 
             let dailyMedDetails = {}; 
             const nonPrnMedIds = new Set();
-            const expectedMedsList = [];
+            const dailyExpectedBlueprint = [];
 
             // 1. Establish the Baseline Regimen
             meds.forEach(med => {
@@ -38,36 +41,36 @@ function calculateAdherence() {
                         expectedWeeklyDoses += timeCount; 
                     } else {
                         expectedWeeklyDoses += (timeCount * 7); 
-                        expectedDailyDoses += timeCount;
-                        for(let d=0; d<timeCount; d++) expectedMedsList.push(med.name);
+                        
+                        // Build the daily blueprint with exact times attached
+                        let times = med.times && med.times.length > 0 ? med.times : [null];
+                        times.forEach(t => {
+                            dailyExpectedBlueprint.push({ name: med.name, time: t });
+                        });
                     }
                 }
             });
 
-            // Initialize daily details array for the requested range
+            // 2. Initialize the timeline arrays for the requested range
             for (let i = 0; i < range; i++) {
                 const simDate = new Date(today);
                 simDate.setDate(today.getDate() - i);
                 const dateStr = simDate.toLocaleDateString();
-                dailyMedDetails[dateStr] = { expected: [...expectedMedsList], taken: [], missed: [], retroCount: 0 };
+                // We add a 'pending' array for the new 3rd state
+                dailyMedDetails[dateStr] = { expected: [...dailyExpectedBlueprint], taken: [], pending: [], missed: [], retroCount: 0 };
             }
 
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
             let actualTaken7Day = 0;
-            const logCountsByDate = {};
 
-            // 2. Tally the Logs
+            // 3. Tally the Logs
             logs.forEach(log => {
                 if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
                     const logDate = new Date(log.dateTaken);
                     const localDateStr = logDate.toLocaleDateString();
                     
-                    if (logDate >= sevenDaysAgo) {
-                        actualTaken7Day++;
-                    }
-
-                    logCountsByDate[localDateStr] = (logCountsByDate[localDateStr] || 0) + 1;
+                    if (logDate >= sevenDaysAgo) actualTaken7Day++;
                     
                     if (dailyMedDetails[localDateStr]) {
                         dailyMedDetails[localDateStr].taken.push(log.medName);
@@ -83,23 +86,43 @@ function calculateAdherence() {
                 }
             });
 
-            // 3. Process Deep Dive Arrays (What was missed?)
+            // 4. Process Deep Dive Arrays (The "Pending vs Missed" Logic)
             Object.keys(dailyMedDetails).forEach(dateStr => {
-                let takenCopy = [...dailyMedDetails[dateStr].taken];
-                dailyMedDetails[dateStr].expected.forEach(expMed => {
-                    const idx = takenCopy.indexOf(expMed);
-                    if (idx > -1) takenCopy.splice(idx, 1);
-                    else dailyMedDetails[dateStr].missed.push(expMed);
+                let details = dailyMedDetails[dateStr];
+                let takenCopy = [...details.taken];
+                const isToday = (dateStr === realNow.toLocaleDateString());
+
+                details.expected.forEach(exp => {
+                    const idx = takenCopy.indexOf(exp.name);
+                    if (idx > -1) {
+                        takenCopy.splice(idx, 1); // Checked off, remove from pool
+                    } else {
+                        // It was NOT taken. Let's find out why.
+                        if (isToday) {
+                            if (exp.time !== null && exp.time > currentHourStr) {
+                                // Specific time hasn't happened yet
+                                details.pending.push(exp.name);
+                            } else if (exp.time === null) {
+                                // Unscheduled daily med, due by end of day
+                                details.pending.push(exp.name); 
+                            } else {
+                                // The clock passed the target time
+                                details.missed.push(exp.name);
+                            }
+                        } else {
+                            // If it's a past day and wasn't taken, it's missed forever
+                            details.missed.push(exp.name);
+                        }
+                    }
                 });
             });
 
-            // 4. Update 7-Day Score Header
+            // 5. Update 7-Day Percentage Header
             const adherenceScore = document.getElementById('adherence-score');
             const adherenceSubtext = document.getElementById('adherence-subtext');
             
             if (expectedWeeklyDoses === 0) {
-                if (adherenceScore) adherenceScore.textContent = "--%";
-                if (adherenceScore) adherenceScore.style.color = "var(--text-primary)";
+                if (adherenceScore) { adherenceScore.textContent = "--%"; adherenceScore.style.color = "var(--text-primary)"; }
                 if (adherenceSubtext) adherenceSubtext.textContent = "No scheduled medications";
                 const grid = document.getElementById('heatmap-grid');
                 if (grid) grid.innerHTML = '';
@@ -116,7 +139,7 @@ function calculateAdherence() {
                 else adherenceScore.style.color = "var(--danger-color)"; 
             }
 
-            // 5. Streak Engine
+            // 6. Streak Engine Calculation
             let currentStreak = 0;
             let longestStreak = 0;
             let tempStreak = 0;
@@ -125,12 +148,11 @@ function calculateAdherence() {
                 const simDate = new Date(today);
                 simDate.setDate(today.getDate() - i);
                 const dateStr = simDate.toLocaleDateString();
+                const details = dailyMedDetails[dateStr];
                 
-                const exp = expectedDailyDoses;
-                const act = logCountsByDate[dateStr] || 0;
-                
-                if (exp > 0) {
-                    if (act >= exp) {
+                if (details && details.expected.length > 0) {
+                    // For streaks, a day is "perfect" if there are 0 missed meds
+                    if (details.missed.length === 0) {
                         tempStreak++;
                         if (tempStreak > longestStreak) longestStreak = tempStreak;
                     } else {
@@ -145,18 +167,18 @@ function calculateAdherence() {
             if (streakEl) streakEl.textContent = currentStreak;
             if (maxStreakEl) maxStreakEl.textContent = longestStreak;
 
-            // 6. GitHub-Style Grid Rendering
+            // 7. Render the Grid
             const grid = document.getElementById('heatmap-grid');
             const detailsPanel = document.getElementById('heatmap-details');
             if (!grid) return; 
             
             grid.innerHTML = ''; 
-            if(detailsPanel) detailsPanel.style.display = 'none'; // Reset details on render
+            if(detailsPanel) detailsPanel.style.display = 'none';
 
             const startSimDate = new Date(today);
             startSimDate.setDate(today.getDate() - (range - 1));
             
-            // Pad the grid so dates align with days of the week (Sun-Sat)
+            // Pads the start of the grid so rows always start on Sunday
             const startDayOfWeek = startSimDate.getDay();
             for(let p = 0; p < startDayOfWeek; p++) {
                 const spacer = document.createElement('div');
@@ -170,26 +192,28 @@ function calculateAdherence() {
                 const dateStr = targetDate.toLocaleDateString();
                 const displayStr = targetDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
                 
-                const count = logCountsByDate[dateStr] || 0;
-                const expectedForThisCell = expectedDailyDoses;
                 const details = dailyMedDetails[dateStr];
                 let level = 0; 
                 
-                if (expectedForThisCell > 0) {
-                    if (count >= expectedForThisCell) level = 2; 
-                    else if (count > 0) level = 1; 
-                } else if (count > 0 && expectedForThisCell === 0) {
-                    level = 1;
+                if (details && details.expected.length > 0) {
+                    // Level 2 (Green) is awarded if nothing has been officially "missed" yet
+                    if (details.missed.length === 0) level = 2; 
+                    else if (details.taken.length > 0) level = 1; // Missed some, took some
+                    else level = 0; // Missed some, took none
+                } else if (details && details.taken.length > 0) {
+                    level = 1; // User took an unscheduled pill on a day with 0 expected
                 }
 
                 const cell = document.createElement('div');
                 cell.className = `heatmap-cell level-${level}`;
                 
-                if (expectedForThisCell === 0 && count === 0) {
+                // Transparent border for days with zero activity scheduled
+                if (details.expected.length === 0 && details.taken.length === 0) {
                     cell.style.background = 'transparent';
                     cell.style.border = '1px solid var(--border-color)';
                 }
 
+                // Add the ghost opacity marker if necessary
                 if (details && details.retroCount > 0 && level > 0) {
                     cell.style.opacity = '0.35'; 
                 }
@@ -201,11 +225,14 @@ function calculateAdherence() {
                     
                     if (detailsPanel) {
                         let html = `<div style="font-weight: 600; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem;">${displayStr}</div>`;
-                        if (expectedForThisCell === 0 && count === 0) {
+                        if (details.expected.length === 0 && details.taken.length === 0) {
                             html += `<div style="color: var(--text-secondary);">No medications scheduled.</div>`;
                         } else {
                             if (details.taken.length > 0) {
                                 html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--success-color);">✔️ Taken:</span> ${[...new Set(details.taken)].join(', ')}</div>`;
+                            }
+                            if (details.pending.length > 0) {
+                                html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--accent-color);">⏳ Pending:</span> ${[...new Set(details.pending)].join(', ')}</div>`;
                             }
                             if (details.missed.length > 0) {
                                 html += `<div style="margin-bottom: 0.25rem;"><span style="color: var(--danger-color);">❌ Missed:</span> ${[...new Set(details.missed)].join(', ')}</div>`;
@@ -221,10 +248,6 @@ function calculateAdherence() {
                 
                 grid.appendChild(cell);
             }
-
-            // Auto-scroll the grid to the extreme right (latest day)
-            grid.scrollLeft = grid.scrollWidth;
-
         } catch (calcError) {
             console.error("Analytics Engine failed:", calcError);
         }
