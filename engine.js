@@ -44,27 +44,32 @@ function getTimesFromContainer(containerId) {
 }
 
 // --- 3. Maintenance: Force Refresh All Clinical Data ---
-async function refreshAllClinicalData() {
-    if (!confirm("This will overwrite existing clinical descriptions for all medications on this device. Continue?")) return;
+async function refreshAllClinicalData(isAuto = false) {
+    if (!isAuto && !confirm("This will overwrite existing clinical descriptions for all medications on this device. Continue?")) return;
     
-    if(typeof showVaultStatus === 'function') showVaultStatus("Updating all medications...", "var(--accent-color)");
+    if(typeof showVaultStatus === 'function') showVaultStatus("Updating clinical data for all meds...", "var(--accent-color)");
     
     const tx = db.transaction(["meds"], "readwrite");
     const medStore = tx.objectStore("meds");
     const meds = await new Promise(res => medStore.getAll().onsuccess = e => res(e.target.result));
 
     for (const med of meds) {
-        const freshData = await fetchDrugInfo(med.name);
-        med.description = freshData.description;
-        med.indications = freshData.indications;
-        medStore.put(med);
+        // Only fetch if description is currently empty or if forced manually
+        if (!isAuto || !med.description) {
+            const freshData = await fetchDrugInfo(med.name);
+            med.description = freshData.description;
+            med.indications = freshData.indications;
+            medStore.put(med);
+        }
     }
 
     tx.oncomplete = () => {
         loadChecklist();
-        if(typeof showVaultStatus === 'function') showVaultStatus("Database fully updated.", "var(--success-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Clinical data synchronized.", "var(--success-color)");
+        if (isAuto) localStorage.setItem('medledger_initial_fetch_done', 'true');
     };
 }
+window.refreshAllClinicalData = refreshAllClinicalData;
 
 // --- 4. Archiving Logic ---
 function archiveOldLogs() {
@@ -461,7 +466,7 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- 9. High-Fidelity Exports ---
+// --- 9. High-Fidelity Exports (Grouped by Date) ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
@@ -517,7 +522,7 @@ async function exportHTMLReport() {
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Report.html`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Clinical_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
 }
 
 async function exportCSV() {
@@ -544,6 +549,17 @@ document.addEventListener('DOMContentLoaded', () => {
         toggle.addEventListener('change', (e) => {
             localStorage.setItem('medledger_clinical_lookups', e.target.checked);
         });
+
+        // FORCE REFRESH FOR ALL MEDS ON FIRST LOAD (or if not done before)
+        if (toggle.checked && localStorage.getItem('medledger_initial_fetch_done') !== 'true') {
+            // Wait for DB to be initialized before running the force refresh
+            const checkDB = setInterval(() => {
+                if (typeof db !== 'undefined') {
+                    clearInterval(checkDB);
+                    refreshAllClinicalData(true);
+                }
+            }, 500);
+        }
     }
 });
 
