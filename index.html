@@ -390,8 +390,16 @@
                     <span class="med-dose">Tracks remaining pills and warns when inventory is low.</span>
                 </span>
             </label>
-        </div>
 
+            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
+                <input type="checkbox" id="toggle-lookup" class="med-checkbox">
+                <span class="med-details">
+                    <span class="med-name">Enable Clinical Lookups</span>
+                    <span class="med-dose">Auto-fetches drug info from OpenFDA/Wikidata when adding meds.</span>
+                </span>
+            </label>
+        </div>
+        
         <form id="vault-auth-form" class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;" onsubmit="event.preventDefault();">
             <h2>The Data Vault</h2>
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
