@@ -290,17 +290,51 @@ function loadChecklist() {
             return a.name.localeCompare(b.name);
         });
 
+        const todayDate = new Date();
+        todayDate.setHours(0,0,0,0);
+        const todayDayOfWeek = todayDate.getDay();
         const todayStr = new Date().toLocaleDateString();
 
+        let visibleMedsCount = 0;
+
         rawMeds.forEach(med => {
-            // PHASE 1: We display everything in the UI for now until the Phase 2 Date Filter is applied.
+            // =====================================
+            // PHASE 2: Date-Math Filter
+            // =====================================
+            let shouldRender = true;
+            
+            if (med.frequency === "Specific Days" && med.specificDays) {
+                if (!med.specificDays.includes(todayDayOfWeek)) shouldRender = false;
+            } 
+            else if (med.frequency === "Cyclic" && med.cycleStartDate && med.cycleOn && med.cycleOff) {
+                const cycleStart = new Date(med.cycleStartDate + 'T00:00:00');
+                cycleStart.setHours(0,0,0,0);
+                
+                if (todayDate < cycleStart) {
+                    shouldRender = false; // Cycle hasn't started
+                } else {
+                    const diffTime = Math.abs(todayDate - cycleStart);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    const cycleLength = parseInt(med.cycleOn) + parseInt(med.cycleOff);
+                    const dayInCycle = diffDays % cycleLength;
+                    
+                    // Hide it if we are currently in an "Off" phase
+                    if (dayInCycle >= parseInt(med.cycleOn)) shouldRender = false;
+                }
+            }
+
+            // Always render PRN (As Needed) pills, skip scheduled pills that are "Off" today
+            if (!shouldRender && med.frequency !== "As Needed") return;
+            
+            visibleMedsCount++;
+            // =====================================
+
             let times = med.times && med.times.length > 0 ? med.times : [null];
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
             
-            // Format dynamic badge text
             let badgeText = med.frequency;
             if (med.frequency === 'Specific Days' && med.specificDays) {
-                badgeText = `Specific Days (${med.specificDays.length})`;
+                badgeText = `Scheduled Today`;
             } else if (med.frequency === 'Cyclic' && med.cycleOn) {
                 badgeText = `Cycle: ${med.cycleOn} On / ${med.cycleOff} Off`;
             }
@@ -413,6 +447,11 @@ function loadChecklist() {
             card.innerHTML = headerHtml + checkboxesHtml + extrasHtml;
             checklistContainer.appendChild(card);
         });
+        
+        if (visibleMedsCount === 0) {
+            checklistContainer.innerHTML = '<p style="color: var(--text-secondary);">No medications scheduled for today.</p>';
+        }
+        
         if(typeof updateStatus === 'function') updateStatus();
     };
 }
