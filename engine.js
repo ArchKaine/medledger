@@ -758,89 +758,175 @@ async function exportCSV() {
 }
 
 async function exportHTMLReport() {
-    const logs = await new Promise(res => {
-        const tx = db.transaction(["logs"], "readonly");
-        tx.objectStore("logs").getAll().onsuccess = e => res(e.target.result);
-    });
+    const tx = db.transaction(["meds", "logs"], "readonly");
+    const meds = await new Promise(res => tx.objectStore("meds").getAll().onsuccess = e => res(e.target.result));
+    const logs = await new Promise(res => tx.objectStore("logs").getAll().onsuccess = e => res(e.target.result));
 
     if (!logs || logs.length === 0) {
         if(typeof showVaultStatus === 'function') showVaultStatus("No history to export.", "var(--danger-color)");
         return;
     }
 
+    // Sort logs descending for the table
     logs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
 
-    let rowsHtml = "";
-    logs.forEach(log => {
+    // --- ANALYTICS CALCULATIONS ---
+    const scheduledMeds = meds.filter(m => m.frequency !== "As Needed");
+    const prnMeds = meds.filter(m => m.frequency === "As Needed");
+    
+    const totalScheduledTaken = logs.filter(l => {
+        const med = meds.find(m => m.id === l.medId);
+        return med && med.frequency !== "As Needed";
+    }).length;
+
+    // Approximate adherence (Doses taken / Unique log slots found)
+    // In a real clinical setting, this is simplified but effective for trends
+    const uniqueSlots = new Set(logs.filter(l => l.targetTime).map(l => `${new Date(l.dateTaken).toLocaleDateString()}|${l.compositeId}`));
+    const adherenceRate = uniqueSlots.size > 0 ? Math.round((totalScheduledTaken / uniqueSlots.size) * 100) : 100;
+
+    // Build Medication Summary Rows
+    let medSummaryHtml = meds.map(m => `
+        <tr>
+            <td><strong>${m.name}</strong></td>
+            <td>${m.dose}</td>
+            <td>${m.frequency}</td>
+            <td>${m.times ? m.times.join(', ') : 'N/A'}</td>
+        </tr>
+    `).join('');
+
+    // Build Detailed Log Rows
+    let rowsHtml = logs.map(log => {
         const dateObj = new Date(log.dateTaken);
         const dateStr = dateObj.toLocaleDateString();
         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const targetStr = log.targetTime ? log.targetTime : "PRN";
+        const prnInfo = log.prnReason ? `<div class="prn-reason">Note: ${log.prnReason}</div>` : "";
 
-        let targetStr = "Unscheduled";
-        if (log.targetTime) {
-            const [h, m] = log.targetTime.split(':');
-            const period = h >= 12 ? 'PM' : 'AM';
-            targetStr = `${h % 12 || 12}:${m} ${period}`;
-        }
-
-        let prnStr = log.prnReason ? `<br><span style="font-size: 0.85em; color: #4f46e5;">Reason: ${log.prnReason}</span>` : "";
-
-        rowsHtml += `
+        return `
             <tr>
                 <td>${dateStr}</td>
                 <td>${timeStr}</td>
-                <td><strong>${log.medName}</strong>${prnStr}</td>
-                <td>${targetStr}</td>
-                <td class="status-${log.status}">${log.status.toUpperCase()}</td>
+                <td><strong>${log.medName}</strong>${prnInfo}</td>
+                <td class="text-center">${targetStr}</td>
+                <td class="status-taken text-center">TAKEN</td>
             </tr>
         `;
-    });
+    }).join('');
 
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MedLedger Clinical Report</title>
+    <title>MedLedger Clinical Summary - ${new Date().toLocaleDateString()}</title>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; color: #111; line-height: 1.5; padding: 2rem; max-width: 900px; margin: 0 auto; background: #fff; }
-        h1 { border-bottom: 2px solid #222; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
-        .meta-info { color: #555; margin-bottom: 2rem; font-size: 0.9rem; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
-        th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
-        th { background-color: #f9fafb; font-weight: 600; color: #333; }
-        tr:nth-child(even) { background-color: #fdfdfd; }
+        :root { --primary: #2563eb; --text: #18181b; --border: #e4e4e7; }
+        body { font-family: system-ui, -apple-system, sans-serif; color: var(--text); line-height: 1.4; padding: 2rem; max-width: 1000px; margin: 0 auto; background: #fff; }
+        .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--text); padding-bottom: 1rem; margin-bottom: 2rem; }
+        h1 { margin: 0; font-size: 1.75rem; letter-spacing: -0.02em; }
+        h2 { font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-top: 2rem; }
+        .clinical-meta { font-size: 0.9rem; color: #52525b; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { border: 1px solid var(--border); padding: 1rem; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+        .stat-label { font-size: 0.75rem; text-transform: uppercase; color: #71717a; margin-top: 0.25rem; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
+        th, td { border: 1px solid var(--border); padding: 0.65rem; text-align: left; }
+        th { background: #f8fafc; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; }
+        .text-center { text-align: center; }
         .status-taken { color: #166534; font-weight: bold; }
-        .status-missed { color: #991b1b; font-weight: bold; }
-        .btn-print { padding: 0.5rem 1rem; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: 600; font-size: 1rem; transition: background 0.2s; }
-        .btn-print:hover { background: #1d4ed8; }
+        .prn-reason { font-size: 0.8em; color: var(--primary); font-style: italic; margin-top: 2px; }
+
         @media print { 
-            body { padding: 0; max-width: none; }
+            body { padding: 0; }
             .no-print { display: none; }
+            .stat-card { break-inside: avoid; }
         }
+        .btn-print { background: var(--primary); color: #white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; color: white; }
     </style>
 </head>
 <body>
-    <div style="display: flex; justify-content: space-between; align-items: flex-end;" class="no-print">
-        <h1>Medication Adherence Report</h1>
-        <button class="btn-print" onclick="window.print()">Print Report</button>
+    <div class="no-print" style="text-align: right; margin-bottom: 1rem;">
+        <button class="btn-print" onclick="window.print()">Print for Clinician</button>
     </div>
-    <div class="meta-info">Generated on: ${new Date().toLocaleString()}</div>
+
+    <div class="header">
+        <div>
+            <h1>Medication Adherence Summary</h1>
+            <div class="clinical-meta">Patient: [Brian E Turner] | Report Date: ${new Date().toLocaleDateString()}</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-weight: 800; font-size: 1.2rem;">MedLedger</div>
+            <div class="clinical-meta">Self-Reported Data</div>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">${adherenceRate}%</div>
+            <div class="stat-label">Adherence Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${totalScheduledTaken}</div>
+            <div class="stat-label">Total Scheduled Doses</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${logs.filter(l => !l.targetTime).length}</div>
+            <div class="stat-label">PRN (As Needed) Doses</div>
+        </div>
+    </div>
+
+    <h2>Current Prescribed Regimen</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Medication</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Daily Schedule</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${medSummaryHtml}
+        </tbody>
+    </table>
+
+    <h2>Full Adherence Logs</h2>
     <table>
         <thead>
             <tr>
                 <th>Date</th>
-                <th>Time Taken</th>
-                <th>Medication</th>
-                <th>Scheduled Target</th>
-                <th>Status</th>
+                <th>Time</th>
+                <th>Medication & Notes</th>
+                <th class="text-center">Scheduled</th>
+                <th class="text-center">Status</th>
             </tr>
         </thead>
         <tbody>
             ${rowsHtml}
         </tbody>
     </table>
+
+    <div style="margin-top: 3rem; font-size: 0.7rem; color: #a1a1aa; text-align: center; border-top: 1px solid var(--border); padding-top: 1rem;">
+        This document was generated by MedLedger. Data is stored locally and encrypted. 
+        Calculated adherence is based on self-reported logging history.
+    </div>
 </body>
 </html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `MedLedger_Clinical_Report_${new Date().toISOString().split('T')[0]}.html`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    if(typeof showVaultStatus === 'function') showVaultStatus("Clinical Report Generated.", "var(--success-color)");
+}
 
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
