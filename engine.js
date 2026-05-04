@@ -108,6 +108,12 @@ async function handleAddMed(e) {
         }
     }
 
+    // Capture Complex Scheduling Data
+    const specificDaysChecked = Array.from(document.querySelectorAll('input[name="new-med-days"]:checked')).map(cb => parseInt(cb.value));
+    const cycleOn = parseInt(document.getElementById('new-med-cycle-on').value) || 0;
+    const cycleOff = parseInt(document.getElementById('new-med-cycle-off').value) || 0;
+    const cycleStart = document.getElementById('new-med-cycle-start').value;
+
     const newMed = {
         id: crypto.randomUUID(),
         name: nameInput,
@@ -116,7 +122,13 @@ async function handleAddMed(e) {
         times: timesArray,
         instructions: instructionsInput,
         sideEffects: sideEffectsInput,
-        inventory: AppSettings.inventory ? inventoryInput : ""
+        inventory: AppSettings.inventory ? inventoryInput : "",
+        
+        // Complex Scheduling Fields
+        specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
+        cycleOn: freqInput === 'Cyclic' ? cycleOn : null,
+        cycleOff: freqInput === 'Cyclic' ? cycleOff : null,
+        cycleStartDate: freqInput === 'Cyclic' ? cycleStart : null
     };
 
     const transaction = db.transaction(["meds"], "readwrite");
@@ -126,6 +138,11 @@ async function handleAddMed(e) {
         const addMedForm = document.getElementById('add-med-form');
         if (addMedForm) addMedForm.reset();
         document.getElementById('new-med-freq').value = 'Daily';
+        
+        // Reset complex UI toggles
+        document.getElementById('new-med-specific-days').style.display = 'none';
+        document.getElementById('new-med-cyclic').style.display = 'none';
+        
         document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
         loadChecklist();
         if (warnings.length > 0) {
@@ -156,6 +173,22 @@ window.openEditModal = function(id) {
                 editInventoryGroup.style.display = 'none';
             }
             
+            // Populate Complex UI Values
+            const specificDaysDiv = document.getElementById('edit-med-specific-days');
+            const cyclicDiv = document.getElementById('edit-med-cyclic');
+            if(specificDaysDiv) specificDaysDiv.style.display = (med.frequency === 'Specific Days') ? 'block' : 'none';
+            if(cyclicDiv) cyclicDiv.style.display = (med.frequency === 'Cyclic') ? 'flex' : 'none';
+
+            const dayCheckboxes = document.querySelectorAll('input[name="edit-med-days"]');
+            dayCheckboxes.forEach(cb => {
+                cb.checked = (med.specificDays && med.specificDays.includes(parseInt(cb.value)));
+            });
+
+            document.getElementById('edit-med-cycle-on').value = med.cycleOn || '';
+            document.getElementById('edit-med-cycle-off').value = med.cycleOff || '';
+            document.getElementById('edit-med-cycle-start').value = med.cycleStartDate || '';
+            
+            // Times rendering
             let timesToRender = med.times || [];
             if (!med.times && med.time) timesToRender = [med.time];
 
@@ -189,6 +222,12 @@ function saveEditedMed(e) {
     const inventory = AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
 
+    // Capture Complex Scheduling Data
+    const specificDaysChecked = Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value));
+    const cycleOn = parseInt(document.getElementById('edit-med-cycle-on').value) || 0;
+    const cycleOff = parseInt(document.getElementById('edit-med-cycle-off').value) || 0;
+    const cycleStart = document.getElementById('edit-med-cycle-start').value;
+
     const transaction = db.transaction(["meds"], "readwrite");
     transaction.objectStore("meds").put({ 
         id: id, 
@@ -198,7 +237,11 @@ function saveEditedMed(e) {
         times: timesArray,
         instructions: instructions,
         sideEffects: sideEffects,
-        inventory: inventory
+        inventory: inventory,
+        specificDays: freq === 'Specific Days' ? specificDaysChecked : [],
+        cycleOn: freq === 'Cyclic' ? cycleOn : null,
+        cycleOff: freq === 'Cyclic' ? cycleOff : null,
+        cycleStartDate: freq === 'Cyclic' ? cycleStart : null
     });
 
     transaction.oncomplete = () => {
@@ -240,7 +283,7 @@ function loadChecklist() {
         }
 
         rawMeds.sort((a, b) => {
-            const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5 };
+            const freqWeight = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5, "Specific Days": 6, "Cyclic": 7 };
             const weightA = freqWeight[a.frequency] || 99;
             const weightB = freqWeight[b.frequency] || 99;
             if (weightA !== weightB) return weightA - weightB;
@@ -250,9 +293,18 @@ function loadChecklist() {
         const todayStr = new Date().toLocaleDateString();
 
         rawMeds.forEach(med => {
+            // PHASE 1: We display everything in the UI for now until the Phase 2 Date Filter is applied.
             let times = med.times && med.times.length > 0 ? med.times : [null];
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
-            const freqHtml = med.frequency ? `<span class="${freqClass}">${med.frequency}</span>` : '';
+            
+            // Format dynamic badge text
+            let badgeText = med.frequency;
+            if (med.frequency === 'Specific Days' && med.specificDays) {
+                badgeText = `Specific Days (${med.specificDays.length})`;
+            } else if (med.frequency === 'Cyclic' && med.cycleOn) {
+                badgeText = `Cycle: ${med.cycleOn} On / ${med.cycleOff} Off`;
+            }
+            const freqHtml = med.frequency ? `<span class="${freqClass}">${badgeText}</span>` : '';
 
             const safeMedName = med.name.replace(/"/g, '&quot;');
 
