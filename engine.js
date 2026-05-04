@@ -3,7 +3,7 @@
 // Checklist, Clinical Data, Refills, and High-Fidelity Reports
 // ==========================================
 
-// --- Clinical Data Fetcher (Integrated) ---
+// --- Clinical Data Fetcher (OpenFDA + Wikidata) ---
 async function fetchDrugInfo(drugName) {
     const info = { description: "", indications: "" };
     const cleanName = drugName.toLowerCase().trim();
@@ -12,8 +12,8 @@ async function fetchDrugInfo(drugName) {
         const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${cleanName}&languages=en&props=descriptions&format=json&origin=*`;
         const wikiRes = await fetch(wikiUrl);
         if (wikiRes.ok) {
-            const wikiData = await wikiRes.json();
-            const entities = wikiData.entities;
+            const data = await wikiRes.json();
+            const entities = data.entities;
             const entityId = Object.keys(entities)[0];
             if (entityId !== "-1") {
                 info.description = entities[entityId].descriptions?.en?.value || "";
@@ -201,6 +201,26 @@ window.openEditModal = function(id) {
                 if(container.lastElementChild) container.lastElementChild.value = t;
             });
         }
+
+        // --- NEW: CLINICAL INFO DISPLAY IN EDIT MODAL ---
+        let clinicalPanel = document.getElementById('modal-clinical-info');
+        if (!clinicalPanel) {
+            clinicalPanel = document.createElement('div');
+            clinicalPanel.id = 'modal-clinical-info';
+            clinicalPanel.style.marginTop = '1.5rem';
+            clinicalPanel.style.padding = '1rem';
+            clinicalPanel.style.background = 'var(--bg-primary)';
+            clinicalPanel.style.border = '1px solid var(--border-color)';
+            clinicalPanel.style.borderRadius = '6px';
+            document.querySelector('#edit-med-modal form').appendChild(clinicalPanel);
+        }
+        clinicalPanel.innerHTML = (med.description || med.indications) ? `
+            <div style="font-size: 0.8rem; line-height: 1.5;">
+                <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color); font-size: 0.75rem; text-transform: uppercase;">Drug Reference (Fetched Data)</h4>
+                ${med.description ? `<p style="margin-bottom: 0.5rem;"><strong>Summary:</strong> ${med.description}</p>` : ''}
+                ${med.indications ? `<p style="margin: 0;"><strong>Primary Indications:</strong> ${med.indications}</p>` : ''}
+            </div>` : '';
+
         document.getElementById('edit-med-modal')?.showModal();
     };
 };
@@ -239,8 +259,9 @@ async function saveEditedMed(e) {
 
 function deleteMedication() {
     if (!AppSettings.noBabysitter && !confirm("Remove medication?")) return;
+    const id = document.getElementById('edit-med-id').value;
     const tx = db.transaction(["meds"], "readwrite");
-    tx.objectStore("meds").delete(document.getElementById('edit-med-id').value);
+    tx.objectStore("meds").delete(id);
     tx.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); };
 }
 
@@ -260,7 +281,6 @@ window.refillMed = function(id, amount) {
 function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container || typeof db === 'undefined') return;
-    
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
     const logReq = tx.objectStore("logs").getAll();
@@ -292,13 +312,12 @@ function loadChecklist() {
                     if ((diffDays % cycleLen) >= parseInt(med.cycleOn)) shouldRender = false;
                 }
             }
-
             if (!shouldRender && med.frequency !== "As Needed") return;
             visibleCount++;
 
             const isLow = AppSettings.inventory && parseInt(med.inventory) <= 10;
             const card = document.createElement('div');
-            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1rem'; card.style.overflow = 'hidden';
+            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
 
             let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
             (med.times || [null]).forEach(t => {
@@ -307,9 +326,9 @@ function loadChecklist() {
                 timesHtml += `
                     <label class="med-item ${taken ? 'completed' : ''}" style="padding: 0.5rem 1rem;">
                         <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
-                        <span class="med-details"><span>${t ? `@ ${t}` : 'Log Dosage'}</span></span>
+                        <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
                     </label>
-                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.5rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
+                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
                 `;
             });
             timesHtml += '</div>';
@@ -329,16 +348,17 @@ function loadChecklist() {
                     <button class="icon-btn" onclick="openEditModal('${med.id}')" type="button">✏️</button>
                 </div>
                 ${timesHtml}
-                ${(med.instructions || med.sideEffects || med.description) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px;">
+                ${(med.instructions || med.sideEffects || med.description || med.indications) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px;">
                     ${med.instructions ? `<div><i>${med.instructions}</i></div>` : ''}
                     ${med.sideEffects ? `<div>ℹ️ ${med.sideEffects}</div>` : ''}
-                    ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Clinical Info:</strong> ${med.description}</div>` : ''}
+                    ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
+                    ${med.indications ? `<div style="font-size: 0.75rem; opacity: 0.8;"><strong>Use:</strong> ${med.indications}</div>` : ''}
                 </div>` : ''}
                 ${refillBanner}
             `;
             container.appendChild(card);
         });
-        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary);">Clear for today.</p>';
+        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary);">Regimen complete.</p>';
         if(typeof updateStatus === 'function') updateStatus();
     };
 }
@@ -347,7 +367,8 @@ function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
-    const timestamp = document.getElementById('manual-time')?.value ? new Date(document.getElementById('manual-time').value).toISOString() : new Date().toISOString();
+    const manualInput = document.getElementById('manual-time')?.value;
+    const timestamp = manualInput ? new Date(manualInput).toISOString() : new Date().toISOString();
 
     checked.forEach(cb => {
         const [id, target] = cb.value.split('|');
@@ -379,21 +400,14 @@ function refreshHistory() {
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
         const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
-        const tracker = {};
-        logs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
-        
-        list.innerHTML = logs.slice(0, 15).map(l => {
-            const isDup = l.targetTime && tracker[new Date(l.dateTaken).toLocaleDateString() + '|' + l.compositeId] > 1;
-            return `
+        list.innerHTML = logs.slice(0, 15).map(l => `
             <li class="history-item">
                 <div class="history-info">
-                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px;">DUP</span>' : ''}
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
+                    <strong>${l.medName}</strong> <span style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</span>
                     ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
-            </li>`;
-        }).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
+            </li>`).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
     };
 }
 
@@ -415,7 +429,7 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- High-Fidelity Exports (Grouped by Date) ---
+// --- HIGH-FIDELITY CLINICAL EXPORTS ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
@@ -443,7 +457,7 @@ async function exportHTMLReport() {
 
     const refillHtml = lowInvMeds.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInvMeds.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
 
-    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
+    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
         .report-paper { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; border-top: 8px solid #2563eb; }
         .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
@@ -471,7 +485,7 @@ async function exportHTMLReport() {
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
 
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Clinical_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
 }
 
 async function exportCSV() {
