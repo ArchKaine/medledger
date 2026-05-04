@@ -1,404 +1,340 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#18181b">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; connect-src 'self' https://www.googleapis.com; style-src 'self' 'unsafe-inline'; frame-src 'self' https://accounts.google.com; img-src 'self' data:; object-src 'none'; base-uri 'self';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MedLedger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <title>MedLedger</title>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSync()"></script>
 </head>
 <body>
     <header class="app-header">
-        <div class="header-content">
+        <div class="header-left">
             <h1>MedLedger</h1>
-            <div class="header-controls">
-                <div id="status-bar" class="status-indicator">Initializing...</div>
-                
-                <button id="help-toggle" aria-label="Help Guide" class="icon-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                </button>
-
-                <button id="settings-toggle" aria-label="Settings" class="icon-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                </button>
-
-                <button id="theme-toggle" aria-label="Toggle Dark Mode" class="icon-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                </button>
-            </div>
+            <div id="status-bar" class="status-indicator">Initializing...</div>
+        </div>
+        <div class="header-right">
+            <button id="help-toggle" class="icon-btn" aria-label="Help & Manual">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </button>
+            <button id="settings-toggle" class="icon-btn" aria-label="Settings">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+            <button id="theme-toggle" class="icon-btn" aria-label="Toggle Theme"></button>
         </div>
     </header>
 
-    <main id="app">
-        <section id="med-config" class="card">
-            <h2>Add Medication</h2>
-            <form id="add-med-form">
-                <div class="inline-form" style="margin-bottom: 0.5rem; align-items: flex-start;">
-                    <input type="text" id="new-med-name" placeholder="Medication (e.g., Lisinopril)" required style="flex: 1;">
-                    <input type="text" id="new-med-dose" placeholder="Dosage (e.g., 10mg)" required style="flex: 1;">
-                    <select id="new-med-freq" required style="flex: 1;">
-                        <option value="Daily" selected>Daily</option>
-                        <option value="As Needed">As Needed (PRN)</option>
-                        <option value="Morning">Morning</option>
-                        <option value="Night">Night</option>
-                        <option value="Weekly">Weekly</option>
-                    </select>
-                    
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; flex: 1;">
-                        <div id="new-med-times-container" style="display: flex; flex-direction: column; gap: 0.25rem;">
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-today">Regimen</button>
+        <button class="tab-btn" id="tab-history">History & Analytics</button>
+    </div>
+
+    <main class="container">
+        <div id="daily-schedule" class="view-section">
+            <div class="action-bar">
+                <input type="datetime-local" id="manual-time" class="form-control" style="width: auto; flex: 1;" title="Leave blank to log exactly right now">
+                <button class="btn btn-secondary" id="btn-submit-selected" title="Logs only the checked items">Log Selected</button>
+                <button class="btn btn-primary" id="btn-submit-all" title="Logs every item currently shown">Log All</button>
+            </div>
+            
+            <div id="checklist-container">
+                </div>
+            
+            <div class="card" style="margin-top: 2rem; border-top: 3px solid var(--primary-color);">
+                <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem; vertical-align: text-bottom;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Add New Medication</h3>
+                <form id="add-med-form" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label>Medication Name *</label>
+                        <input type="text" id="new-med-name" class="form-control" required placeholder="e.g. Lisinopril">
+                    </div>
+                    <div class="form-group">
+                        <label>Dosage *</label>
+                        <input type="text" id="new-med-dose" class="form-control" required placeholder="e.g. 10mg">
+                    </div>
+                    <div class="form-group">
+                        <label>Frequency</label>
+                        <select id="new-med-freq" class="form-control">
+                            <option value="Morning">Morning</option>
+                            <option value="Daily" selected>Daily</option>
+                            <option value="Night">Night</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="As Needed">As Needed (PRN)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Times <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: normal;">(Leave blank if unscheduled)</span></label>
+                        <div id="new-med-times-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
                             <input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
                         </div>
-                        <button type="button" onclick="addTimeField('new-med-times-container')" class="btn btn-secondary" style="padding: 0.25rem; font-size: 0.8rem;">+ Add Time</button>
+                        <button type="button" class="btn btn-secondary" onclick="addTimeField('new-med-times-container')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Another Time</button>
                     </div>
-                </div>
-                <div class="inline-form" style="margin-bottom: 0.5rem;">
-                    <input type="text" id="new-med-instructions" placeholder="Bottle Instructions (e.g., Take with food)" style="flex: 2;">
-                    <input type="text" id="new-med-side-effects" placeholder="Side Effects to Watch" style="flex: 2;">
-                    <input type="number" id="new-med-inventory" placeholder="Pill Count" min="0" style="flex: 1; display: none;">
-                </div>
-                <div class="action-group" style="justify-content: flex-end;">
-                    <button type="submit" class="btn btn-secondary">Add to Regimen</button>
-                </div>
-            </form>
-        </section>
-
-        <div class="tab-navigation">
-            <button id="tab-today" class="tab-btn active">Today's Regimen</button>
-            <button id="tab-history" class="tab-btn">History Log</button>
+                    <div class="form-group" id="new-med-inventory" style="display:none;">
+                        <label>Current Inventory (Pill Count)</label>
+                        <input type="number" id="new-med-inventory-input" class="form-control" placeholder="e.g. 30">
+                    </div>
+                    <div class="form-group">
+                        <label>Instructions <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: normal;">(Optional)</span></label>
+                        <input type="text" id="new-med-instructions" class="form-control" placeholder="e.g. Take with food">
+                    </div>
+                    <div class="form-group">
+                        <label>Side Effects / Notes <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: normal;">(Optional)</span></label>
+                        <input type="text" id="new-med-side-effects" class="form-control" placeholder="e.g. May cause drowsiness">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Add Medication</button>
+                </form>
+            </div>
         </div>
 
-        <section id="daily-schedule" class="card tab-view active-view">
-            <form id="med-form">
-                <div id="checklist-container" class="checklist">
+        <div id="log-history" class="view-section hidden-view">
+            <div class="card adherence-card" style="margin-bottom: 2rem;">
+                <div class="adherence-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
+                    <div>
+                        <h2 id="adherence-score" style="margin:0; font-size: 2.2rem; font-weight: 800;">--%</h2>
+                        <p id="adherence-subtext" style="margin:0; font-size: 0.85rem; color: var(--text-secondary);">Calculating...</p>
                     </div>
-                
-                <div class="datetime-override">
-                    <label for="manual-time" class="override-label">Time Taken (Leave blank for 'Now'):</label>
-                    <input type="datetime-local" id="manual-time">
+                    
+                    <div class="streak-stats" style="text-align: right; font-size: 0.85rem; color: var(--text-secondary);">
+                        <div style="margin-bottom: 0.25rem;">🔥 Current Streak: <strong id="current-streak" style="color: var(--text-primary);">0</strong></div>
+                        <div>🏆 Best Streak: <strong id="longest-streak" style="color: var(--text-primary);">0</strong></div>
+                    </div>
                 </div>
 
-                <div class="action-group">
-                    <button type="button" id="btn-submit-selected" class="btn btn-secondary">Log Selected</button>
-                    <button type="button" id="btn-submit-all" class="btn btn-primary">Log All Medications</button>
-                </div>
-            </form>
-        </section>
+                <select id="heatmap-range" class="form-control" style="margin-bottom: 1rem; padding: 0.4rem; font-size: 0.9rem;">
+                    <option value="30">Last 30 Days</option>
+                    <option value="90" selected>Last 90 Days</option>
+                </select>
 
-        <section id="log-history" class="card tab-view hidden-view">
-            <div id="adherence-dashboard" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center;">
-                <h3 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">7-Day Adherence</h3>
-                <div id="adherence-score" style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); margin-top: 0.5rem;">--%</div>
-                <div id="adherence-subtext" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Calculating...</div>
+                <div id="heatmap-grid"></div>
+
+                <div id="heatmap-details" style="display:none; padding: 1rem; margin-top: 1rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px;">
+                    </div>
             </div>
 
-            <div id="heatmap-container" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <h3 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Consistency Grid</h3>
-                    <select id="heatmap-range" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; border-color: var(--border-color);">
-                        <option value="7">1 Week</option>
-                        <option value="30" selected>1 Month</option>
-                        <option value="90">3 Months</option>
-                    </select>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin:0;">Recent Logs</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="btn-export-csv" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Export CSV</button>
+                        <button id="btn-export-html" class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Print Report</button>
+                    </div>
                 </div>
-                <div id="heatmap-grid" class="heatmap-grid"></div>
-                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-secondary);">
-                    <span>Missed</span>
-                    <div class="heatmap-cell level-0" style="width: 12px; height: 12px;"></div>
-                    <div class="heatmap-cell level-1" style="width: 12px; height: 12px;"></div>
-                    <div class="heatmap-cell level-2" style="width: 12px; height: 12px;"></div>
-                    <span>Perfect</span>
-                </div>
+                <ul id="history-list" class="history-list">
+                    </ul>
             </div>
-            
-            <ul id="history-list" class="history-feed">
-                </ul>
-        </section>
+        </div>
     </main>
 
-    <dialog id="help-modal" class="card modal" style="max-height: 85vh; overflow-y: auto; max-width: 500px;">
-        <h2>User Guide & Warnings</h2>
-        
-        <div class="help-section">
-            <h3 style="color: var(--danger-color);">⚠️ Critical Warnings</h3>
-            <p>Because this app respects your privacy, your data lives <b>only on your device</b>. There is no central server.</p>
-            <ul>
-                <li><b>No Password Recovery:</b> If you set an encryption password for your Data Vault and forget it, your exported backups and cloud syncs are permanently unreadable. <i>There is no "Forgot Password" button because the developer never sees your password.</i></li>
-                <li><b>Browser Data:</b> Your active schedule lives inside your browser's local storage. If you clear your browser's site data/cookies without making a backup first, your ledger will be erased. Always Backup to Device or Push to Cloud first!</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>📱 1. Installation & Offline Use</h3>
-            <p>MedLedger is a Progressive Web App (PWA). You don't download it from an app store.</p>
-            <ul>
-                <li><b>iOS / Safari:</b> Tap the <b>Share</b> button at the bottom of the screen and select <b>"Add to Home Screen"</b>.</li>
-                <li><b>Android / Chrome:</b> Tap the <b>Menu (⋮)</b> at the top right and select <b>"Install App"</b> or <b>"Add to Home screen"</b>.</li>
-                <li>Once installed, the app will run entirely offline and can trigger local push notifications.</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>💊 2. Adding Medications</h3>
-            <p>Use the "Add Medication" box at the top of the screen to build your list.</p>
-            <ul>
-                <li>Type the <b>Name</b> and <b>Dosage</b> (like 10mg).</li>
-                <li><b>Times:</b> Tap the clock box to set exactly when you take it. If a pill requires morning, noon, and night doses, click <b>"+ Add Time"</b> to create three separate timers for that one pill.</li>
-                <li><b>Instructions & Side Effects:</b> Type any special rules or symptoms to watch out for. These will display permanently under the pill's name.</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>✅ 3. Logging Your Daily Regimen</h3>
-            <p>The "Today's Regimen" list shows everything due today. It resets automatically at midnight.</p>
-            <ul>
-                <li>Tap the square checkbox next to a time slot to select it.</li>
-                <li>Tap <b>Log Selected</b> to record only what you checked, or <b>Log All</b> to instantly record the entire day's list.</li>
-                <li><b>Forgot to log earlier?</b> If you took a pill hours ago but forgot to tap it, use the "Time Taken" calendar box to set the <i>actual</i> time you took it before clicking Log. Leave it blank if you are taking it right now.</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>✏️ 4. Fixing Mistakes & History</h3>
-            <p>Your history and routines are fully editable.</p>
-            <ul>
-                <li><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on a medication card to change its times, instructions, side effects, or dose.</li>
-                <li><b>Delete a Pill:</b> Tap the Pencil Icon, then tap the red <b>Delete</b> button to remove it from your routine forever.</li>
-                <li><b>Undo a Log:</b> Accidentally checked something off? Navigate to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will instantly un-check the box in today's regimen and refund the pill to your inventory.</li>
-                <li><b>Duplicate Warnings:</b> If you accidentally double-log a scheduled pill, the History tab will flag it with a red <b>Duplicate</b> badge. Delete the extra entry to fix your records and refund your pill inventory.</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>⚙️ 5. Settings & Customization</h3>
-            <p>Tap the <b>Gear Icon</b> at the top of the screen to access Settings.</p>
-            <ul>
-                <li><b>Enable Local Reminders:</b> Turn this on to let your phone send you a push notification when a pill is due.</li>
-                <li><b>Expert Mode:</b> Turns on "Double-Clicking". You can double-tap any item on the checklist to log it instantly.</li>
-                <li><b>Enable Pill Tracker:</b> Opt-in to track your physical pill inventory and get warnings when running low.</li>
-                <li><b>Data Management:</b> Move old history logs to cold storage to keep the app fast. Restore them anytime you need to generate a complete report.</li>
-                <li><b>No Babysitter Mode:</b> Turns off the "Are you sure?" pop-ups when deleting history logs.</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>🔐 6. Backups & The Data Vault</h3>
-            <p>Your data is completely private. You hold the keys.</p>
-            <ul>
-                <li><b>Session Unlock:</b> Type your password <b>once</b> to unlock the vault for your current session. A green indicator will appear. You can now Push, Pull, or Backup multiple times without re-typing your password.</li>
-                <li><b>Locking the Vault:</b> The vault automatically secures itself when you close the browser tab. To secure it manually before walking away, tap the <b>Lock Now</b> button.</li>
-                <li><b>Cloud Sync:</b> Click "Sign in to Google" to authorize the app. Once your vault is unlocked, use the Push and Pull buttons to securely sync your encrypted data to a hidden folder in your Drive.</li>
-                <li><b>Clinician Reports:</b> Use the export buttons to download a printable HTML file or spreadsheet of your adherence history.</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>📊 7. Tracking Your Progress</h3>
-            <p>The History tab features built-in analytics to monitor your consistency.</p>
-            <ul>
-                <li><b>7-Day Adherence:</b> A quick percentage score showing how precisely you have followed your scheduled regimen over the last week.</li>
-                <li><b>Consistency Grid (Heatmap):</b> A visual calendar of your habits. A <b>Green</b> square means you took all scheduled doses that day, <b>Yellow</b> means partial completion, and <b>Gray</b> means missed doses. Use the dropdown menu to view your 7-day, 30-day, or 90-day trends.</li>
-                <li><b>Ghost Logs (Faded Squares):</b> If a square is green but faded/transparent, it means you completed the day, but one or more doses were logged retroactively (using the Time Taken box to backdate them hours later). This helps distinguish real-time tracking from fuzzy memory fills.</li>
-            </ul>
-        </div>
-
-        <div class="action-group modal-actions" style="margin-top: 2rem; justify-content: space-between; align-items: center;">
-            <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 1rem;">
-                <a href="privacy.html" style="color: var(--accent-color); text-decoration: none;">Privacy Policy</a>
-                <a href="terms.html" style="color: var(--accent-color); text-decoration: none;">Terms of Service</a>
-            </div>
-            <button type="button" id="btn-close-help" class="btn btn-primary">Got it</button>
+    <dialog id="edit-med-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;">Edit Medication</h3>
+            <form id="edit-med-form">
+                <input type="hidden" id="edit-med-id">
+                <div class="form-group">
+                    <label>Medication Name</label>
+                    <input type="text" id="edit-med-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Dosage</label>
+                    <input type="text" id="edit-med-dose" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="edit-med-freq" class="form-control">
+                        <option value="Morning">Morning</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Night">Night</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="As Needed">As Needed (PRN)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target Times</label>
+                    <div id="edit-med-times-container" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addTimeField('edit-med-times-container')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Another Time</button>
+                </div>
+                <div class="form-group" id="edit-inventory-group" style="display:none;">
+                    <label>Current Inventory</label>
+                    <input type="number" id="edit-med-inventory" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Instructions</label>
+                    <input type="text" id="edit-med-instructions" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Side Effects / Notes</label>
+                    <input type="text" id="edit-med-side-effects" class="form-control">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" id="btn-cancel-edit" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+                </div>
+                <button type="button" id="btn-delete-med" class="btn btn-danger" style="width: 100%; margin-top: 1rem;">Delete Medication</button>
+            </form>
         </div>
     </dialog>
 
-    <dialog id="edit-med-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
-        <h2>Edit Medication</h2>
-        <form id="edit-med-form" class="edit-form">
-            <input type="hidden" id="edit-med-id">
+    <dialog id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">System Parameters</h2>
             
-            <div class="form-group">
-                <label class="form-label" for="edit-med-name">Name</label>
-                <input type="text" id="edit-med-name" required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label" for="edit-med-dose">Dosage</label>
-                <input type="text" id="edit-med-dose" required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label" for="edit-med-freq">Frequency</label>
-                <select id="edit-med-freq" required>
-                    <option value="Daily">Daily</option>
-                    <option value="As Needed">As Needed (PRN)</option>
-                    <option value="Morning">Morning</option>
-                    <option value="Night">Night</option>
-                    <option value="Weekly">Weekly</option>
-                </select>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label class="med-item" style="padding: 1rem; margin: 0; background: var(--bg-primary);">
+                    <input type="checkbox" id="toggle-babysitter" class="med-checkbox">
+                    <span class="med-details" style="width: 100%;">
+                        <span class="med-name">Disable Guardrails</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-top: 0.25rem;">Removes "Are you sure?" confirmation dialogs when deleting medications or logs.</span>
+                    </span>
+                </label>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Reminder Times</label>
-                <div id="edit-med-times-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <label class="med-item" style="padding: 1rem; margin: 0; background: var(--bg-primary);">
+                    <input type="checkbox" id="toggle-expert" class="med-checkbox">
+                    <span class="med-details" style="width: 100%;">
+                        <span class="med-name">Enable Expert Mode</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-top: 0.25rem;">Enables double-click instant logging on list items and Ctrl+Enter keyboard shortcuts.</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="med-item" style="padding: 1rem; margin: 0; background: var(--bg-primary);">
+                    <input type="checkbox" id="toggle-reminders" class="med-checkbox">
+                    <span class="med-details" style="width: 100%;">
+                        <span class="med-name">Local Push Notifications</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-top: 0.25rem;">Allow browser to send desktop/mobile push alerts at scheduled target times.</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="med-item" style="padding: 1rem; margin: 0; background: var(--bg-primary);">
+                    <input type="checkbox" id="toggle-inventory" class="med-checkbox">
+                    <span class="med-details" style="width: 100%;">
+                        <span class="med-name">Inventory Tracking</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-top: 0.25rem;">Enable tracking pill counts and low-supply warnings.</span>
+                    </span>
+                </label>
+            </div>
+
+            <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h3 style="margin-top: 0; color: var(--text-primary); font-size: 1.1rem;">Data Archival</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">Move old history logs to cold storage to improve app load times.</p>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <input type="number" id="archive-days" class="form-control" value="90" style="width: 80px;" title="Days to keep active">
+                    <button id="btn-archive-logs" class="btn btn-secondary" style="flex: 1;">Archive Older Logs</button>
                 </div>
-                <button type="button" onclick="addTimeField('edit-med-times-container')" class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.8rem; align-self: flex-start;">+ Add Another Time</button>
+                <button id="btn-restore-archives" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; background: var(--bg-primary);">Restore Archives to Memory</button>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="edit-med-instructions">Bottle Instructions</label>
-                <input type="text" id="edit-med-instructions" placeholder="e.g., Do not crush" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label" for="edit-med-side-effects">Side Effects to Watch</label>
-                <input type="text" id="edit-med-side-effects" placeholder="e.g., Drowsiness, Nausea" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+            <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h3 style="margin-top: 0; color: var(--text-primary); font-size: 1.1rem;">Encrypted Vault & Cloud Sync</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">Your data never leaves your device unencrypted. Set a master password to encrypt your backups.</p>
+                
+                <div class="form-group" style="position: relative;">
+                    <input type="password" id="vault-password" class="form-control" placeholder="Master Encryption Password" style="padding-right: 40px;">
+                    <button id="btn-peek-password" type="button" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0;">
+                        <svg id="peek-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                </div>
+                <div id="vault-status" style="font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500;"></div>
+
+                <div id="session-lock-controls" style="display: none; justify-content: flex-end; margin-bottom: 1rem;">
+                    <button id="btn-lock-vault" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; border-color: var(--danger-color); color: var(--danger-color);">Lock Vault Session</button>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button id="btn-export-vault" class="btn btn-secondary" style="flex: 1;">Download Vault</button>
+                    <label class="btn btn-secondary" style="flex: 1; text-align: center; margin: 0; cursor: pointer;">
+                        Import Vault
+                        <input type="file" id="import-vault-file" style="display: none;" accept=".medvault">
+                    </label>
+                </div>
+
+                <div style="border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; background: var(--bg-primary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="margin: 0; font-size: 1rem; color: #10b981;">Google Drive Sync</h4>
+                        <button id="btn-gdrive-login" class="btn btn-primary" onclick="loginGoogleDrive()" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">Connect Account</button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Sync your encrypted .medvault file directly to your private Google Drive AppData folder.</p>
+                    
+                    <div id="cloud-sync-controls" style="display: none; gap: 0.5rem;">
+                        <button id="btn-cloud-push" class="btn btn-secondary" style="flex: 1; background: #064e3b; color: #34d399; border-color: #059669;">Push to Cloud</button>
+                        <button id="btn-cloud-pull" class="btn btn-secondary" style="flex: 1; background: #1e3a8a; color: #60a5fa; border-color: #2563eb;">Pull from Cloud</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group" id="edit-inventory-group" style="display: none;">
-                <label class="form-label" for="edit-med-inventory">Current Pill Count</label>
-                <input type="number" id="edit-med-inventory" placeholder="Remaining pills" min="0" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-            </div>
-
-            <div class="action-group modal-actions">
-                <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
-                <button type="button" id="btn-delete-med" class="btn btn-danger">Delete</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
-        </form>
+            <button type="button" id="btn-close-settings" class="btn btn-primary" style="width: 100%; margin-top: 2rem;">Close Settings</button>
+        </div>
     </dialog>
 
-    <dialog id="settings-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
-        <h2>System Settings</h2>
-        
-        <div class="checklist" style="margin-bottom: 2rem;">
-            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
-                <input type="checkbox" id="toggle-babysitter" class="med-checkbox">
-                <span class="med-details">
-                    <span class="med-name">No Babysitter Mode</span>
-                    <span class="med-dose">Disables all confirmation dialogs for deletions.</span>
-                </span>
-            </label>
+    <dialog id="help-modal" class="modal">
+        <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
+            <h2 style="margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">MedLedger Manual</h2>
             
-            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
-                <input type="checkbox" id="toggle-expert" class="med-checkbox">
-                <span class="med-details">
-                    <span class="med-name">Expert Mode</span>
-                    <span class="med-dose">Double-click to instantly log a med. Ctrl+Enter to batch log.</span>
-                </span>
-            </label>
-
-            <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
-                <input type="checkbox" id="toggle-reminders" class="med-checkbox">
-                <span class="med-details">
-                    <span class="med-name">Enable Local Reminders</span>
-                    <span class="med-dose">Triggers native push notifications for scheduled items.</span>
-                </span>
-            </label>
-
-            <label class="med-item" style="cursor:pointer;">
-                <input type="checkbox" id="toggle-inventory" class="med-checkbox">
-                <span class="med-details">
-                    <span class="med-name">Enable Pill Tracker</span>
-                    <span class="med-dose">Tracks remaining pills and warns when inventory is low.</span>
-                </span>
-            </label>
-        </div>
-
-        <form id="vault-auth-form" class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;" onsubmit="event.preventDefault();">
-            <h2>The Data Vault</h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                Set a password to encrypt data locally before syncing or exporting.
-            </p>
-            
-            <input type="text" name="username" autocomplete="username" value="MedLedger_Vault" style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;" tabindex="-1">
-            
-            <div class="form-group vault-input-wrapper">
-                <input type="password" id="vault-password" name="password" placeholder="Encryption Password" autocomplete="current-password">
-                <button type="button" id="btn-peek-password" class="icon-btn peek-btn" aria-label="Peek at Password">
-                    <svg id="peek-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                </button>
-            </div>
-            
-            <div id="session-lock-controls" style="display: none; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 4px; border: 1px solid var(--success-color);">
-                <span style="font-size: 0.85rem; color: var(--success-color); display: flex; align-items: center; gap: 0.5rem;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                    Vault Unlocked
-                </span>
-                <button type="button" id="btn-lock-vault" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Lock Now</button>
+            <div class="help-section">
+                <h3>📝 1. Logging Medications</h3>
+                <p>By default, checking a box marks it as taken <b>at the exact moment you click "Log"</b>. The checklist groups identical items by scheduled time.</p>
+                <ul>
+                    <li><b>Batch Logging:</b> Check multiple boxes and hit "Log Selected" to log them all at once.</li>
+                    <li><b>Time Machine:</b> If you forgot to log a pill earlier, use the date/time picker above the checklist <b>before</b> clicking log. This backdates the entry.</li>
+                </ul>
             </div>
 
-            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
-                <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    Cloud Sync (Google Drive)
-                </h3>
-                <button type="button" id="btn-gdrive-login" class="btn btn-secondary" style="width: 100%;" onclick="loginGoogleDrive()">Sign in to Google</button>
-                <div id="cloud-sync-controls" class="cloud-controls" style="display: none; flex-wrap: wrap;">
-                    <button type="button" id="btn-cloud-push" class="btn btn-primary" style="flex: 1;">Push to Cloud</button>
-                    <button type="button" id="btn-cloud-pull" class="btn btn-secondary" style="flex: 1;">Pull from Cloud</button>
-                    <button type="button" id="btn-gdrive-logout" class="btn btn-danger" style="flex: 100%; margin-top: 0.5rem; margin-right: 0;" onclick="logoutGoogleDrive()">Disconnect Cloud</button>
-                </div>
+            <div class="help-section">
+                <h3>⚠️ 2. Zero-Knowledge Interaction Engine</h3>
+                <p>MedLedger contains a local database of severe drug interactions. When you add a new medication, the app cross-references it against your active regimen and will explicitly warn you of known dangers (like mixing SSRIs with Tramadol, or Aspirin with Warfarin) before saving.</p>
             </div>
 
-            <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
-                <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                    Local Vault
-                </h3>
-                <div class="action-group" style="margin: 0;">
-                    <button type="button" id="btn-export-vault" class="btn btn-secondary" style="font-size: 0.85rem; flex: 1;">Backup Device</button>
-                    <label for="import-vault-file" class="btn btn-secondary" style="cursor: pointer; font-size: 0.85rem; flex: 1; text-align: center; margin: 0;">Restore Device</label>
-                    <input type="file" id="import-vault-file" accept=".medvault,.json" style="display: none;" onclick="this.value=null;">
-                </div>
+            <div class="help-section">
+                <h3>⚡ 3. Expert Mode</h3>
+                <p>Enable Expert Mode in Settings to unlock power-user features:</p>
+                <ul>
+                    <li><b>Double-Click Logging:</b> Double-click any unchecked item on the regimen list to instantly log it (bypassing the "Log Selected" button).</li>
+                    <li><b>Keyboard Shortcuts:</b> Press <code>Ctrl + Enter</code> to instantly submit your selected items.</li>
+                </ul>
             </div>
 
-            <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
-                <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    Clinician Reports
-                </h3>
-                <div class="action-group" style="margin: 0;">
-                    <button type="button" id="btn-export-csv" class="btn btn-secondary" style="font-size: 0.85rem; flex: 1;">Data (CSV)</button>
-                    <button type="button" id="btn-export-html" class="btn btn-primary" style="font-size: 0.85rem; flex: 2;">Printable Report (HTML)</button>
-                </div>
+            <div class="help-section">
+                <h3>📊 4. Tracking Your Progress (Analytics)</h3>
+                <p>The History tab features built-in analytics to monitor your consistency.</p>
+                <ul>
+                    <li><b>7-Day Adherence:</b> A quick percentage score showing how precisely you have followed your scheduled regimen over the last week.</li>
+                    <li><b>Streak Engine:</b> Tracks your current and longest unbroken streaks of taking all scheduled medications.</li>
+                    <li><b>Consistency Grid (Heatmap):</b> A GitHub-style calendar of your habits. A <b>Green</b> square means you took all scheduled doses that day, <b>Yellow</b> means partial completion, and <b>Gray</b> means missed doses.</li>
+                    <li><b>Tap-To-Inspect:</b> Tap on any square in the heatmap to view a granular breakdown of exactly what was scheduled, taken, and missed on that specific day.</li>
+                    <li><b>Ghost Logs (Faded Squares):</b> If a square is green but faded/transparent, it means you completed the day, but one or more doses were logged retroactively (using the Time Machine box).</li>
+                </ul>
             </div>
 
-            <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
-                <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-                    Data Management
-                </h3>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Move old logs to cold storage to keep the app fast. Restore them anytime for complete clinical exports.</div>
-                <div class="inline-form" style="margin-bottom: 0.5rem; align-items: stretch;">
-                    <input type="number" id="archive-days" value="90" min="1" style="flex: 1; padding: 0.5rem; max-width: 80px;" title="Days to keep active">
-                    <button type="button" id="btn-archive-logs" class="btn btn-secondary" style="flex: 2; font-size: 0.85rem;">Archive Older Days</button>
-                </div>
-                <button type="button" id="btn-restore-archives" class="btn btn-primary" style="width: 100%; font-size: 0.85rem; margin-top: 0.25rem;">Restore All Archives to Active</button>
+            <div class="help-section">
+                <h3>🔒 5. The Encrypted Vault</h3>
+                <p>MedLedger stores all data locally on your device. To backup or sync your data, you must use the Vault.</p>
+                <ul>
+                    <li>Go to Settings and enter a Master Password.</li>
+                    <li>Click <b>Download Vault</b> to encrypt your database into a secure <code>.medvault</code> file.</li>
+                    <li>You can email this file to yourself and <b>Import</b> it on another device to seamlessly sync your history.</li>
+                    <li><b>WARNING:</b> Without the Master Password, a <code>.medvault</code> file is impossible to decrypt. If you lose the password, the backup is permanently locked.</li>
+                </ul>
             </div>
-            
-            <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold; text-align: center;"></div>
-        </form>
 
-        <div class="action-group modal-actions" style="margin-top: 1.5rem;">
-            <button type="button" id="btn-close-settings" class="btn btn-primary">Done</button>
+            <div class="help-section">
+                <h3>☁️ 6. Google Drive Sync</h3>
+                <p>You can connect MedLedger to your Google Drive to automate backups.</p>
+                <ul>
+                    <li>The app requests access to an invisible, protected "AppData" folder in your Drive. It cannot read your personal documents or photos.</li>
+                    <li>Click <b>Push to Cloud</b> to encrypt your data with your Master Password and upload it directly to Drive.</li>
+                    <li>On a new device, connect your Drive, enter your password, and click <b>Pull from Cloud</b> to instantly restore your setup.</li>
+                </ul>
+            </div>
+
+            <button type="button" id="btn-close-help" class="btn btn-primary" style="width: 100%; margin-top: 2rem;">Close Manual</button>
         </div>
     </dialog>
 
     <script src="analytics.js"></script>
     <script src="app.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSync()"></script>
 </body>
 </html>
