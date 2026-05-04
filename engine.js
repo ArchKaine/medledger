@@ -208,7 +208,6 @@ async function saveEditedMed(e) {
     let description = existing.description || "";
     let indications = existing.indications || "";
     
-    // References external fetchDrugInfo from clinical.js
     if (document.getElementById('toggle-lookup')?.checked && existing.name !== name && typeof fetchDrugInfo === 'function') {
         const clinicalData = await fetchDrugInfo(name);
         description = clinicalData.description;
