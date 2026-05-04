@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     initDB();
     registerServiceWorker();
-    injectAdvancedUI(); // INJECTS ADVANCED REGIMEN DOM
+    injectAdvancedUI(); // Safely injects the Taper DOM
 
     document.getElementById('btn-submit-selected').addEventListener('click', logSelected);
     document.getElementById('btn-submit-all').addEventListener('click', logAll);
@@ -181,6 +181,7 @@ window.addTimeField = function(containerId) {
 
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return [];
     const inputs = container.querySelectorAll('input[type="time"]');
     let times = [];
     inputs.forEach(input => {
@@ -232,7 +233,7 @@ function initSettings() {
     });
 }
 
-// --- Advanced Regimen DOM Injection ---
+// --- Advanced Regimen DOM Injection (PATCHED FOR SAFETY) ---
 function injectAdvancedUI() {
     const advOptions = `
         <option value="Every Other Day">Every Other Day</option>
@@ -252,10 +253,14 @@ function injectAdvancedUI() {
                 <button type="button" class="btn btn-secondary" onclick="addTaperStep('new')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
             </div>
         `;
-        newFreq.closest('.form-group').insertAdjacentHTML('afterend', taperHtml);
+        // Safe Injection: Directly after the select element
+        newFreq.insertAdjacentHTML('afterend', taperHtml);
         newFreq.addEventListener('change', (e) => {
-            document.getElementById('new-taper-container').style.display = e.target.value === 'Taper' ? 'flex' : 'none';
-            document.getElementById('new-taper-container').style.flexDirection = 'column';
+            const container = document.getElementById('new-taper-container');
+            if (container) {
+                container.style.display = e.target.value === 'Taper' ? 'flex' : 'none';
+                container.style.flexDirection = 'column';
+            }
         });
     }
 
@@ -269,16 +274,21 @@ function injectAdvancedUI() {
                 <button type="button" class="btn btn-secondary" onclick="addTaperStep('edit')" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; width: fit-content;">+ Add Step</button>
             </div>
         `;
-        editFreq.closest('.form-group').insertAdjacentHTML('afterend', taperHtmlEdit);
+        // Safe Injection: Directly after the select element
+        editFreq.insertAdjacentHTML('afterend', taperHtmlEdit);
         editFreq.addEventListener('change', (e) => {
-            document.getElementById('edit-taper-container').style.display = e.target.value === 'Taper' ? 'flex' : 'none';
-            document.getElementById('edit-taper-container').style.flexDirection = 'column';
+            const container = document.getElementById('edit-taper-container');
+            if (container) {
+                container.style.display = e.target.value === 'Taper' ? 'flex' : 'none';
+                container.style.flexDirection = 'column';
+            }
         });
     }
 }
 
 window.addTaperStep = function(mode, days = '', dose = '') {
     const container = document.getElementById(`${mode}-taper-steps`);
+    if (!container) return;
     const stepHtml = `
         <div class="taper-step" style="display: flex; gap: 0.5rem; align-items: center;">
             <input type="number" class="taper-days" placeholder="Days (e.g. 5)" value="${days}" style="width: 80px; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
@@ -292,6 +302,7 @@ window.addTaperStep = function(mode, days = '', dose = '') {
 
 function getTaperSteps(mode) {
     const container = document.getElementById(`${mode}-taper-steps`);
+    if (!container) return [];
     const steps = [];
     container.querySelectorAll('.taper-step').forEach(row => {
         const days = parseInt(row.querySelector('.taper-days').value);
@@ -384,7 +395,7 @@ async function handleAddMed(e) {
     const freqInput = document.getElementById('new-med-freq').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
-    const inventoryInput = document.getElementById('new-med-inventory').value.trim();
+    const inventoryInput = document.getElementById('new-med-inventory') ? document.getElementById('new-med-inventory').value.trim() : "";
     const timesArray = getTimesFromContainer('new-med-times-container');
     const taperSteps = freqInput === 'Taper' ? getTaperSteps('new') : [];
 
@@ -405,7 +416,7 @@ async function handleAddMed(e) {
         dose: doseInput, 
         frequency: freqInput,
         taperSteps: taperSteps,
-        startDate: new Date().toISOString(), // Core requirement for Advanced Logic
+        startDate: new Date().toISOString(),
         times: timesArray,
         instructions: instructionsInput,
         sideEffects: sideEffectsInput,
@@ -418,8 +429,14 @@ async function handleAddMed(e) {
     transaction.oncomplete = () => {
         addMedForm.reset();
         document.getElementById('new-med-freq').value = 'Daily'; 
-        document.getElementById('new-taper-container').style.display = 'none';
-        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
+        const taperContainer = document.getElementById('new-taper-container');
+        if (taperContainer) taperContainer.style.display = 'none';
+        
+        const timesContainer = document.getElementById('new-med-times-container');
+        if (timesContainer) {
+            timesContainer.innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">`;
+        }
+        
         loadChecklist();
         if (warnings.length > 0) {
             showVaultStatus("Medication added with warnings.", "var(--danger-color)");
@@ -448,18 +465,17 @@ window.openEditModal = function(id) {
                 editInventoryGroup.style.display = 'none';
             }
             
-            // Handle Taper UI Restore
             const editTaperContainer = document.getElementById('edit-taper-container');
             const editTaperSteps = document.getElementById('edit-taper-steps');
-            editTaperSteps.innerHTML = ''; 
+            if (editTaperSteps) editTaperSteps.innerHTML = ''; 
             
-            if (med.frequency === 'Taper') {
+            if (med.frequency === 'Taper' && editTaperContainer) {
                 editTaperContainer.style.display = 'flex';
                 editTaperContainer.style.flexDirection = 'column';
                 if (med.taperSteps) {
                     med.taperSteps.forEach(step => addTaperStep('edit', step.days, step.dose));
                 }
-            } else {
+            } else if (editTaperContainer) {
                 editTaperContainer.style.display = 'none';
             }
             
@@ -467,15 +483,16 @@ window.openEditModal = function(id) {
             if (!med.times && med.time) timesToRender = [med.time];
 
             const timesContainer = document.getElementById('edit-med-times-container');
-            timesContainer.innerHTML = ''; 
-            
-            if (timesToRender.length === 0) {
-                addTimeField('edit-med-times-container'); 
-            } else {
-                timesToRender.forEach(timeVal => {
-                    addTimeField('edit-med-times-container');
-                    timesContainer.lastElementChild.value = timeVal;
-                });
+            if (timesContainer) {
+                timesContainer.innerHTML = ''; 
+                if (timesToRender.length === 0) {
+                    addTimeField('edit-med-times-container'); 
+                } else {
+                    timesToRender.forEach(timeVal => {
+                        addTimeField('edit-med-times-container');
+                        timesContainer.lastElementChild.value = timeVal;
+                    });
+                }
             }
             editModal.showModal();
             editModal.scrollTop = 0; 
@@ -492,7 +509,7 @@ function saveEditedMed(e) {
     const freq = document.getElementById('edit-med-freq').value;
     const instructions = document.getElementById('edit-med-instructions').value.trim();
     const sideEffects = document.getElementById('edit-med-side-effects').value.trim(); 
-    const inventory = AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "";
+    const inventory = AppSettings.inventory ? (document.getElementById('edit-med-inventory') ? document.getElementById('edit-med-inventory').value.trim() : "") : "";
     const timesArray = getTimesFromContainer('edit-med-times-container');
     const taperSteps = freq === 'Taper' ? getTaperSteps('edit') : [];
 
@@ -508,7 +525,7 @@ function saveEditedMed(e) {
             dose: dose, 
             frequency: freq,
             taperSteps: taperSteps,
-            startDate: existingMed.startDate || new Date().toISOString(), // Persist original date!
+            startDate: existingMed.startDate || new Date().toISOString(), 
             times: timesArray,
             instructions: instructions,
             sideEffects: sideEffects,
@@ -535,7 +552,6 @@ function deleteMedication() {
 }
 
 // --- Core Engine: State Resolution Simulator ---
-// This acts as a time-machine for both the Checklist and the Adherence Heatmap
 function getMedStateOnDate(med, targetDate) {
     let state = { shouldRender: true, dose: med.dose, freqLabel: med.frequency };
     
@@ -553,7 +569,7 @@ function getMedStateOnDate(med, targetDate) {
         const daysElapsed = Math.floor((tDate - sDate) / (1000 * 60 * 60 * 24));
         
         if (daysElapsed < 0) {
-            state.shouldRender = false; // Does not exist yet in history
+            state.shouldRender = false; 
             return state;
         }
 
@@ -582,7 +598,7 @@ function getMedStateOnDate(med, targetDate) {
                 state.dose = activeStep.dose;
                 state.freqLabel = `Taper (Day ${daysElapsed + 1})`;
             } else {
-                state.shouldRender = false; // Taper is fully completed
+                state.shouldRender = false; 
             }
         }
     }
@@ -618,7 +634,7 @@ function loadChecklist() {
 
         rawMeds.forEach(med => {
             const state = getMedStateOnDate(med, new Date());
-            if (!state.shouldRender) return; // Time-engine says this drug doesn't happen today
+            if (!state.shouldRender) return; 
 
             let times = med.times && med.times.length > 0 ? med.times : [null];
             const freqClass = med.frequency === "As Needed" ? "freq-badge prn" : "freq-badge";
@@ -938,7 +954,6 @@ function calculateAdherence() {
         let expectedDailyDosesMap = {}; 
         const nonPrnMedIds = new Set();
 
-        // RUNNING THE 90-DAY TIME MACHINE
         for (let i = 0; i < range; i++) {
             const simDate = new Date(today);
             simDate.setDate(today.getDate() - i);
@@ -954,7 +969,6 @@ function calculateAdherence() {
                         let timeCount = med.times && med.times.length > 0 ? med.times.length : 1;
                         expectedDailyDosesMap[dateStr] += timeCount;
                         
-                        // Accumulate only the past 7 days for the % score (Days 1 to 7 to exclude partial current day)
                         if (i >= 1 && i <= 7) {
                             expected7DayDoses += timeCount;
                         }
@@ -1015,7 +1029,6 @@ function calculateAdherence() {
                 if (count >= expectedForThisCell) level = 2; 
                 else if (count > 0) level = 1; 
             } else if (count > 0 && expectedForThisCell === 0) {
-                // Rare edge case: they took a scheduled pill on an off-day
                 level = 1;
             }
 
@@ -1024,7 +1037,7 @@ function calculateAdherence() {
             
             if (expectedForThisCell === 0 && count === 0) {
                 cell.title = `${displayStr}: No doses scheduled`;
-                cell.style.background = 'transparent'; // Shows empty if nothing was scheduled
+                cell.style.background = 'transparent';
                 cell.style.border = '1px solid var(--border-color)';
             } else if (level === 2) {
                 cell.title = `${displayStr}: Perfect (${count} doses)`;
