@@ -5,16 +5,27 @@
 
 // --- Theme Logic ---
 window.updateThemeIcon = function(theme) {
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    if (!themeToggleBtn) return;
+    const iconSlots = document.querySelectorAll('.theme-icon-slot');
+    if (iconSlots.length === 0) return;
     
+    let svgContent = '';
+    let textLabel = '';
+
     if (theme === 'light') {
-        themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+        svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+        textLabel = "Light Mode";
     } else if (theme === 'hc') {
-        themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
+        svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
+        textLabel = "High Contrast";
     } else {
-        themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+        svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+        textLabel = "Dark Mode";
     }
+
+    iconSlots.forEach(slot => { slot.innerHTML = svgContent; });
+    
+    const textSlots = document.querySelectorAll('.theme-text-slot');
+    textSlots.forEach(slot => { slot.textContent = textLabel; });
 }
 
 window.initializeTheme = function() {
@@ -26,16 +37,16 @@ window.initializeTheme = function() {
     rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
+    const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
+    themeToggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
             let currentTheme = rootElement.getAttribute('data-theme');
             let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
             rootElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
             updateThemeIcon(newTheme);
         });
-    }
+    });
 }
 
 // --- Tab Logic ---
@@ -189,7 +200,6 @@ window.showVaultStatus = function(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
-// BUG FIX: Uses actual engine counts so unused PRNs don't block the "Complete" status. Updates both mobile and desktop indicators.
 window.updateStatus = function(takenCount, visibleCount) {
     const mobileStatusBar = document.getElementById('status-bar');
     const desktopStatusBar = document.getElementById('sidebar-status');
