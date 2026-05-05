@@ -39,7 +39,6 @@ const MOCK_DATA = {
         }
     ],
     logs: [
-        // Completed dose for today
         {
             timestamp: 'mock-ts-1',
             dateTaken: new Date().toISOString(),
@@ -49,7 +48,6 @@ const MOCK_DATA = {
             medName: 'Lisinopril',
             status: 'taken'
         },
-        // A Duplicate entry to test the warning badge
         {
             timestamp: 'mock-ts-2',
             dateTaken: new Date().toISOString(),
@@ -460,7 +458,6 @@ function refreshHistory() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
-        // --- DEV MODE OVERRIDE ---
         const logs = AppSettings.devMode ? MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         
         list.innerHTML = '';
