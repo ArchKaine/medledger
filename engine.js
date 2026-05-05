@@ -3,6 +3,83 @@
 // Checklist, Regimen Logic, Refills, and High-Fidelity Reports
 // ==========================================
 
+// --- DEV MODE MOCK DATA ---
+const MOCK_DATA = {
+    meds: [
+        {
+            id: 'demo-1',
+            name: 'Lisinopril',
+            dose: '10mg',
+            frequency: 'Morning',
+            times: ['08:00'],
+            instructions: 'Take with food for blood pressure.',
+            sideEffects: 'Dizziness, cough',
+            inventory: '25'
+        },
+        {
+            id: 'demo-2',
+            name: 'Advanced Magic Pill',
+            dose: '1 Tablet',
+            frequency: 'As Needed',
+            times: [],
+            instructions: 'Use when mana is low. Do not exceed 2 per day.',
+            sideEffects: 'Mild glowing, sudden wisdom',
+            inventory: '5'
+        },
+        {
+            id: 'demo-3',
+            name: 'Spice Melange',
+            dose: '1 tsp',
+            frequency: 'Specific Days',
+            specificDays: [1, 3, 5], // Mon, Wed, Fri
+            times: ['12:00'],
+            instructions: 'The spice must flow. Improves navigation.',
+            sideEffects: 'Eyes turning deep blue',
+            inventory: '100'
+        }
+    ],
+    logs: [
+        // Completed dose for today
+        {
+            timestamp: 'mock-ts-1',
+            dateTaken: new Date().toISOString(),
+            medId: 'demo-1',
+            targetTime: '08:00',
+            compositeId: 'demo-1|08:00',
+            medName: 'Lisinopril',
+            status: 'taken'
+        },
+        // A Duplicate entry to test the warning badge
+        {
+            timestamp: 'mock-ts-2',
+            dateTaken: new Date().toISOString(),
+            medId: 'demo-3',
+            targetTime: '12:00',
+            compositeId: 'demo-3|12:00',
+            medName: 'Spice Melange',
+            status: 'taken'
+        },
+        {
+            timestamp: 'mock-ts-3',
+            dateTaken: new Date().toISOString(),
+            medId: 'demo-3',
+            targetTime: '12:00',
+            compositeId: 'demo-3|12:00',
+            medName: 'Spice Melange',
+            status: 'taken'
+        }
+    ]
+};
+
+// Toggle function for Dev Mode
+window.toggleDevMode = function() {
+    AppSettings.devMode = !AppSettings.devMode;
+    const status = AppSettings.devMode ? "ENABLED (Mock Data)" : "DISABLED (User Data)";
+    if(typeof showVaultStatus === 'function') showVaultStatus(`Dev Mode ${status}`, "var(--accent-color)");
+    loadChecklist();
+    refreshHistory();
+};
+
 // --- 1. Helper Logic ---
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
@@ -217,7 +294,7 @@ async function saveEditedMed(e) {
         id, name, dose: document.getElementById('edit-med-dose').value.trim(), 
         frequency: freq, times: getTimesFromContainer('edit-med-times-container'),
         instructions: document.getElementById('edit-med-instructions').value.trim(),
-        sideEffects: document.getElementById('edit-side-effects').value.trim(),
+        sideEffects: document.getElementById('edit-med-side-effects').value.trim(),
         inventory: AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "",
         specificDays: freq === 'Specific Days' ? Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value)) : [],
         cycleOn: parseInt(document.getElementById('edit-med-cycle-on').value) || null,
@@ -258,8 +335,10 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        const rawMeds = medReq.result;
-        const logs = logReq.result;
+        // --- DEV MODE OVERRIDE ---
+        const rawMeds = AppSettings.devMode ? MOCK_DATA.meds : medReq.result;
+        const logs = AppSettings.devMode ? MOCK_DATA.logs : logReq.result;
+
         container.innerHTML = '';
         if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem;">No medications added.</p>'; return; }
 
@@ -292,7 +371,6 @@ function loadChecklist() {
             card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
 
             let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
-            // FIXED: Ensure empty times array defaults to a null entry to generate the PRN checkbox
             const timesToProcess = (med.times && med.times.length > 0) ? med.times : [null];
             
             timesToProcess.forEach(t => {
@@ -338,7 +416,7 @@ function loadChecklist() {
     };
 }
 
-// --- 6. Logging Logic (Supports "Time Machine" backdating) ---
+// --- 6. Logging Logic ---
 function logSelected() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
@@ -382,7 +460,10 @@ function refreshHistory() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
-        const logs = e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+        // --- DEV MODE OVERRIDE ---
+        const logs = AppSettings.devMode ? MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+        
+        list.innerHTML = '';
         const tracker = {};
         logs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
         
@@ -402,7 +483,7 @@ function refreshHistory() {
 }
 
 window.deleteLog = function(ts) {
-    if (!AppSettings.noBabysitter && !confirm("Delete entry?")) return;
+    if (!AppSettings.noBabysitter && !confirm("Remove this entry?")) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
     tx.objectStore("logs").get(ts).onsuccess = (e) => {
         const log = e.target.result;
@@ -419,6 +500,7 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
+// --- CLI Report Export Logic ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
@@ -488,6 +570,7 @@ async function exportCSV() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
 }
 
+// --- Initialisation ---
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
@@ -540,13 +623,15 @@ function checkReminders() {
 }
 setInterval(checkReminders, 60000);
 
-let lastDate = new Date().toLocaleDateString();
+let lastCheckedDate = new Date().toLocaleDateString();
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-        const current = new Date().toLocaleDateString();
-        if (current !== lastDate) {
-            lastDate = current;
-            loadChecklist(); refreshHistory(); if(typeof calculateAdherence === 'function') calculateAdherence();
+        const currentDate = new Date().toLocaleDateString();
+        if (currentDate !== lastCheckedDate) {
+            lastCheckedDate = currentDate;
+            loadChecklist(); 
+            refreshHistory(); 
+            if(typeof calculateAdherence === 'function') calculateAdherence(); 
         }
     }
 });
