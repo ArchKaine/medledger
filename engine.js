@@ -93,7 +93,6 @@ async function handleAddMed(e) {
     const warnings = await checkLocalInteractions(nameInput);
     if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
 
-    // References external fetchDrugInfo from clinical.js
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
@@ -172,7 +171,6 @@ window.openEditModal = function(id) {
             });
         }
 
-        // --- SCROLLABLE CLINICAL INFO DISPLAY IN EDIT MODAL ---
         let clinicalPanel = document.getElementById('modal-clinical-info');
         if (!clinicalPanel) {
             clinicalPanel = document.createElement('div');
@@ -219,7 +217,7 @@ async function saveEditedMed(e) {
         id, name, dose: document.getElementById('edit-med-dose').value.trim(), 
         frequency: freq, times: getTimesFromContainer('edit-med-times-container'),
         instructions: document.getElementById('edit-med-instructions').value.trim(),
-        sideEffects: document.getElementById('edit-med-side-effects').value.trim(),
+        sideEffects: document.getElementById('edit-side-effects').value.trim(),
         inventory: AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "",
         specificDays: freq === 'Specific Days' ? Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value)) : [],
         cycleOn: parseInt(document.getElementById('edit-med-cycle-on').value) || null,
@@ -263,7 +261,7 @@ function loadChecklist() {
         const rawMeds = medReq.result;
         const logs = logReq.result;
         container.innerHTML = '';
-        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary);">No medications added.</p>'; return; }
+        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem;">No medications added.</p>'; return; }
 
         rawMeds.sort((a, b) => {
             const weights = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5, "Specific Days": 6, "Cyclic": 7 };
@@ -294,7 +292,10 @@ function loadChecklist() {
             card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
 
             let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
-            (med.times || [null]).forEach(t => {
+            // FIXED: Ensure empty times array defaults to a null entry to generate the PRN checkbox
+            const timesToProcess = (med.times && med.times.length > 0) ? med.times : [null];
+            
+            timesToProcess.forEach(t => {
                 const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
                 const taken = logs.some(l => l.compositeId === compId && new Date(l.dateTaken).toLocaleDateString() === todayStr);
                 timesHtml += `
@@ -332,7 +333,7 @@ function loadChecklist() {
             `;
             container.appendChild(card);
         });
-        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary);">Clear for today.</p>';
+        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem;">Clear for today.</p>';
         if(typeof updateStatus === 'function') updateStatus();
     };
 }
@@ -343,7 +344,6 @@ function logSelected() {
     if (checked.length === 0) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
     
-    // Time Machine: Use manual time if provided, otherwise use current time
     const manualInput = document.getElementById('manual-time')?.value;
     const timestamp = manualInput ? new Date(manualInput).toISOString() : new Date().toISOString();
 
@@ -360,7 +360,7 @@ function logSelected() {
             medName: cb.getAttribute('data-name'), 
             status: "taken", 
             prnReason: reason,
-            isBackdated: !!manualInput // Tracked for analytics "Ghost Log" faded effect
+            isBackdated: !!manualInput
         });
         if (AppSettings.inventory) {
             tx.objectStore("meds").get(id).onsuccess = (e) => {
@@ -387,7 +387,6 @@ function refreshHistory() {
         logs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
         
         list.innerHTML = logs.slice(0, 15).map(l => {
-            // Duplicate badge logic mentioned in Help
             const isDup = l.targetTime && tracker[new Date(l.dateTaken).toLocaleDateString() + '|' + l.compositeId] > 1;
             return `
             <li class="history-item">
@@ -420,7 +419,6 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- High-Fidelity Exports (Grouped by Date) ---
 async function exportHTMLReport() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
@@ -490,7 +488,6 @@ async function exportCSV() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
 }
 
-// --- 7. Persistence & Initialisation ---
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
@@ -503,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('medledger_clinical_lookups', e.target.checked);
         });
 
-        // FORCE REFRESH ON FIRST LOAD
         if (toggle.checked && localStorage.getItem('medledger_initial_fetch_done') !== 'true') {
             const checkDB = setInterval(() => {
                 if (typeof db !== 'undefined' && typeof refreshAllClinicalData === 'function') {
@@ -515,7 +511,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- Notifications & Rollover ---
 function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
