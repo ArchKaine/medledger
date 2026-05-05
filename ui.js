@@ -111,11 +111,6 @@ function handleFrequencyToggle(freqId, specificDaysId, cyclicId) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    handleFrequencyToggle('new-med-freq', 'new-med-specific-days', 'new-med-cyclic');
-    handleFrequencyToggle('edit-med-freq', 'edit-med-specific-days', 'edit-med-cyclic');
-});
-
 // --- Settings Initializer ---
 function initSettings() {
     const toggleBabysitter = document.getElementById('toggle-babysitter');
@@ -211,3 +206,40 @@ function updateStatus() {
         statusBar.className = "status-indicator";
     }
 }
+
+// --- Global Initialization & Event Listeners ---
+document.addEventListener('DOMContentLoaded', () => {
+    handleFrequencyToggle('new-med-freq', 'new-med-specific-days', 'new-med-cyclic');
+    handleFrequencyToggle('edit-med-freq', 'edit-med-specific-days', 'edit-med-cyclic');
+    
+    // Wire up Modal Close Buttons
+    const btnCancelEdit = document.getElementById('btn-cancel-edit');
+    if (btnCancelEdit) {
+        btnCancelEdit.addEventListener('click', () => {
+            const modal = document.getElementById('edit-med-modal');
+            if (modal) modal.close();
+        });
+    }
+
+    const btnCloseSettings = document.getElementById('btn-close-settings');
+    if (btnCloseSettings) {
+        btnCloseSettings.addEventListener('click', () => {
+            const modal = document.getElementById('settings-modal');
+            if (modal) modal.close();
+        });
+    }
+
+    const btnCloseHelp = document.getElementById('btn-close-help');
+    if (btnCloseHelp) {
+        btnCloseHelp.addEventListener('click', () => {
+            const modal = document.getElementById('help-modal');
+            if (modal) modal.close();
+        });
+    }
+
+    // Wire up Data Vault Password Peek
+    const btnPeekPassword = document.getElementById('btn-peek-password');
+    if (btnPeekPassword) {
+        btnPeekPassword.addEventListener('click', togglePasswordVisibility);
+    }
+});
