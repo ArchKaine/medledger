@@ -34,8 +34,14 @@
                     <span class="theme-text-slot">Theme</span>
                 </button>
             </nav>
-            <div id="sidebar-status-container" style="margin-top: auto; padding: 1rem; border-top: 1px solid var(--border-color);">
-                <div id="sidebar-status" class="status-indicator">Initializing...</div>
+            <div style="margin-top: auto; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: center; gap: 1.5rem; padding-bottom: 1rem; font-size: 0.75rem;">
+                    <a href="privacy.html" class="legal-link">Privacy</a>
+                    <a href="terms.html" class="legal-link">Terms</a>
+                </div>
+                <div id="sidebar-status-container" style="padding: 1rem; border-top: 1px solid var(--border-color);">
+                    <div id="sidebar-status" class="status-indicator">Initializing...</div>
+                </div>
             </div>
         </aside>
 
@@ -191,12 +197,15 @@
                         </div>
                     </div>
                     
-                    <div id="analytics-insights" class="insights-grid">
-                    </div>            
+                    <div id="analytics-insights" class="insights-grid"></div>            
                     
-                    <ul id="history-list" class="history-feed">
-                    </ul>
+                    <ul id="history-list" class="history-feed"></ul>
                 </section>
+            </div>
+            
+            <div class="mobile-legal-footer" style="grid-column: 1 / -1; padding: 1rem 0; display: flex; justify-content: center; gap: 2rem; font-size: 0.85rem; border-top: 1px solid var(--border-color); margin-top: 1rem;">
+                <a href="privacy.html" class="legal-link">Privacy Policy</a>
+                <a href="terms.html" class="legal-link">Terms of Service</a>
             </div>
         </main>
     </div>
