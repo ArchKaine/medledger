@@ -16,8 +16,14 @@ function calculateAdherence() {
 
     tx.oncomplete = () => {
         try {
-            const meds = medReq.result || [];
-            const logs = logReq.result || [];
+            // FIX: Force the Analytics engine to read the mock data when Dev Mode is active
+            const meds = (typeof AppSettings !== 'undefined' && AppSettings.devMode && window.MOCK_DATA) 
+                ? window.MOCK_DATA.meds 
+                : (medReq.result || []);
+                
+            const logs = (typeof AppSettings !== 'undefined' && AppSettings.devMode && window.MOCK_DATA) 
+                ? window.MOCK_DATA.logs 
+                : (logReq.result || []);
             
             const today = new Date();
             today.setHours(0,0,0,0);
@@ -174,7 +180,7 @@ function calculateAdherence() {
     };
 }
 
-// --- SUB-RENDERING FUNCTIONS --- (unchanged from your original)
+// --- SUB-RENDERING FUNCTIONS ---
 
 function updateAdherenceHeader(dailyMedDetails, today, globalStartDate, actualTaken7Day) {
     let expected7DayDoses = 0;
