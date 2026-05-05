@@ -340,6 +340,11 @@ main#app {
         margin-top: auto;
         font-size: 0.75rem;
     }
+
+    /* Hide Mobile Footer on Desktop */
+    .mobile-legal-footer {
+        display: none !important;
+    }
 }
 
 /* ==========================================
@@ -371,6 +376,19 @@ h2 {
     font-size: 1.25rem;
     margin-bottom: 1rem;
     color: var(--text-primary);
+}
+
+/* Legal Links */
+.legal-link {
+    color: var(--text-primary);
+    text-decoration: none;
+    opacity: 0.6;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.legal-link:hover {
+    opacity: 1;
+    color: var(--accent-color);
 }
 
 /* ==========================================
@@ -851,6 +869,7 @@ input[type="time"] { flex: 1; min-width: 120px; }
     grid-template-columns: repeat(7, 1fr); /* 7 columns for Sun-Sat */
     gap: 6px; 
     margin-top: 0.5rem;
+    width: 100%; /* FIX: Ensures grid stretches relative to parent */
 }
 
 .heatmap-header {
@@ -877,6 +896,7 @@ input[type="time"] { flex: 1; min-width: 120px; }
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-primary);
+    width: 100%;
 }
 
 .heatmap-cell.spacer {
