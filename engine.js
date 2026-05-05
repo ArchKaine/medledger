@@ -170,7 +170,6 @@ async function handleAddMed(e) {
     const warnings = await checkLocalInteractions(nameInput);
     if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
 
-    // References external fetchDrugInfo from clinical.js
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
@@ -249,7 +248,6 @@ window.openEditModal = function(id) {
             });
         }
 
-        // --- SCROLLABLE CLINICAL INFO DISPLAY IN EDIT MODAL ---
         let clinicalPanel = document.getElementById('modal-clinical-info');
         if (!clinicalPanel) {
             clinicalPanel = document.createElement('div');
@@ -308,7 +306,7 @@ async function saveEditedMed(e) {
     tx.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); };
 }
 
-function deleteMedication() {
+window.deleteMedication = function() {
     if (!AppSettings.noBabysitter && !confirm("Remove medication?")) return;
     const id = document.getElementById('edit-med-id').value;
     const tx = db.transaction(["meds"], "readwrite");
@@ -337,12 +335,14 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        // --- DEV MODE OVERRIDE ---
         const rawMeds = AppSettings.devMode ? MOCK_DATA.meds : medReq.result;
         const logs = AppSettings.devMode ? MOCK_DATA.logs : logReq.result;
 
         container.innerHTML = '';
-        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem; grid-column: 1/-1;">No medications added.</p>'; return; }
+        if (rawMeds.length === 0) { 
+            container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem; grid-column: 1 / -1;">No medications added.</p>'; 
+            return; 
+        }
 
         rawMeds.sort((a, b) => {
             const weights = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5, "Specific Days": 6, "Cyclic": 7 };
@@ -351,6 +351,7 @@ function loadChecklist() {
 
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.toLocaleDateString();
+        
         let takenCount = 0;
         let visibleCount = 0;
 
@@ -367,32 +368,31 @@ function loadChecklist() {
                 }
             }
             if (!shouldRender && med.frequency !== "As Needed") return;
-            
 
             const isLow = AppSettings.inventory && parseInt(med.inventory) <= 10;
             const card = document.createElement('div');
-            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '0'; card.style.overflow = 'hidden';
+            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
 
             let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
-            // Ensure empty times array defaults to a null entry to generate the PRN checkbox
             const timesToProcess = (med.times && med.times.length > 0) ? med.times : [null];
+            const isPrn = med.frequency === "As Needed";
             
             timesToProcess.forEach(t => {
                 const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
                 const taken = logs.some(l => l.compositeId === compId && new Date(l.dateTaken).toLocaleDateString() === todayStr);
                 
                 // Track non-PRN visibility and completion for adherence calculations
-                if (med.frequency !== "As Needed") {
+                if (!isPrn) {
                     visibleCount++;
                     if (taken) takenCount++;
                 }
 
                 timesHtml += `
                     <label class="med-item ${taken ? 'completed' : ''}" style="padding: 0.5rem 1rem;">
-                        <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
+                        <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox ${isPrn ? 'prn-checkbox' : ''}" ${taken ? 'checked disabled' : ''}>
                         <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
                     </label>
-                    ${med.frequency === 'As Needed' && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
+                    ${isPrn && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
                 `;
             });
             timesHtml += '</div>';
@@ -422,19 +422,18 @@ function loadChecklist() {
             `;
             container.appendChild(card);
         });
-        
+
         if (visibleCount === 0 && rawMeds.filter(m => m.frequency !== "As Needed").length > 0) {
-            container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem; grid-column: 1/-1;">Clear for today.</p>';
+            container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem; grid-column: 1 / -1;">Clear for today.</p>';
         }
 
-        // Pass actual counts to status indicators
         if(typeof updateStatus === 'function') updateStatus(takenCount, visibleCount);
         if(typeof calculateAdherence === 'function') calculateAdherence();
     };
 }
 
 // --- 6. Logging Logic ---
-function logSelected() {
+window.logSelected = function() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
     const tx = db.transaction(["logs", "meds"], "readwrite");
@@ -467,17 +466,17 @@ function logSelected() {
     tx.oncomplete = () => { loadChecklist(); refreshHistory(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 }
 
-function logAll() {
-    const boxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
+window.logAll = function() {
+    // Prevent "Log All" from automatically consuming emergency/PRN medications
+    const boxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled):not(.prn-checkbox)');
     boxes.forEach(b => b.checked = true);
     logSelected();
 }
 
-function refreshHistory() {
+window.refreshHistory = function() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
-        // --- DEV MODE OVERRIDE ---
         const logs = AppSettings.devMode ? MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         
         list.innerHTML = '';
@@ -518,7 +517,7 @@ window.deleteLog = function(ts) {
 };
 
 // --- CLI Report Export Logic ---
-async function exportHTMLReport() {
+window.exportHTMLReport = async function() {
     const tx = db.transaction(["meds", "logs"], "readonly");
     const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
     const logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
@@ -576,7 +575,7 @@ async function exportHTMLReport() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
 }
 
-async function exportCSV() {
+window.exportCSV = async function() {
     const logs = await new Promise(r => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     if (!logs.length) return;
     let csv = "Date,Time,Medication,Target,Status,PRN Reason\n";
