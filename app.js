@@ -41,37 +41,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hook up Engine Listeners (Core Logic)
     document.getElementById('btn-submit-selected')?.addEventListener('click', logSelected);
     document.getElementById('btn-submit-all')?.addEventListener('click', logAll);
-    document.getElementById('add-med-form')?.addEventListener('click', (e) => {
-        if(e.target.type === 'submit') handleAddMed(e);
-    });
+    document.getElementById('add-med-form')?.addEventListener('submit', handleAddMed);
     
-    document.getElementById('btn-cancel-edit')?.addEventListener('click', () => editModal?.close());
-    document.getElementById('btn-delete-med')?.addEventListener('click', deleteMedication);
     document.getElementById('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
     // Modal Interactions (UI Logic)
     document.getElementById('settings-toggle')?.addEventListener('click', () => {
-        const cachedPass = sessionStorage.getItem('medledger_session_key');
-        const vaultPassInput = document.getElementById('vault-password');
-        const sessionLockControls = document.getElementById('session-lock-controls');
-        
-        if (cachedPass && vaultPassInput && sessionLockControls) {
-            vaultPassInput.value = cachedPass;
-            sessionLockControls.style.display = 'flex';
-        } else if (vaultPassInput && sessionLockControls) {
-            vaultPassInput.value = '';
-            sessionLockControls.style.display = 'none';
-        }
         settingsModal?.showModal();
-        if(settingsModal) settingsModal.scrollTop = 0; 
     });
-    document.getElementById('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
-    
     document.getElementById('help-toggle')?.addEventListener('click', () => {
         helpModal?.showModal();
-        if(helpModal) helpModal.scrollTop = 0; 
     });
-    document.getElementById('btn-close-help')?.addEventListener('click', () => helpModal?.close());
 
     // Connect to external modules
     document.getElementById('btn-peek-password')?.addEventListener('click', togglePasswordVisibility);
@@ -110,7 +90,24 @@ document.addEventListener('DOMContentLoaded', () => {
             checked.length > 0 ? logSelected() : logAll();
         }
     });
+
+    // Global error handler
+    window.addEventListener('error', (e) => {
+        console.error("MedLedger runtime error:", e.error || e);
+        if (typeof showVaultStatus === 'function') {
+            showVaultStatus("App encountered an issue. Check console.", "var(--danger-color)");
+        }
+    });
+
+    // ROBUST INITIALIZATION
+    setTimeout(fullAppInit, 150);
 });
+
+function fullAppInit() {
+    if (typeof loadChecklist === 'function') loadChecklist();
+    if (typeof refreshHistory === 'function') refreshHistory();
+    if (typeof calculateAdherence === 'function') calculateAdherence();
+}
 
 // --- Database Initialization ---
 function initDB() {
@@ -146,8 +143,8 @@ function initDB() {
     
     request.onsuccess = (e) => {
         db = e.target.result;
-        if(typeof loadChecklist === 'function') loadChecklist();
-        if(typeof refreshHistory === 'function') refreshHistory();
+        console.log("✅ MedLedger Database initialized successfully");
+        fullAppInit();
     };
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
@@ -161,3 +158,5 @@ function registerServiceWorker() {
         navigator.serviceWorker.register('sw.js').catch(err => console.error('Service Worker Failed:', err));
     }
 }
+
+window.fullAppInit = fullAppInit;
