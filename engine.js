@@ -3,83 +3,6 @@
 // Checklist, Regimen Logic, Refills, and High-Fidelity Reports
 // ==========================================
 
-// --- DEV MODE MOCK DATA ---
-const MOCK_DATA = {
-    meds: [
-        {
-            id: 'demo-1',
-            name: 'Lisinopril',
-            dose: '10mg',
-            frequency: 'Morning',
-            times: ['08:00'],
-            instructions: 'Take with food for blood pressure.',
-            sideEffects: 'Dizziness, cough',
-            inventory: '25'
-        },
-        {
-            id: 'demo-2',
-            name: 'Advanced Magic Pill',
-            dose: '1 Tablet',
-            frequency: 'As Needed',
-            times: [],
-            instructions: 'Use when mana is low. Do not exceed 2 per day.',
-            sideEffects: 'Mild glowing, sudden wisdom',
-            inventory: '5'
-        },
-        {
-            id: 'demo-3',
-            name: 'Spice Melange',
-            dose: '1 tsp',
-            frequency: 'Specific Days',
-            specificDays: [1, 3, 5], // Mon, Wed, Fri
-            times: ['12:00'],
-            instructions: 'The spice must flow. Improves navigation.',
-            sideEffects: 'Eyes turning deep blue',
-            inventory: '100'
-        }
-    ],
-    logs: [
-        // Completed dose for today
-        {
-            timestamp: 'mock-ts-1',
-            dateTaken: new Date().toISOString(),
-            medId: 'demo-1',
-            targetTime: '08:00',
-            compositeId: 'demo-1|08:00',
-            medName: 'Lisinopril',
-            status: 'taken'
-        },
-        // A Duplicate entry to test the warning badge
-        {
-            timestamp: 'mock-ts-2',
-            dateTaken: new Date().toISOString(),
-            medId: 'demo-3',
-            targetTime: '12:00',
-            compositeId: 'demo-3|12:00',
-            medName: 'Spice Melange',
-            status: 'taken'
-        },
-        {
-            timestamp: 'mock-ts-3',
-            dateTaken: new Date().toISOString(),
-            medId: 'demo-3',
-            targetTime: '12:00',
-            compositeId: 'demo-3|12:00',
-            medName: 'Spice Melange',
-            status: 'taken'
-        }
-    ]
-};
-
-// Toggle function for Dev Mode
-window.toggleDevMode = function() {
-    AppSettings.devMode = !AppSettings.devMode;
-    const status = AppSettings.devMode ? "ENABLED (Mock Data)" : "DISABLED (User Data)";
-    if(typeof showVaultStatus === 'function') showVaultStatus(`Dev Mode ${status}`, "var(--accent-color)");
-    loadChecklist();
-    refreshHistory();
-};
-
 // --- 1. Helper Logic ---
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
@@ -335,8 +258,8 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        const rawMeds = AppSettings.devMode ? MOCK_DATA.meds : medReq.result;
-        const logs = AppSettings.devMode ? MOCK_DATA.logs : logReq.result;
+        const rawMeds = AppSettings.devMode && window.MOCK_DATA ? window.MOCK_DATA.meds : medReq.result;
+        const logs = AppSettings.devMode && window.MOCK_DATA ? window.MOCK_DATA.logs : logReq.result;
 
         container.innerHTML = '';
         if (rawMeds.length === 0) { 
@@ -381,7 +304,6 @@ function loadChecklist() {
                 const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
                 const taken = logs.some(l => l.compositeId === compId && new Date(l.dateTaken).toLocaleDateString() === todayStr);
                 
-                // Track non-PRN visibility and completion for adherence calculations
                 if (!isPrn) {
                     visibleCount++;
                     if (taken) takenCount++;
@@ -467,7 +389,6 @@ window.logSelected = function() {
 }
 
 window.logAll = function() {
-    // Prevent "Log All" from automatically consuming emergency/PRN medications
     const boxes = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled):not(.prn-checkbox)');
     boxes.forEach(b => b.checked = true);
     logSelected();
@@ -477,7 +398,7 @@ window.refreshHistory = function() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
-        const logs = AppSettings.devMode ? MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+        const logs = AppSettings.devMode && window.MOCK_DATA ? window.MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         
         list.innerHTML = '';
         const tracker = {};
