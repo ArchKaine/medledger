@@ -44,15 +44,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-submit-all')?.addEventListener('click', logAll);
     document.getElementById('add-med-form')?.addEventListener('submit', handleAddMed);
     
+    document.getElementById('btn-delete-med')?.addEventListener('click', deleteMedication);
     document.getElementById('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
     // Modal Interactions (UI Logic)
     document.getElementById('settings-toggle')?.addEventListener('click', () => {
+        const cachedPass = sessionStorage.getItem('medledger_session_key');
+        const vaultPassInput = document.getElementById('vault-password');
+        const sessionLockControls = document.getElementById('session-lock-controls');
+        
+        if (cachedPass && vaultPassInput && sessionLockControls) {
+            vaultPassInput.value = cachedPass;
+            sessionLockControls.style.display = 'flex';
+        } else if (vaultPassInput && sessionLockControls) {
+            vaultPassInput.value = '';
+            sessionLockControls.style.display = 'none';
+        }
         settingsModal?.showModal();
+        if(settingsModal) settingsModal.scrollTop = 0; 
     });
+    document.getElementById('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
+    
     document.getElementById('help-toggle')?.addEventListener('click', () => {
         helpModal?.showModal();
+        if(helpModal) helpModal.scrollTop = 0; 
     });
+    document.getElementById('btn-close-help')?.addEventListener('click', () => helpModal?.close());
 
     // Connect to external modules
     document.getElementById('btn-peek-password')?.addEventListener('click', togglePasswordVisibility);
@@ -94,13 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global error handler
     window.addEventListener('error', (e) => {
-        console.error("MedLedger runtime error:", e.error || e);
+        console.error("MedLedger runtime error:", e);
         if (typeof showVaultStatus === 'function') {
             showVaultStatus("App encountered an issue. Check console.", "var(--danger-color)");
         }
     });
 
-    // ROBUST INITIALIZATION
+    // Full initialization
     setTimeout(fullAppInit, 150);
 });
 
@@ -144,7 +161,7 @@ function initDB() {
     
     request.onsuccess = (e) => {
         db = e.target.result;
-        console.log("✅ MedLedger Database initialized successfully");
+        console.log("✅ MedLedger DB ready");
         fullAppInit();
     };
     request.onerror = (e) => {
