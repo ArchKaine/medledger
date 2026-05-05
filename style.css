@@ -207,13 +207,14 @@ main#app {
     }
 }
 
-/* 3. Desktop Mode (> 1200px) */
+/* 3. Desktop Mode (> 1200px) - FIXED */
 @media (min-width: 1200px) {
     .app-shell {
         display: grid;
         grid-template-columns: var(--sidebar-width) 1fr;
         grid-template-rows: auto 1fr;
         height: 100vh;
+        overflow: hidden;
     }
 
     .app-header {
@@ -230,13 +231,29 @@ main#app {
         position: sticky;
         top: 0;
         height: 100vh;
+        overflow-y: auto;
     }
 
     main#app {
-        grid-template-columns: 1fr 340px;
+        grid-template-columns: 1fr 360px;
         max-width: 1600px;
         margin: 2rem;
+        height: calc(100vh - 75px);
+        overflow: hidden;
+    }
+
+    #daily-schedule, #log-history {
+        height: 100%;
         overflow-y: auto;
+        padding-bottom: 3rem;
+    }
+
+    #checklist-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.5rem;
+        overflow-y: auto;
+        max-height: 100%;
     }
 
     .sidebar-brand {
@@ -275,13 +292,6 @@ main#app {
     #sidebar-status {
         margin-top: auto;
         font-size: 0.75rem;
-    }
-
-    /* Grid for Medication Cards in Desktop Mode */
-    #checklist-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.25rem;
     }
 }
 
@@ -373,11 +383,11 @@ h2 {
 
 input, select, textarea {
     background-color: var(--bg-primary);
-    color: var(--text-primary) !important; /* Force text to be visible */
+    color: var(--text-primary) !important;
     border: 1px solid var(--border-color);
     padding: 0.85rem;
     border-radius: 6px;
-    font-size: 1rem; /* Minimum 16px prevents iOS Safari from zooming in */
+    font-size: 1rem;
     font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -385,7 +395,6 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--accent-color);
-    /* Modern accessibility focus ring */
     box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent-color);
 }
 
@@ -708,36 +717,6 @@ input[type="time"] { flex: 1; min-width: 120px; }
     margin-top: 0.5rem;
 }
 
-.vault-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-.vault-input-wrapper input {
-    width: 100%;
-    padding-right: 3rem !important; 
-}
-
-.peek-btn {
-    position: absolute;
-    right: 0.5rem;
-    padding: 0.5rem;
-    color: var(--text-secondary);
-    background: none;
-    border: none;
-    cursor: pointer;
-    z-index: 10;
-}
-
-.cloud-controls {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-}
-
 /* ==========================================
    Mobile Adjustments
    ========================================== */
@@ -760,11 +739,11 @@ input[type="time"] { flex: 1; min-width: 120px; }
 }
 
 /* ==========================================
-   Heatmap Dashboard Styles (Calendar View)
+   Heatmap Dashboard Styles
    ========================================== */
 #heatmap-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr); /* 7 columns for Sun-Sat */
+    grid-template-columns: repeat(7, 1fr);
     gap: 6px; 
     margin-top: 0.5rem;
 }
@@ -780,13 +759,11 @@ input[type="time"] { flex: 1; min-width: 120px; }
 
 .heatmap-cell {
     aspect-ratio: 1 / 1;
-    border-radius: 6px; /* Slightly rounder for a calendar feel */
-    background-color: rgba(161, 161, 170, 0.1); /* Default Gray */
+    border-radius: 6px;
+    background-color: rgba(161, 161, 170, 0.1);
     border: 1px solid var(--border-color);
     transition: transform 0.1s, border-color 0.1s;
     cursor: pointer;
-    
-    /* Centers the Date Number */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -808,23 +785,22 @@ input[type="time"] { flex: 1; min-width: 120px; }
     border-color: var(--accent-color);
 }
 
-/* Coloring the calendar blocks */
 .heatmap-cell.level-0 { 
     background-color: rgba(161, 161, 170, 0.1); 
-    color: var(--text-secondary); /* Dim text for missed/empty days */
+    color: var(--text-secondary);
 } 
 .heatmap-cell.level-1 { 
-    background-color: #f59e0b; /* Amber */
-    color: #18181b; /* Dark text for contrast */
+    background-color: #f59e0b;
+    color: #18181b;
     border-color: #f59e0b;
 }
 .heatmap-cell.level-2 { 
-    background-color: var(--success-color); /* Green */
-    color: #18181b; /* Dark text for contrast */
+    background-color: var(--success-color);
+    color: #18181b;
     border-color: var(--success-color);
 }
 
-/* --- Analytics Insights Styling --- */
+/* Analytics Insights */
 .insights-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
