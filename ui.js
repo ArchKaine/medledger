@@ -175,6 +175,48 @@ window.initSettings = function() {
             }
         });
     }
+
+    // --- Dev Mode Safety Gate ---
+    const toggleDevMenu = document.getElementById('toggle-dev-menu');
+    const devMenuWarning = document.getElementById('dev-menu-warning');
+    const confirmDevMode = document.getElementById('confirm-dev-mode');
+    const navDevModeBtns = document.querySelectorAll('.nav-dev-mode-btn'); 
+
+    if (toggleDevMenu && devMenuWarning && confirmDevMode) {
+        const isDevMenuEnabled = localStorage.getItem('cfg_devMenu') === 'true';
+        
+        toggleDevMenu.checked = isDevMenuEnabled;
+        confirmDevMode.checked = isDevMenuEnabled;
+        devMenuWarning.style.display = isDevMenuEnabled ? 'block' : 'none';
+        navDevModeBtns.forEach(btn => btn.style.display = isDevMenuEnabled ? 'block' : 'none');
+
+        toggleDevMenu.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            devMenuWarning.style.display = isChecked ? 'block' : 'none';
+            
+            if (!isChecked) {
+                confirmDevMode.checked = false;
+                navDevModeBtns.forEach(btn => btn.style.display = 'none');
+                localStorage.setItem('cfg_devMenu', 'false');
+                
+                // Auto-kill safety feature: turn off Dev Mode if they hide the menu while it's running
+                if (window.AppSettings && window.AppSettings.devMode) {
+                    if (typeof toggleDevMode === 'function') toggleDevMode();
+                }
+            }
+        });
+
+        confirmDevMode.addEventListener('change', (e) => {
+            const isConfirmed = e.target.checked;
+            navDevModeBtns.forEach(btn => btn.style.display = isConfirmed ? 'block' : 'none');
+            localStorage.setItem('cfg_devMenu', isConfirmed ? 'true' : 'false');
+            
+            // Auto-kill safety feature: turn off Dev Mode if they uncheck the confirmation
+            if (!isConfirmed && window.AppSettings && window.AppSettings.devMode) {
+                if (typeof toggleDevMode === 'function') toggleDevMode();
+            }
+        });
+    }
 }
 
 // --- Status & Readability Utilities ---
