@@ -4,7 +4,7 @@
 // ==========================================
 
 // --- Theme Logic ---
-function updateThemeIcon(theme) {
+window.updateThemeIcon = function(theme) {
     const themeToggleBtn = document.getElementById('theme-toggle');
     if (!themeToggleBtn) return;
     
@@ -17,7 +17,7 @@ function updateThemeIcon(theme) {
     }
 }
 
-function initializeTheme() {
+window.initializeTheme = function() {
     const rootElement = document.documentElement;
     let savedTheme = localStorage.getItem('theme');
     if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
@@ -39,7 +39,7 @@ function initializeTheme() {
 }
 
 // --- Tab Logic ---
-function switchTab(tab) {
+window.switchTab = function(tab) {
     const tabTodayBtn = document.getElementById('tab-today');
     const tabHistoryBtn = document.getElementById('tab-history');
     const dailyScheduleView = document.getElementById('daily-schedule');
@@ -85,7 +85,7 @@ window.addTimeField = function(containerId) {
     input.focus(); 
 };
 
-function getTimesFromContainer(containerId) {
+window.getTimesFromContainer = function(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return [];
     const inputs = container.querySelectorAll('input[type="time"]');
@@ -97,7 +97,7 @@ function getTimesFromContainer(containerId) {
 }
 
 // --- Complex Scheduling UI Toggles ---
-function handleFrequencyToggle(freqId, specificDaysId, cyclicId) {
+window.handleFrequencyToggle = function(freqId, specificDaysId, cyclicId) {
     const freqSelect = document.getElementById(freqId);
     const specificDaysDiv = document.getElementById(specificDaysId);
     const cyclicDiv = document.getElementById(cyclicId);
@@ -112,7 +112,7 @@ function handleFrequencyToggle(freqId, specificDaysId, cyclicId) {
 }
 
 // --- Settings Initializer ---
-function initSettings() {
+window.initSettings = function() {
     const toggleBabysitter = document.getElementById('toggle-babysitter');
     const toggleExpert = document.getElementById('toggle-expert');
     const toggleReminders = document.getElementById('toggle-reminders');
@@ -167,7 +167,7 @@ function initSettings() {
 }
 
 // --- Status & Readability Utilities ---
-function togglePasswordVisibility() {
+window.togglePasswordVisibility = function() {
     const vaultPassInput = document.getElementById('vault-password');
     const peekIcon = document.getElementById('peek-icon');
     if (!vaultPassInput || !peekIcon) return;
@@ -181,7 +181,7 @@ function togglePasswordVisibility() {
     }
 }
 
-function showVaultStatus(message, color) {
+window.showVaultStatus = function(message, color) {
     const vaultStatus = document.getElementById('vault-status');
     if(!vaultStatus) return;
     vaultStatus.textContent = message; 
@@ -189,26 +189,34 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
-// FIXED: Update both Desktop and Mobile status indicators
-function updateStatus() {
+// BUG FIX: Uses actual engine counts so unused PRNs don't block the "Complete" status. Updates both mobile and desktop indicators.
+window.updateStatus = function(takenCount, visibleCount) {
     const mobileStatusBar = document.getElementById('status-bar');
     const desktopStatusBar = document.getElementById('sidebar-status');
-
-    const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
-    const total = document.querySelectorAll('#checklist-container .med-checkbox');
     
     let text = "Ready.";
     let className = "status-indicator";
 
-    if (total.length === 0) {
-        text = "Ready.";
-        className = "status-indicator";
-    } else if (remaining.length === 0) {
-        text = "All regimens complete.";
-        className = "status-indicator complete";
+    if (typeof takenCount !== 'undefined' && typeof visibleCount !== 'undefined') {
+        if (visibleCount === 0) {
+            text = "Ready.";
+        } else if (takenCount >= visibleCount) {
+            text = "All regimens complete.";
+            className = "status-indicator complete";
+        } else {
+            text = "Pending actions required.";
+        }
     } else {
-        text = "Pending actions required.";
-        className = "status-indicator";
+        const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled):not(.prn-checkbox)');
+        const total = document.querySelectorAll('#checklist-container .med-checkbox:not(.prn-checkbox)');
+        if (total.length === 0) {
+            text = "Ready.";
+        } else if (remaining.length === 0) {
+            text = "All regimens complete.";
+            className = "status-indicator complete";
+        } else {
+            text = "Pending actions required.";
+        }
     }
 
     if (mobileStatusBar) {
@@ -221,12 +229,14 @@ function updateStatus() {
     }
 }
 
-// --- Global Initialization & Event Listeners ---
+// --- RESTORED: Initialization & Missing Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
+    setTimeout(initSettings, 100);
+
     handleFrequencyToggle('new-med-freq', 'new-med-specific-days', 'new-med-cyclic');
     handleFrequencyToggle('edit-med-freq', 'edit-med-specific-days', 'edit-med-cyclic');
     
-    // Wire up Modal Close Buttons
     const btnCancelEdit = document.getElementById('btn-cancel-edit');
     if (btnCancelEdit) {
         btnCancelEdit.addEventListener('click', () => {
@@ -251,7 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Wire up Data Vault Password Peek
     const btnPeekPassword = document.getElementById('btn-peek-password');
     if (btnPeekPassword) {
         btnPeekPassword.addEventListener('click', togglePasswordVisibility);
