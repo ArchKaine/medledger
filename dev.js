@@ -226,23 +226,48 @@
         return { meds, logs };
     };
 
-    // Attach to global window context
-    window.MOCK_DATA = generateMockData();
+    // --- State Persistence Connectors ---
+    window.syncDevData = function() {
+        if (window.MOCK_DATA) {
+            localStorage.setItem('medledger_dev_meds', JSON.stringify(window.MOCK_DATA.meds));
+            localStorage.setItem('medledger_dev_logs', JSON.stringify(window.MOCK_DATA.logs));
+        }
+    };
+
+    window.resetDevData = function() {
+        window.MOCK_DATA = generateMockData();
+        window.syncDevData();
+        if(typeof showVaultStatus === 'function') showVaultStatus("Dev Sandbox Reset.", "var(--success-color)");
+        if (typeof loadChecklist === 'function') loadChecklist();
+        if (typeof refreshHistory === 'function') refreshHistory();
+        if (typeof calculateAdherence === 'function') calculateAdherence();
+    };
+
+    // Initialize globally
+    const savedMeds = localStorage.getItem('medledger_dev_meds');
+    const savedLogs = localStorage.getItem('medledger_dev_logs');
+    
+    if (savedMeds && savedLogs) {
+        window.MOCK_DATA = { meds: JSON.parse(savedMeds), logs: JSON.parse(savedLogs) };
+    } else {
+        window.MOCK_DATA = generateMockData();
+    }
 
     // The Dev Mode Hook
     window.toggleDevMode = function() {
         AppSettings.devMode = !AppSettings.devMode;
-        const status = AppSettings.devMode ? "ENABLED (Mock Data Environment)" : "DISABLED (User Data Environment)";
+        const status = AppSettings.devMode ? "ENABLED (Interactive Sandbox)" : "DISABLED (User Data)";
         if(typeof showVaultStatus === 'function') showVaultStatus(`Dev Mode ${status}`, "var(--accent-color)");
         
-        // Regenerate fresh logs relative to current time so 'Today' is always accurate
+        // Ensure data is synced upon toggle
         if (AppSettings.devMode) {
-            window.MOCK_DATA = generateMockData();
+            const checkMeds = localStorage.getItem('medledger_dev_meds');
+            if (!checkMeds) { window.MOCK_DATA = generateMockData(); window.syncDevData(); }
         }
         
         if (typeof loadChecklist === 'function') loadChecklist();
         if (typeof refreshHistory === 'function') refreshHistory();
-        if (typeof calculateAdherence === 'function') calculateAdherence(); // Force Analytics to refresh
+        if (typeof calculateAdherence === 'function') calculateAdherence();
     };
 
 })();
