@@ -12,12 +12,15 @@ let gapiToken = null;
 
 // --- Config State ---
 const AppSettings = {
-    devMode: false,
+    devMode: localStorage.getItem('cfg_devMode') === 'true',
     noBabysitter: localStorage.getItem('cfg_noBabysitter') === 'true',
     expertMode: localStorage.getItem('cfg_expertMode') === 'true',
     reminders: localStorage.getItem('cfg_reminders') === 'true',
     inventory: localStorage.getItem('cfg_inventory') === 'true'
 };
+
+// Explicitly bind to window for cross-script safety
+window.AppSettings = AppSettings;
 
 // --- DOM Elements (Core Bootloader Needs) ---
 let checklistContainer, historyList, addMedForm, editModal, editForm, settingsModal, helpModal;
@@ -59,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Event Listener Binding Functions ---
-
 function bindCoreListeners() {
     getEl('btn-submit-selected')?.addEventListener('click', logSelected);
     getEl('btn-submit-all')?.addEventListener('click', logAll);
