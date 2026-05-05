@@ -70,32 +70,54 @@
             <div class="main-content-area">
                 <div class="card" style="padding: 2rem;">
                     <h2 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Privacy Policy</h2>
-                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 3, 2026</div>
+                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 5, 2026</div>
 
                     <div class="help-section">
-                        <h3>1. Data Collection and Storage</h3>
-                        <p>MedLedger is a strictly local-first application. All data you enter into the application (including medication names, schedules, dosages, and historical logs) is stored exclusively on your device's local storage (IndexedDB).</p>
-                        <p><b>The developer collects absolutely zero personal data, telemetry, or analytics.</b> We do not operate central databases, and we have no physical or technical ability to view, access, transmit, or sell your health data.</p>
+                        <h3>1. Core Philosophy: Zero-Knowledge & Local-First</h3>
+                        <p>MedLedger is engineered strictly as a local-first application. <b>The developers of MedLedger collect absolutely zero personal data, medical information, telemetry, or behavioral analytics.</b> We do not operate a central database, and we have no physical or technical capability to view, access, transmit, or monetize your health data.</p>
+                        <p>All information you enter into the application—including medication names, schedules, dosages, side effects, and historical logs—is stored exclusively on your device's internal storage (IndexedDB).</p>
                     </div>
 
                     <div class="help-section">
-                        <h3>2. Google Drive Integration (drive.appdata)</h3>
-                        <p>If you choose to enable the optional Cloud Sync feature, MedLedger requests access to a restricted, hidden folder in your personal Google Drive via the <code>https://www.googleapis.com/auth/drive.appdata</code> scope.</p>
+                        <h3>2. Data Encryption and The Vault</h3>
+                        <p>To facilitate secure backups, MedLedger features a "Data Vault." When you set a Master Password, your database is encrypted locally on your hardware using industry-standard AES-GCM cryptographic algorithms before it ever leaves the application context.</p>
                         <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
-                            <li style="margin-bottom: 0.25rem;"><b>What we do with it:</b> The app uses this folder strictly to upload and download an AES-GCM encrypted backup of your local database, allowing you to sync data across your own devices.</li>
-                            <li style="margin-bottom: 0.25rem;"><b>What we DO NOT do:</b> The app does not read, modify, or interact with any of your personal files, photos, or documents in your broader Google Drive.</li>
-                            <li><b>Developer Access:</b> The developer of MedLedger has no access to your Google Drive account, your backups, or your encryption passwords.</li>
+                            <li style="margin-bottom: 0.25rem;">The encryption key is derived solely from your password and is never transmitted to us.</li>
+                            <li style="margin-bottom: 0.25rem;"><b>There is no password recovery mechanism.</b> Because we do not store your password, we cannot reset it. If you lose your password, any exported backups or synced files will be permanently irretrievable.</li>
                         </ul>
                     </div>
 
                     <div class="help-section">
-                        <h3>3. Encryption and Security</h3>
-                        <p>Before any data is synced to your Google Drive or exported from your device, it is encrypted locally on your hardware using an AES-GCM algorithm and a password only you know. If you lose or forget this password, your data cannot be recovered by the developer or by Google. You hold the exclusive keys to your records.</p>
+                        <h3>3. Google Drive Integration (drive.appdata)</h3>
+                        <p>If you explicitly opt-in to the Cloud Sync feature, MedLedger will request authentication via Google Identity Services and ask for the <code>https://www.googleapis.com/auth/drive.appdata</code> permission scope.</p>
+                        <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
+                            <li style="margin-bottom: 0.25rem;"><b>Strict Isolation:</b> This permission scope strictly limits the application to a single, invisible application-specific folder within your Google Drive.</li>
+                            <li style="margin-bottom: 0.25rem;"><b>What we do with it:</b> The app only uses this folder to upload and download your AES-GCM encrypted <code>.medvault</code> backup files, allowing you to synchronize your own data across your personal devices.</li>
+                            <li><b>What we DO NOT do:</b> MedLedger cannot see, read, modify, or interact with any of your personal files, documents, or photos in your broader Google Drive account.</li>
+                        </ul>
                     </div>
 
                     <div class="help-section">
-                        <h3>4. Cookies and Tracking</h3>
-                        <p>MedLedger does not use tracking cookies, tracking pixels, or third-party advertising scripts. We use standard browser local storage solely to remember your app configurations (such as Dark Mode preferences, interface toggles, and notification timestamps).</p>
+                        <h3>4. Third-Party API Interactions</h3>
+                        <p>MedLedger contains an optional "Clinical Lookups" feature. When enabled, typing a medication name will prompt the application to silently query public, open-source databases (such as OpenFDA or Wikidata) to fetch generic drug descriptions and indications.</p>
+                        <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
+                            <li>These queries are one-way requests for public data. They do not transmit your historical logs, adherence scores, or personal identifiers to these external services.</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>5. Cookies and Local Storage</h3>
+                        <p>MedLedger does not utilize tracking cookies, tracking pixels, or third-party advertising frameworks. The application relies entirely on HTML5 Local Storage and IndexedDB to maintain the core functionality of the application. This includes saving your user interface preferences (such as Dark Mode), configuration toggles, and notification timestamps.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>6. Your Rights and Data Deletion</h3>
+                        <p>Because your data is owned and controlled entirely by you on your local device, exercising your right to deletion is absolute and immediate. To permanently destroy your MedLedger data, you only need to clear your browser's site data/cache for this application or uninstall the Progressive Web App (PWA) from your device. Once cleared locally, the unencrypted data ceases to exist.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>7. Changes to This Policy</h3>
+                        <p>We may update this Privacy Policy periodically to reflect changes in application features or regulatory requirements. Because we have no central database of users, we cannot email you regarding updates. Changes will be posted to this page, and your continued use of the application constitutes acceptance of those changes.</p>
                     </div>
                 </div>
 
