@@ -5,69 +5,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#18181b">
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MedLedger">
+    <link rel="apple-touch-icon" href="/icon.png">
     <title>Terms of Service - MedLedger</title>
+    <style>
+        /* Override main app grid so legal pages take full reading width on desktop */
+        @media (min-width: 1200px) {
+            main#app { grid-template-columns: 1fr !important; max-width: 1000px !important; }
+        }
+    </style>
 </head>
 <body>
-    <header class="app-header">
-        <div class="header-content">
-            <h1>MedLedger</h1>
-            <div class="header-controls">
-                <a href="/" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; text-decoration: none;">Back to App</a>
-                <button id="theme-toggle" aria-label="Toggle Dark Mode" class="icon-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
+    <div class="app-shell">
+        <aside class="sidebar-nav">
+            <div class="sidebar-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+                <span>MedLedger</span>
+            </div>
+            <nav>
+                <a href="index.html" class="nav-item" style="text-decoration: none; display: block;">🏠 Dashboard</a>
+                <a href="index.html" class="nav-item" style="text-decoration: none; display: block;">⚙️ Settings</a>
+                <a href="index.html" class="nav-item" style="text-decoration: none; display: block;">❓ Help Guide</a>
+                
+                <button class="nav-item theme-toggle-btn" aria-label="Toggle Theme" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); border-radius: 0;">
+                    <span class="theme-icon-slot"></span>
+                    <span class="theme-text-slot">Theme</span>
                 </button>
-            </div>
-        </div>
-    </header>
+            </nav>
+        </aside>
 
-    <main id="app">
-        <div class="card" style="padding: 2rem;">
-            <h2 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Terms of Service</h2>
-            <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 3, 2026</div>
-
-            <div class="help-section">
-                <h3>1. Acceptance of Terms</h3>
-                <p>By accessing, installing, and using MedLedger (the "App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.</p>
+        <header class="app-header">
+            <div class="header-content">
+                <h1>MedLedger</h1>
+                <div class="header-controls">
+                    <a href="index.html" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; text-decoration: none;">Back to App</a>
+                    <button aria-label="Toggle Theme" class="icon-btn theme-toggle-btn">
+                        <span class="theme-icon-slot"></span>
+                    </button>
+                </div>
             </div>
+        </header>
 
-            <div class="help-section">
-                <h3 style="color: var(--danger-color);">2. Not Medical Advice</h3>
-                <p>MedLedger is a tracking utility designed to help users log their personal habits and schedules. <b>It is not a medical device, nor does it provide medical advice, diagnosis, or treatment.</b></p>
-                <p>You should always consult a qualified healthcare provider regarding your medication schedules, dosages, side effects, and health conditions. Never disregard professional medical advice or delay seeking it because of information logged, calculated, or reminded by this App.</p>
-            </div>
+        <main id="app">
+            <div class="main-content-area">
+                <div class="card" style="padding: 2rem;">
+                    <h2 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Terms of Service</h2>
+                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 3, 2026</div>
 
-            <div class="help-section">
-                <h3>3. Data Responsibility and Loss</h3>
-                <p>Because MedLedger is a zero-knowledge, local-first application, <b>you are solely responsible for maintaining backups of your data.</b></p>
-                <p>If you clear your browser cache, lose your device, or forget your Data Vault encryption password, your data will be permanently inaccessible. The developer assumes no responsibility or liability for lost data, missed medications, inventory discrepancies, or any physical or digital consequences arising from the use or failure of the App.</p>
-            </div>
+                    <div class="help-section">
+                        <h3>1. Acceptance of Terms</h3>
+                        <p>By accessing, installing, and using MedLedger (the "App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.</p>
+                    </div>
 
-            <div class="help-section">
-                <h3>4. "As-Is" Software</h3>
-                <p>The App is provided on an "AS IS" and "AS AVAILABLE" basis without any warranties of any kind. The developer makes no guarantees, expressed or implied, regarding the uptime, notification reliability, browser compatibility, or absolute accuracy of the software.</p>
-            </div>
+                    <div class="help-section">
+                        <h3 style="color: var(--danger-color);">2. Not Medical Advice</h3>
+                        <p>MedLedger is a tracking utility designed to help users log their personal habits and schedules. <b>It is not a medical device, nor does it provide medical advice, diagnosis, or treatment.</b></p>
+                        <p>You should always consult a qualified healthcare provider regarding your medication schedules, dosages, side effects, and health conditions. Never disregard professional medical advice or delay seeking it because of information logged, calculated, or reminded by this App.</p>
+                    </div>
 
-            <div style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.85rem;">
-                <a href="/privacy.html" style="color: var(--accent-color); text-decoration: none;">View Privacy Policy</a>
+                    <div class="help-section">
+                        <h3>3. Data Responsibility and Loss</h3>
+                        <p>Because MedLedger is a zero-knowledge, local-first application, <b>you are solely responsible for maintaining backups of your data.</b></p>
+                        <p>If you clear your browser cache, lose your device, or forget your Data Vault encryption password, your data will be permanently inaccessible. The developer assumes no responsibility or liability for lost data, missed medications, inventory discrepancies, or any physical or digital consequences arising from the use or failure of the App.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>4. "As-Is" Software</h3>
+                        <p>The App is provided on an "AS IS" and "AS AVAILABLE" basis without any warranties of any kind. The developer makes no guarantees, expressed or implied, regarding the uptime, notification reliability, browser compatibility, or absolute accuracy of the software.</p>
+                    </div>
+
+                    <div style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.85rem;">
+                        <a href="privacy.html" style="color: var(--accent-color); text-decoration: none;">View Privacy Policy</a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
     <script>
-        // Standalone theme toggle so it works without the main app.js engine
+        // Standalone theme toggle synchronized with the main app structure
         const rootElement = document.documentElement;
-        const themeToggleBtn = document.getElementById('theme-toggle');
 
         function updateThemeIcon(theme) {
+            const iconSlots = document.querySelectorAll('.theme-icon-slot');
+            if (iconSlots.length === 0) return;
+            
+            let svgContent = '';
+            let textLabel = '';
+
             if (theme === 'light') {
-                themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+                svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+                textLabel = "Light Mode";
             } else if (theme === 'hc') {
-                themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
+                svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
+                textLabel = "High Contrast";
             } else {
-                themeToggleBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+                svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+                textLabel = "Dark Mode";
             }
+
+            iconSlots.forEach(slot => { slot.innerHTML = svgContent; });
+            
+            const textSlots = document.querySelectorAll('.theme-text-slot');
+            textSlots.forEach(slot => { slot.textContent = textLabel; });
         }
 
         let savedTheme = localStorage.getItem('theme');
@@ -77,12 +120,15 @@
         rootElement.setAttribute('data-theme', savedTheme);
         updateThemeIcon(savedTheme);
 
-        themeToggleBtn.addEventListener('click', () => {
-            let currentTheme = rootElement.getAttribute('data-theme');
-            let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
-            rootElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
+        const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
+        themeToggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                let currentTheme = rootElement.getAttribute('data-theme');
+                let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
+                rootElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeIcon(newTheme);
+            });
         });
     </script>
 </body>
