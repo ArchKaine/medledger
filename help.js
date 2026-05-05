@@ -16,8 +16,9 @@ const HelpContent = {
     installation: `
         <section style="margin-bottom: 1.5rem;">
             <h3 style="color: var(--accent-color);">📱 1. Installation & Offline Use</h3>
-            <p>MedLedger is a Progressive Web App (PWA). You don't download it from an app store.</p>
+            <p>MedLedger is a Progressive Web App (PWA). You don't download it from an app store. It features a responsive layout that automatically expands into a multi-column dashboard on desktop screens.</p>
             <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+                <li><strong>Desktop / Chrome / Edge:</strong> Look for the "install" icon in the right side of the URL address bar to run as a native desktop window.</li>
                 <li><strong>iOS / Safari:</strong> Tap the Share button at the bottom of the screen and select "Add to Home Screen".</li>
                 <li><strong>Android / Chrome:</strong> Tap the Menu (⋮) at the top right and select "Install App" or "Add to Home screen".</li>
             </ul>
@@ -94,27 +95,31 @@ function openHelpModal() {
         helpModal = document.createElement('dialog');
         helpModal.id = 'help-modal';
         helpModal.className = 'modal';
-        helpModal.innerHTML = `
-            <div class="modal-content" style="max-width: 600px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1rem;">
-                    <h2 style="margin:0;">User Guide & Warnings</h2>
-                    <button class="icon-btn" onclick="document.getElementById('help-modal').close()" type="button">✕</button>
-                </div>
-                <div id="help-scroll-area" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
-                    ${HelpContent.warnings}
-                    ${HelpContent.installation}
-                    ${HelpContent.scheduling}
-                    ${HelpContent.logging}
-                    ${HelpContent.analytics}
-                    ${HelpContent.mistakes}
-                    ${HelpContent.vault}
-                    ${HelpContent.footer}
-                </div>
-                <button class="btn btn-primary" style="width:100%; margin-top:1.5rem;" onclick="document.getElementById('help-modal').close()" type="button">Close Guide</button>
-            </div>
-        `;
         document.body.appendChild(helpModal);
     }
+    
+    // Inject dynamic content every time to ensure translations/updates are caught
+    helpModal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1rem;">
+                <h2 style="margin:0;">User Guide & Warnings</h2>
+                <button class="icon-btn" onclick="document.getElementById('help-modal').close()" type="button" aria-label="Close Guide">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="help-scroll-area" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                ${HelpContent.warnings}
+                ${HelpContent.installation}
+                ${HelpContent.scheduling}
+                ${HelpContent.logging}
+                ${HelpContent.analytics}
+                ${HelpContent.mistakes}
+                ${HelpContent.vault}
+                ${HelpContent.footer}
+            </div>
+            <button class="btn btn-primary" style="width:100%; margin-top:1.5rem;" onclick="document.getElementById('help-modal').close()" type="button">Close Guide</button>
+        </div>
+    `;
 
     helpModal.showModal();
 }
