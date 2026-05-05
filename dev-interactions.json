@@ -1,0 +1,22 @@
+{
+  "lisinopril": {
+    "ibuprofen": "Concomitant use may decrease the antihypertensive effect and increase the risk of renal impairment."
+  },
+  "ibuprofen": {
+    "lisinopril": "Concomitant use may decrease the antihypertensive effect and increase the risk of renal impairment.",
+    "warfarin": "Significantly increases the risk of severe gastrointestinal bleeding."
+  },
+  "warfarin": {
+    "ibuprofen": "Significantly increases the risk of severe gastrointestinal bleeding."
+  },
+  "forge-grade adrenaline": {
+    "melatonin": "Direct antagonistic interaction. Reduces the efficacy of both compounds.",
+    "albuterol sulfate": "High risk of severe tachycardia and cardiovascular stress when combined."
+  },
+  "albuterol sulfate": {
+    "forge-grade adrenaline": "High risk of severe tachycardia and cardiovascular stress when combined."
+  },
+  "melatonin": {
+    "forge-grade adrenaline": "Direct antagonistic interaction. Reduces the efficacy of both compounds."
+  }
+}
