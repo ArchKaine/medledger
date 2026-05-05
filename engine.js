@@ -39,6 +39,7 @@ const MOCK_DATA = {
         }
     ],
     logs: [
+        // Completed dose for today
         {
             timestamp: 'mock-ts-1',
             dateTaken: new Date().toISOString(),
@@ -48,6 +49,7 @@ const MOCK_DATA = {
             medName: 'Lisinopril',
             status: 'taken'
         },
+        // A Duplicate entry to test the warning badge
         {
             timestamp: 'mock-ts-2',
             dateTaken: new Date().toISOString(),
@@ -333,14 +335,12 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
+        // --- DEV MODE OVERRIDE ---
         const rawMeds = AppSettings.devMode ? MOCK_DATA.meds : medReq.result;
         const logs = AppSettings.devMode ? MOCK_DATA.logs : logReq.result;
 
         container.innerHTML = '';
-        if (rawMeds.length === 0) { 
-            container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem; grid-column: 1 / -1;">No medications added.</p>'; 
-            return; 
-        }
+        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem;">No medications added.</p>'; return; }
 
         rawMeds.sort((a, b) => {
             const weights = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5, "Specific Days": 6, "Cyclic": 7 };
@@ -368,7 +368,7 @@ function loadChecklist() {
 
             const isLow = AppSettings.inventory && parseInt(med.inventory) <= 10;
             const card = document.createElement('div');
-            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '0'; card.style.overflow = 'hidden';
+            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
 
             let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
             const timesToProcess = (med.times && med.times.length > 0) ? med.times : [null];
@@ -411,7 +411,7 @@ function loadChecklist() {
             `;
             container.appendChild(card);
         });
-        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem; grid-column: 1 / -1;">Clear for today.</p>';
+        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem;">Clear for today.</p>';
         if(typeof updateStatus === 'function') updateStatus();
     };
 }
@@ -460,6 +460,7 @@ function refreshHistory() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
+        // --- DEV MODE OVERRIDE ---
         const logs = AppSettings.devMode ? MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         
         list.innerHTML = '';
