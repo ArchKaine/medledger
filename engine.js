@@ -103,6 +103,12 @@ async function handleAddMed(e) {
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
+    
+    // Extended Metadata
+    const rxNumberInput = document.getElementById('new-med-rx')?.value.trim() || "";
+    const doctorInput = document.getElementById('new-med-doctor')?.value.trim() || "";
+    const pharmacyPhoneInput = document.getElementById('new-med-phone')?.value.trim() || "";
+    
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -124,6 +130,7 @@ async function handleAddMed(e) {
     const newMed = {
         id: crypto.randomUUID(), name: nameInput, dose: doseInput, frequency: freqInput, times: timesArray,
         instructions: instructionsInput, sideEffects: sideEffectsInput, inventory: AppSettings.inventory ? inventoryInput : "",
+        rxNumber: rxNumberInput, doctor: doctorInput, pharmacyPhone: pharmacyPhoneInput,
         specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
         cycleOn: freqInput === 'Cyclic' ? cycleOn : null,
         cycleOff: freqInput === 'Cyclic' ? cycleOff : null,
@@ -178,6 +185,11 @@ window.openEditModal = async function(id) {
     document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
     document.getElementById('edit-med-instructions').value = med.instructions || '';
     document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
+    
+    // Metadata
+    if(document.getElementById('edit-med-rx')) document.getElementById('edit-med-rx').value = med.rxNumber || '';
+    if(document.getElementById('edit-med-doctor')) document.getElementById('edit-med-doctor').value = med.doctor || '';
+    if(document.getElementById('edit-med-phone')) document.getElementById('edit-med-phone').value = med.pharmacyPhone || '';
     
     const invGroup = document.getElementById('edit-inventory-group');
     if (AppSettings.inventory && invGroup) {
@@ -262,6 +274,9 @@ async function saveEditedMed(e) {
         instructions: document.getElementById('edit-med-instructions').value.trim(),
         sideEffects: document.getElementById('edit-med-side-effects').value.trim(),
         inventory: AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "",
+        rxNumber: document.getElementById('edit-med-rx')?.value.trim() || "",
+        doctor: document.getElementById('edit-med-doctor')?.value.trim() || "",
+        pharmacyPhone: document.getElementById('edit-med-phone')?.value.trim() || "",
         specificDays: freq === 'Specific Days' ? Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value)) : [],
         cycleOn: parseInt(document.getElementById('edit-med-cycle-on').value) || null,
         cycleOff: parseInt(document.getElementById('edit-med-cycle-off').value) || null,
@@ -329,7 +344,6 @@ function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container) return;
 
-    // Fast-path for Dev Mode avoids IndexedDB async completely
     if (AppSettings.devMode && window.MOCK_DATA) {
         renderChecklistUI(window.MOCK_DATA.meds, window.MOCK_DATA.logs, container);
         return;
@@ -345,7 +359,6 @@ function loadChecklist() {
     };
 }
 
-// Extracted for clean reuse between Dev and Prod
 function renderChecklistUI(rawMeds, logs, container) {
     container.innerHTML = '';
     if (rawMeds.length === 0) { 
@@ -408,7 +421,8 @@ function renderChecklistUI(rawMeds, logs, container) {
         const refillBanner = isLow ? `
             <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); flex-wrap:wrap; gap:0.5rem;">
                 <span style="color:var(--danger-color); font-size:0.75rem; font-weight:700;">⚠️ Low Supply (${med.inventory})</span>
-                <div style="display:flex; gap:4px;">
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    ${med.pharmacyPhone ? `<a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" class="btn btn-primary" style="padding:2px 8px; font-size:0.7rem; text-decoration:none; display:flex; align-items:center; gap:4px;">📞 Call Rx</a>` : ''}
                     <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', 30)">+30</button>
                     <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', 90)">+90</button>
                 </div>
@@ -420,9 +434,13 @@ function renderChecklistUI(rawMeds, logs, container) {
                 <button class="icon-btn" onclick="openEditModal('${med.id}')" type="button">✏️</button>
             </div>
             ${timesHtml}
-            ${(med.instructions || med.sideEffects || med.description || med.indications) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px; max-height:100px; overflow-y:auto;">
+            ${(med.instructions || med.sideEffects || med.description || med.indications || med.rxNumber || med.doctor) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto;">
                 ${med.instructions ? `<div><i>${med.instructions}</i></div>` : ''}
                 ${med.sideEffects ? `<div>ℹ️ ${med.sideEffects}</div>` : ''}
+                ${(med.rxNumber || med.doctor) ? `<div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-color); font-size: 0.75rem;">
+                    ${med.rxNumber ? `<span><strong>Rx:</strong> ${med.rxNumber}</span>` : ''}
+                    ${med.doctor ? `<span><strong>Dr:</strong> ${med.doctor}</span>` : ''}
+                </div>` : ''}
                 ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
                 ${med.indications ? `<div style="font-size: 0.75rem; opacity: 0.8;"><strong>Use:</strong> ${med.indications}</div>` : ''}
             </div>` : ''}
@@ -613,7 +631,7 @@ window.exportHTMLReport = async function() {
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left)</div>`).join('')}</div>` : "";
+    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left) ${m.rxNumber ? `[Rx: ${m.rxNumber}]` : ''} ${m.pharmacyPhone ? `Ph: ${m.pharmacyPhone}` : ''}</div>`).join('')}</div>` : "";
 
     const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
         body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
@@ -694,7 +712,6 @@ function checkReminders() {
     const curTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     const todayStr = now.toLocaleDateString();
     
-    // Dev Mode uses mock meds, Prod uses real meds
     if (AppSettings.devMode) {
         processReminders(window.MOCK_DATA.meds, window.MOCK_DATA.logs, curTime, todayStr);
     } else {
