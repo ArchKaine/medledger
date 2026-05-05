@@ -5,12 +5,13 @@
 
 (function() {
     const generateMockData = () => {
+        // --- 1. Generate 10 Stress-Test Medications ---
         const meds = [
             {
                 id: 'mock-1',
                 name: 'Lisinopril',
                 dose: '10mg',
-                frequency: 'Daily',
+                frequency: 'Morning',
                 times: ['08:00'],
                 instructions: 'Take with food for blood pressure.',
                 sideEffects: 'Dizziness, dry cough',
@@ -53,7 +54,7 @@
                 inventory: '3',
                 specificDays: [],
                 cycleOn: 21, cycleOff: 7, 
-                cycleStartDate: new Date(Date.now() - (5 * 86400000)).toISOString().split('T')[0] // Started 5 days ago
+                cycleStartDate: new Date(Date.now() - (15 * 86400000)).toISOString().split('T')[0] // Started 15 days ago
             },
             {
                 id: 'mock-5',
@@ -123,76 +124,94 @@
                 times: ['21:00'],
                 instructions: 'Cholesterol management.',
                 sideEffects: 'Muscle ache',
-                inventory: '8', // Low inventory trigger
+                inventory: '8', // Purposely low inventory to trigger UI warning
                 specificDays: [],
                 cycleOn: null, cycleOff: null, cycleStartDate: null
             }
         ];
 
+        // --- 2. Procedurally Generate 30 Days of Logs ---
         const logs = [];
         const now = new Date();
         
-        // Procedurally generate the last 7 days of history to populate the heatmap
-        for (let i = 0; i < 8; i++) {
+        const simulateLog = (dateStr, med, time, isBackdated = false, prnReason = "", driftMinutes = 0) => {
+            const logTime = new Date(`${dateStr}T${time}:00`);
+            
+            // Add slight random drift (lateness/earliness) to test variance analytics
+            const systemTime = new Date(logTime.getTime() + (driftMinutes * 60000));
+            
+            // Don't log future times if the procedural generator hits today's future hours
+            if (systemTime > now) return;
+
+            logs.push({
+                timestamp: `mock-ts-${med.id}-${dateStr}-${time}-${crypto.randomUUID()}`,
+                dateTaken: logTime.toISOString(),
+                systemLoggedTime: systemTime.getTime(),
+                medId: med.id,
+                targetTime: time,
+                compositeId: `${med.id}|${time}`,
+                medName: med.name,
+                status: 'taken',
+                prnReason: prnReason,
+                isBackdated: isBackdated
+            });
+        };
+
+        for (let i = 0; i < 30; i++) {
             const targetDate = new Date(now);
             targetDate.setDate(now.getDate() - i);
             const dateStr = targetDate.toISOString().split('T')[0];
-            const isToday = i === 0;
+            const dayOfWeek = targetDate.getDay();
 
-            // Day - 0 (Today): Partial completion to show pending items
-            // Day - 1: Perfect Day
-            // Day - 2: Perfect Day
-            // Day - 3: Missed a dose (Partial Day)
-            // Day - 4: Empty Day (Missed all)
-            // Day - 5: Perfect Day + PRN usage + Backdated ghost log
-            // Day - 6: Perfect Day + Duplicate Entry
+            // Scenario 1: A Complete Missed Day (Gray block on heatmap)
+            if (i === 4 || i === 12 || i === 25) continue;
 
-            const simulateLog = (med, time, isBackdated = false, prnReason = "") => {
-                const logTime = new Date(`${dateStr}T${time}:00`);
-                if (logTime > now && isToday) return; // Don't log future times for today
+            // Scenario 2: Partial Days (Yellow block on heatmap)
+            const isPartialDay = (i === 2 || i === 8 || i === 18);
 
-                logs.push({
-                    timestamp: `mock-ts-${i}-${med.id}-${time}-${crypto.randomUUID()}`,
-                    dateTaken: logTime.toISOString(),
-                    systemLoggedTime: logTime.getTime(),
-                    medId: med.id,
-                    targetTime: time,
-                    compositeId: `${med.id}|${time}`,
-                    medName: med.name,
-                    status: 'taken',
-                    prnReason: prnReason,
-                    isBackdated: isBackdated
-                });
-            };
-
-            // Skip Day 4 completely to simulate a missed day
-            if (i === 4) continue;
-
-            // Generate daily standard logs
-            if (i !== 3 || isToday) { simulateLog(meds[0], '08:00'); } // Skip Lisinopril on Day 3
-            simulateLog(meds[2], '20:00');
-            simulateLog(meds[9], '21:00');
-            simulateLog(meds[6], '22:00', i === 5); // Make day 5 melatonin backdated (Ghost Log)
-
-            // Generate specific day logs based on the historical date
-            if (meds[4].specificDays.includes(targetDate.getDay())) {
-                simulateLog(meds[4], '12:00');
+            // Log Lisinopril
+            if (!isPartialDay || i % 2 === 0) { 
+                simulateLog(dateStr, meds[0], '08:00', false, "", 15); 
             }
 
-            // Generate PRN usage on specific days
-            if (i === 5) {
-                simulateLog(meds[1], '14:30', false, "Post-workout muscle ache");
-                simulateLog(meds[7], '09:15', false, "Shortness of breath");
+            // Log Warfarin
+            simulateLog(dateStr, meds[2], '20:00', false, "", -5);
+
+            // Log Atorvastatin
+            if (!isPartialDay) {
+                simulateLog(dateStr, meds[9], '21:00', false, "", 45); 
             }
 
-            // Create a duplicate warning on Day 6
+            // Log Specific Days (Amoxicillin: M, W, F)
+            if (meds[4].specificDays.includes(dayOfWeek)) {
+                simulateLog(dateStr, meds[4], '12:00', false, "", 0);
+            }
+
+            // Scenario 3: Ghost Log (Faded UI Block via Backdating)
+            if (i === 5 || i === 14) {
+                simulateLog(dateStr, meds[6], '22:00', true); // Melatonin was backdated
+            } else {
+                simulateLog(dateStr, meds[6], '22:00', false, "", 10);
+            }
+
+            // Scenario 4: PRN Emergency usage
+            if (i === 1 || i === 9) {
+                simulateLog(dateStr, meds[1], '14:30', false, "Post-workout ache", 0);
+            }
             if (i === 6) {
-                simulateLog(meds[0], '08:00');
-                // Duplicate entry
+                simulateLog(dateStr, meds[7], '09:15', false, "Shortness of breath", 0);
+            }
+
+            // Scenario 5: Duplicate Entry Warning
+            if (i === 3) {
+                simulateLog(dateStr, meds[0], '08:00', false, "", 0); // Original
+                
+                // The Duplicate
+                const dupTime = new Date(`${dateStr}T08:05:00`);
                 logs.push({
                     timestamp: `mock-ts-dup-${meds[0].id}`,
-                    dateTaken: new Date(`${dateStr}T08:05:00`).toISOString(),
-                    systemLoggedTime: new Date(`${dateStr}T08:05:00`).getTime(),
+                    dateTaken: dupTime.toISOString(),
+                    systemLoggedTime: dupTime.getTime(),
                     medId: meds[0].id,
                     targetTime: '08:00',
                     compositeId: `${meds[0].id}|08:00`,
@@ -207,20 +226,23 @@
         return { meds, logs };
     };
 
+    // Attach to global window context
     window.MOCK_DATA = generateMockData();
 
+    // The Dev Mode Hook
     window.toggleDevMode = function() {
         AppSettings.devMode = !AppSettings.devMode;
         const status = AppSettings.devMode ? "ENABLED (Mock Data Environment)" : "DISABLED (User Data Environment)";
         if(typeof showVaultStatus === 'function') showVaultStatus(`Dev Mode ${status}`, "var(--accent-color)");
         
-        // Regenerate fresh logs relative to current time if turned back on
+        // Regenerate fresh logs relative to current time so 'Today' is always accurate
         if (AppSettings.devMode) {
             window.MOCK_DATA = generateMockData();
         }
         
         if (typeof loadChecklist === 'function') loadChecklist();
         if (typeof refreshHistory === 'function') refreshHistory();
+        if (typeof calculateAdherence === 'function') calculateAdherence(); // Force Analytics to refresh
     };
 
 })();
