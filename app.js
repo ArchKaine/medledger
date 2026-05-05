@@ -22,16 +22,21 @@ const AppSettings = {
 // --- DOM Elements (Core Bootloader Needs) ---
 let checklistContainer, historyList, addMedForm, editModal, editForm, settingsModal, helpModal;
 
+// --- Helper: Safe Element Getter ---
+function getEl(id) {
+    return document.getElementById(id);
+}
+
 // --- Initialization / Bootloader ---
 document.addEventListener('DOMContentLoaded', () => {
     // Bind core elements used directly by the engine
-    checklistContainer = document.getElementById('checklist-container');
-    historyList = document.getElementById('history-list');
-    addMedForm = document.getElementById('add-med-form');
-    editModal = document.getElementById('edit-med-modal');
-    editForm = document.getElementById('edit-med-form');
-    settingsModal = document.getElementById('settings-modal');
-    helpModal = document.getElementById('help-modal');
+    checklistContainer = getEl('checklist-container');
+    historyList = getEl('history-list');
+    addMedForm = getEl('add-med-form');
+    editModal = getEl('edit-med-modal');
+    editForm = getEl('edit-med-form');
+    settingsModal = getEl('settings-modal');
+    helpModal = getEl('help-modal');
 
     // Boot UI and Database
     if(typeof initializeTheme === 'function') initializeTheme();
@@ -39,19 +44,36 @@ document.addEventListener('DOMContentLoaded', () => {
     initDB();
     registerServiceWorker();
 
-    // Hook up Engine Listeners (Core Logic)
-    document.getElementById('btn-submit-selected')?.addEventListener('click', logSelected);
-    document.getElementById('btn-submit-all')?.addEventListener('click', logAll);
-    document.getElementById('add-med-form')?.addEventListener('submit', handleAddMed);
-    
-    document.getElementById('btn-delete-med')?.addEventListener('click', deleteMedication);
-    document.getElementById('edit-med-form')?.addEventListener('submit', saveEditedMed);
-    
-    // Modal Interactions (UI Logic)
-    document.getElementById('settings-toggle')?.addEventListener('click', () => {
+    // Attach all event listeners
+    bindCoreListeners();
+    bindModalListeners();
+    bindExportListeners();
+    bindHeatmapListener();
+    bindTabListeners();
+    bindVaultListeners();
+    bindKeyboardShortcuts();
+    bindGlobalErrorHandler();
+
+    // Full initialization
+    setTimeout(fullAppInit, 150);
+});
+
+// --- Event Listener Binding Functions ---
+
+function bindCoreListeners() {
+    getEl('btn-submit-selected')?.addEventListener('click', logSelected);
+    getEl('btn-submit-all')?.addEventListener('click', logAll);
+    getEl('add-med-form')?.addEventListener('submit', handleAddMed);
+    getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
+    getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
+}
+
+function bindModalListeners() {
+    // Settings Modal
+    getEl('settings-toggle')?.addEventListener('click', () => {
         const cachedPass = sessionStorage.getItem('medledger_session_key');
-        const vaultPassInput = document.getElementById('vault-password');
-        const sessionLockControls = document.getElementById('session-lock-controls');
+        const vaultPassInput = getEl('vault-password');
+        const sessionLockControls = getEl('session-lock-controls');
         
         if (cachedPass && vaultPassInput && sessionLockControls) {
             vaultPassInput.value = cachedPass;
@@ -61,26 +83,29 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionLockControls.style.display = 'none';
         }
         settingsModal?.showModal();
-        if(settingsModal) settingsModal.scrollTop = 0; 
+        if(settingsModal) settingsModal.scrollTop = 0;
     });
-    document.getElementById('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
+    getEl('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
     
-    document.getElementById('help-toggle')?.addEventListener('click', () => {
+    // Help Modal
+    getEl('help-toggle')?.addEventListener('click', () => {
         helpModal?.showModal();
-        if(helpModal) helpModal.scrollTop = 0; 
+        if(helpModal) helpModal.scrollTop = 0;
     });
-    document.getElementById('btn-close-help')?.addEventListener('click', () => helpModal?.close());
+    getEl('btn-close-help')?.addEventListener('click', () => helpModal?.close());
+}
 
-    // Connect to external modules
-    document.getElementById('btn-peek-password')?.addEventListener('click', togglePasswordVisibility);
-    document.getElementById('btn-lock-vault')?.addEventListener('click', lockVaultSession);
-    document.getElementById('btn-export-csv')?.addEventListener('click', exportCSV);
-    document.getElementById('btn-export-html')?.addEventListener('click', exportHTMLReport);
-    document.getElementById('btn-archive-logs')?.addEventListener('click', archiveOldLogs);
-    document.getElementById('btn-restore-archives')?.addEventListener('click', restoreArchivedLogs);
-    
-    // Heatmap Dropdown Persist & Event
-    const heatmapRangeSelect = document.getElementById('heatmap-range');
+function bindExportListeners() {
+    getEl('btn-peek-password')?.addEventListener('click', togglePasswordVisibility);
+    getEl('btn-lock-vault')?.addEventListener('click', lockVaultSession);
+    getEl('btn-export-csv')?.addEventListener('click', exportCSV);
+    getEl('btn-export-html')?.addEventListener('click', exportHTMLReport);
+    getEl('btn-archive-logs')?.addEventListener('click', archiveOldLogs);
+    getEl('btn-restore-archives')?.addEventListener('click', restoreArchivedLogs);
+}
+
+function bindHeatmapListener() {
+    const heatmapRangeSelect = getEl('heatmap-range');
     if (heatmapRangeSelect) {
         const savedRange = localStorage.getItem('cfg_heatmapRange');
         if (savedRange) heatmapRangeSelect.value = savedRange;
@@ -90,17 +115,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof calculateAdherence === 'function') calculateAdherence();
         });
     }
+}
 
-    // GUARANTEED TAB LISTENERS
-    document.getElementById('tab-today')?.addEventListener('click', () => switchTab('today'));
-    document.getElementById('tab-history')?.addEventListener('click', () => switchTab('history'));
+function bindTabListeners() {
+    getEl('tab-today')?.addEventListener('click', () => switchTab('today'));
+    getEl('tab-history')?.addEventListener('click', () => switchTab('history'));
+}
 
-    document.getElementById('btn-export-vault')?.addEventListener('click', exportVaultLocal);
-    document.getElementById('import-vault-file')?.addEventListener('change', importVaultLocal);
-    document.getElementById('btn-cloud-push')?.addEventListener('click', pushToGoogleDrive);
-    document.getElementById('btn-cloud-pull')?.addEventListener('click', pullFromGoogleDrive);
+function bindVaultListeners() {
+    getEl('btn-export-vault')?.addEventListener('click', exportVaultLocal);
+    getEl('import-vault-file')?.addEventListener('change', importVaultLocal);
+    getEl('btn-cloud-push')?.addEventListener('click', pushToGoogleDrive);
+    getEl('btn-cloud-pull')?.addEventListener('click', pullFromGoogleDrive);
+}
 
-    // Keyboard Shortcuts
+function bindKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
         if (AppSettings.expertMode && e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
@@ -108,18 +137,16 @@ document.addEventListener('DOMContentLoaded', () => {
             checked.length > 0 ? logSelected() : logAll();
         }
     });
+}
 
-    // Global error handler
+function bindGlobalErrorHandler() {
     window.addEventListener('error', (e) => {
         console.error("MedLedger runtime error:", e);
         if (typeof showVaultStatus === 'function') {
             showVaultStatus("App encountered an issue. Check console.", "var(--danger-color)");
         }
     });
-
-    // Full initialization
-    setTimeout(fullAppInit, 150);
-});
+}
 
 function fullAppInit() {
     if (typeof loadChecklist === 'function') loadChecklist();
