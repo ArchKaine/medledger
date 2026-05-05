@@ -189,21 +189,35 @@ function showVaultStatus(message, color) {
     setTimeout(() => { vaultStatus.textContent = ''; }, 4000);
 }
 
+// FIXED: Update both Desktop and Mobile status indicators
 function updateStatus() {
-    const statusBar = document.getElementById('status-bar');
-    if (!statusBar) return;
-    
+    const mobileStatusBar = document.getElementById('status-bar');
+    const desktopStatusBar = document.getElementById('sidebar-status');
+
     const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled)');
     const total = document.querySelectorAll('#checklist-container .med-checkbox');
+    
+    let text = "Ready.";
+    let className = "status-indicator";
+
     if (total.length === 0) {
-        statusBar.textContent = "Ready.";
-        statusBar.className = "status-indicator";
+        text = "Ready.";
+        className = "status-indicator";
     } else if (remaining.length === 0) {
-        statusBar.textContent = "All regimens complete.";
-        statusBar.className = "status-indicator complete";
+        text = "All regimens complete.";
+        className = "status-indicator complete";
     } else {
-        statusBar.textContent = "Pending actions required.";
-        statusBar.className = "status-indicator";
+        text = "Pending actions required.";
+        className = "status-indicator";
+    }
+
+    if (mobileStatusBar) {
+        mobileStatusBar.textContent = text;
+        mobileStatusBar.className = className;
+    }
+    if (desktopStatusBar) {
+        desktopStatusBar.textContent = text;
+        desktopStatusBar.className = className;
     }
 }
 
