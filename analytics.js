@@ -4,7 +4,11 @@
 // ==========================================
 
 function calculateAdherence() {
-    if (typeof db === 'undefined' || !db) return; 
+    if (typeof db === 'undefined' || !db) { 
+        console.warn("Analytics: DB not ready yet, retrying in 200ms");
+        setTimeout(calculateAdherence, 200);
+        return; 
+    }
     
     const tx = db.transaction(["meds", "logs"], "readonly");
     const medReq = tx.objectStore("meds").getAll();
@@ -12,8 +16,8 @@ function calculateAdherence() {
 
     tx.oncomplete = () => {
         try {
-            const meds = medReq.result;
-            const logs = logReq.result;
+            const meds = medReq.result || [];
+            const logs = logReq.result || [];
             
             const today = new Date();
             today.setHours(0,0,0,0);
@@ -51,7 +55,7 @@ function calculateAdherence() {
             let driftCount = 0;
             let timeBlocks = { morning: { t: 0, e: 0 }, afternoon: { t: 0, e: 0 }, evening: { t: 0, e: 0 } };
 
-            // --- 3. TIMELINE INITIALIZATION (With Scheduling Logic) ---
+            // --- 3. TIMELINE INITIALIZATION ---
             for (let i = 0; i < range; i++) {
                 const simDate = new Date(today);
                 simDate.setDate(today.getDate() - i);
@@ -113,14 +117,12 @@ function calculateAdherence() {
                     if (deltaHours > 4) dailyMedDetails[localDateStr].retroCount++;
                 }
 
-                // Dose Drift Calculation (Actual log time vs Target time)
                 if (log.targetTime && log.systemLoggedTime) {
                     const [sH, sM] = log.targetTime.split(':').map(Number);
                     const scheduled = new Date(log.dateTaken);
                     scheduled.setHours(sH, sM, 0);
                     const actual = new Date(log.systemLoggedTime);
                     const diffMin = (actual - scheduled) / (1000 * 60);
-                    // Filter outliers (e.g., logging a morning pill at night shouldn't skew drift)
                     if (Math.abs(diffMin) < 360) {
                         driftSum += diffMin;
                         driftCount++;
@@ -137,7 +139,6 @@ function calculateAdherence() {
                 details.expected.forEach(exp => {
                     const idx = takenCopy.indexOf(exp.name);
                     
-                    // Time Block Categorization
                     let block = "evening";
                     if (exp.time) {
                         const h = parseInt(exp.time.split(':')[0]);
@@ -173,7 +174,7 @@ function calculateAdherence() {
     };
 }
 
-// --- SUB-RENDERING FUNCTIONS ---
+// --- SUB-RENDERING FUNCTIONS --- (unchanged from your original)
 
 function updateAdherenceHeader(dailyMedDetails, today, globalStartDate, actualTaken7Day) {
     let expected7DayDoses = 0;
@@ -226,7 +227,6 @@ function renderInsights(meds, logs, driftSum, driftCount, timeBlocks) {
     if (!container) return;
     container.innerHTML = '';
 
-    // A. Burn Rate Predictor
     const inventoryMeds = meds.filter(m => AppSettings.inventory && m.inventory > 0);
     inventoryMeds.forEach(med => {
         const last14Days = logs.filter(l => l.medId === med.id && (new Date() - new Date(l.dateTaken)) < (14 * 86400000));
@@ -244,7 +244,6 @@ function renderInsights(meds, logs, driftSum, driftCount, timeBlocks) {
         container.appendChild(card);
     });
 
-    // B. Dose Drift
     if (driftCount > 0) {
         const avgDrift = Math.round(driftSum / driftCount);
         const card = document.createElement('div');
@@ -258,7 +257,6 @@ function renderInsights(meds, logs, driftSum, driftCount, timeBlocks) {
         container.appendChild(card);
     }
 
-    // C. Adherence by Block
     const blocksCard = document.createElement('div');
     blocksCard.className = 'insight-card';
     blocksCard.style.gridColumn = "1 / -1";
