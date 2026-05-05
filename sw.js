@@ -1,10 +1,22 @@
-const CACHE_NAME = 'medledger-v2';
+const CACHE_NAME = 'medledger-v3'; // Bumped version to force cache update
 const ASSETS = [
     '/',
     '/index.html',
+    '/privacy.html',
+    '/terms.html',
     '/style.css',
     '/app.js',
-    '/manifest.json'
+    '/engine.js',
+    '/ui.js',
+    '/analytics.js',
+    '/vault.js',
+    '/clinical.js',
+    '/help.js',
+    '/dev.js',
+    '/interactions.json',
+    '/manifest.json',
+    '/icon-192.png',
+    '/icon-512.png'
 ];
 
 // Install event: Cache essential files
