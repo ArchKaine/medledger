@@ -12,6 +12,7 @@ let gapiToken = null;
 
 // --- Config State ---
 const AppSettings = {
+    devMode: false,
     noBabysitter: localStorage.getItem('cfg_noBabysitter') === 'true',
     expertMode: localStorage.getItem('cfg_expertMode') === 'true',
     reminders: localStorage.getItem('cfg_reminders') === 'true',
