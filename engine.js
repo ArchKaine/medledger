@@ -39,6 +39,7 @@ const MOCK_DATA = {
         }
     ],
     logs: [
+        // Completed dose for today
         {
             timestamp: 'mock-ts-1',
             dateTaken: new Date().toISOString(),
@@ -48,6 +49,7 @@ const MOCK_DATA = {
             medName: 'Lisinopril',
             status: 'taken'
         },
+        // A Duplicate entry to test the warning badge
         {
             timestamp: 'mock-ts-2',
             dateTaken: new Date().toISOString(),
@@ -168,6 +170,7 @@ async function handleAddMed(e) {
     const warnings = await checkLocalInteractions(nameInput);
     if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
 
+    // References external fetchDrugInfo from clinical.js
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
@@ -246,6 +249,7 @@ window.openEditModal = function(id) {
             });
         }
 
+        // --- SCROLLABLE CLINICAL INFO DISPLAY IN EDIT MODAL ---
         let clinicalPanel = document.getElementById('modal-clinical-info');
         if (!clinicalPanel) {
             clinicalPanel = document.createElement('div');
@@ -338,7 +342,7 @@ function loadChecklist() {
         const logs = AppSettings.devMode ? MOCK_DATA.logs : logReq.result;
 
         container.innerHTML = '';
-        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem;">No medications added.</p>'; return; }
+        if (rawMeds.length === 0) { container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem; grid-column: 1/-1;">No medications added.</p>'; return; }
 
         rawMeds.sort((a, b) => {
             const weights = { "Morning": 1, "Daily": 2, "Night": 3, "Weekly": 4, "As Needed": 5, "Specific Days": 6, "Cyclic": 7 };
@@ -347,6 +351,7 @@ function loadChecklist() {
 
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.toLocaleDateString();
+        let takenCount = 0;
         let visibleCount = 0;
 
         rawMeds.forEach(med => {
@@ -362,18 +367,26 @@ function loadChecklist() {
                 }
             }
             if (!shouldRender && med.frequency !== "As Needed") return;
-            visibleCount++;
+            
 
             const isLow = AppSettings.inventory && parseInt(med.inventory) <= 10;
             const card = document.createElement('div');
-            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
+            card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '0'; card.style.overflow = 'hidden';
 
             let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
+            // Ensure empty times array defaults to a null entry to generate the PRN checkbox
             const timesToProcess = (med.times && med.times.length > 0) ? med.times : [null];
             
             timesToProcess.forEach(t => {
                 const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
                 const taken = logs.some(l => l.compositeId === compId && new Date(l.dateTaken).toLocaleDateString() === todayStr);
+                
+                // Track non-PRN visibility and completion for adherence calculations
+                if (med.frequency !== "As Needed") {
+                    visibleCount++;
+                    if (taken) takenCount++;
+                }
+
                 timesHtml += `
                     <label class="med-item ${taken ? 'completed' : ''}" style="padding: 0.5rem 1rem;">
                         <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox" ${taken ? 'checked disabled' : ''}>
@@ -409,8 +422,14 @@ function loadChecklist() {
             `;
             container.appendChild(card);
         });
-        if (visibleCount === 0) container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem;">Clear for today.</p>';
-        if(typeof updateStatus === 'function') updateStatus();
+        
+        if (visibleCount === 0 && rawMeds.filter(m => m.frequency !== "As Needed").length > 0) {
+            container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem; grid-column: 1/-1;">Clear for today.</p>';
+        }
+
+        // Pass actual counts to status indicators
+        if(typeof updateStatus === 'function') updateStatus(takenCount, visibleCount);
+        if(typeof calculateAdherence === 'function') calculateAdherence();
     };
 }
 
@@ -458,6 +477,7 @@ function refreshHistory() {
     const list = document.getElementById('history-list');
     if(!list || typeof db === 'undefined') return;
     db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (e) => {
+        // --- DEV MODE OVERRIDE ---
         const logs = AppSettings.devMode ? MOCK_DATA.logs : e.target.result.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
         
         list.innerHTML = '';
