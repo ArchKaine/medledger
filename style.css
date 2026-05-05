@@ -851,7 +851,6 @@ input[type="time"] { flex: 1; min-width: 120px; }
     grid-template-columns: repeat(7, 1fr); /* 7 columns for Sun-Sat */
     gap: 6px; 
     margin-top: 0.5rem;
-    width: 100%; /* FIX: Ensures grid stretches relative to parent */
 }
 
 .heatmap-header {
@@ -878,8 +877,6 @@ input[type="time"] { flex: 1; min-width: 120px; }
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-primary);
-    /* FIX: Removed hardcoded min-width constraints that caused overflow */
-    width: 100%;
 }
 
 .heatmap-cell.spacer {
