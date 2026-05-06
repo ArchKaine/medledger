@@ -8,7 +8,7 @@
     <style>
         body {
             padding: 2rem;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
         }
         .inspector-header {
@@ -18,26 +18,42 @@
         }
         .json-viewer {
             background-color: #0f172a;
-            color: #e2e8f0;
             padding: 1.5rem;
             border-radius: 8px;
             overflow-x: auto;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             font-size: 0.85rem;
-            line-height: 1.5;
+            line-height: 1.6;
             white-space: pre-wrap;
             word-wrap: break-word;
             border: 1px solid var(--border-color);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-            max-height: 60vh;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+            max-height: 65vh;
             overflow-y: auto;
         }
+        /* Syntax Highlighting Colors */
+        .json-key { color: #93c5fd; font-weight: 600; }     /* Light Blue */
+        .json-string { color: #86efac; }                  /* Emerald */
+        .json-number { color: #fde047; }                  /* Yellow */
+        .json-boolean { color: #f9a8d4; }                 /* Pink */
+        .json-null { color: #94a3b8; font-style: italic; }
+
         .controls-card {
             background: var(--bg-surface);
             padding: 1.5rem;
             border-radius: 8px;
             border: 1px solid var(--border-color);
             margin-bottom: 1.5rem;
+        }
+        .search-box {
+            width: 100%;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -48,33 +64,37 @@
             Vault Data Inspector
         </h1>
         <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
-            Securely decrypt and view the raw JSON contents of a <code>.medvault</code> backup file. This tool is read-only and will <strong>not</strong> overwrite your active database.
+            Securely decrypt and view your <code>.medvault</code> backup files. Data remains local to your browser.
         </p>
     </div>
 
     <div class="controls-card">
-        <div class="form-group" style="margin-bottom: 1rem;">
-            <label class="form-label">1. Select Backup File (.medvault)</label>
-            <input type="file" id="inspector-file" accept=".medvault,.json" style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
-        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1rem;">
+            <div class="form-group">
+                <label class="form-label">1. Select Backup File</label>
+                <input type="file" id="inspector-file" accept=".medvault,.json" style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+            </div>
 
-        <div class="form-group" style="margin-bottom: 1.5rem;">
-            <label class="form-label">2. Decryption Password (if applicable)</label>
-            <input type="password" id="inspector-password" placeholder="Enter vault password" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary);">
+            <div class="form-group">
+                <label class="form-label">2. Decryption Password</label>
+                <input type="password" id="inspector-password" placeholder="Leave blank if unencrypted" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary);">
+            </div>
         </div>
 
         <div class="action-group" style="margin: 0;">
             <button id="btn-inspect" class="btn btn-primary" style="flex: 1;">Decrypt & View Data</button>
-            <button onclick="window.close()" class="btn btn-secondary" style="flex: 0 0 auto;">Close Tab</button>
+            <button onclick="window.close()" class="btn btn-secondary">Close Inspector</button>
         </div>
+        
+        <input type="text" id="inspector-search" class="search-box" placeholder="Search data (med name, profile, date...)" style="display: none;">
         
         <div id="inspector-status" style="margin-top: 1rem; font-size: 0.85rem; font-weight: bold; text-align: center;"></div>
     </div>
 
     <div id="viewer-container" style="display: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h2 style="margin: 0; font-size: 1rem;">Raw Decrypted Payload</h2>
-            <button id="btn-copy" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Copy JSON</button>
+            <h2 style="margin: 0; font-size: 1rem; color: var(--text-secondary);">Structure: Settings & Object Stores</h2>
+            <button id="btn-copy" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Copy Raw JSON</button>
         </div>
         <pre id="json-output" class="json-viewer"></pre>
     </div>
