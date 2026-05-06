@@ -22,10 +22,10 @@ h1 {
     font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: -0.025em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
+    white-space: nowrap;      /* Keep on one line */
+    overflow: hidden;         /* Hide overflow */
+    text-overflow: ellipsis;  /* Show '...' if cut off */
+    min-width: 0;             /* Flexbox requirement to allow shrinking */
 }
 
 h2 {
@@ -49,6 +49,7 @@ h2 {
     color: var(--success-color);
 }
 
+/* Legal Links */
 .legal-link {
     color: var(--text-primary);
     text-decoration: none;
