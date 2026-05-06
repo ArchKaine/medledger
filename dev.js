@@ -18,6 +18,7 @@
                 dose: '10mg',
                 frequency: 'Morning',
                 times: ['08:00'],
+                profile: 'Primary',
                 instructions: 'Take with food for blood pressure.',
                 sideEffects: 'Dizziness, dry cough',
                 inventory: '25',
@@ -31,6 +32,7 @@
                 dose: '400mg',
                 frequency: 'As Needed',
                 times: [],
+                profile: 'Primary',
                 instructions: 'Take for pain. Do not exceed 3 doses in 24 hours.',
                 sideEffects: 'Stomach upset',
                 inventory: '100',
@@ -44,6 +46,7 @@
                 dose: '5mg',
                 frequency: 'Night',
                 times: ['20:00'],
+                profile: 'Primary',
                 instructions: 'Take exactly as directed. Monitor vitamin K intake.',
                 sideEffects: 'Bleeding risk',
                 inventory: '14',
@@ -57,6 +60,7 @@
                 dose: '1 Injection',
                 frequency: 'Cyclic',
                 times: ['09:00'],
+                profile: 'Primary',
                 instructions: 'Tunable Adaptive Matter lattice for cellular repair.',
                 sideEffects: 'Temporary metallic taste, localized heat',
                 inventory: '3',
@@ -71,6 +75,7 @@
                 dose: '500mg',
                 frequency: 'Specific Days',
                 times: ['12:00'],
+                profile: 'Michele',
                 instructions: 'Finish entire course. Take with water.',
                 sideEffects: 'Nausea, rash',
                 inventory: '6',
@@ -84,6 +89,7 @@
                 dose: '50cc',
                 frequency: 'Morning',
                 times: ['07:00'],
+                profile: 'Primary',
                 instructions: 'High-yield combat stimulant. Monitor heart rate.',
                 sideEffects: 'Hyper-vigilance, tremors',
                 inventory: '50',
@@ -97,6 +103,7 @@
                 dose: '3mg',
                 frequency: 'Night',
                 times: ['22:00'],
+                profile: 'Primary',
                 instructions: 'Take 30 minutes before sleep cycle.',
                 sideEffects: 'Grogginess',
                 inventory: '60',
@@ -110,6 +117,7 @@
                 dose: '2 Puffs',
                 frequency: 'As Needed',
                 times: [],
+                profile: 'Primary',
                 instructions: 'Inhale strictly during respiratory distress.',
                 sideEffects: 'Increased heart rate',
                 inventory: '200',
@@ -123,6 +131,7 @@
                 dose: '1 Pack',
                 frequency: 'Weekly',
                 times: ['10:00'],
+                profile: 'Mischief',
                 instructions: 'Nutrient-dense combat rations for deep space ops.',
                 sideEffects: 'Digestive adaptation',
                 inventory: '12',
@@ -136,6 +145,7 @@
                 dose: '20mg',
                 frequency: 'Daily',
                 times: ['21:00'],
+                profile: 'Primary',
                 instructions: 'Cholesterol management.',
                 sideEffects: 'Muscle ache',
                 inventory: '8', 
@@ -148,7 +158,7 @@
         const logs = [];
         const now = new Date();
         
-        const simulateLog = (dateStr, med, time, isBackdated = false, prnReason = "", driftMinutes = 0) => {
+        const simulateLog = (dateStr, med, time, isBackdated = false, prnReason = "", driftMinutes = 0, efficacy = "") => {
             const logTime = new Date(`${dateStr}T${time}:00`);
             const systemTime = new Date(logTime.getTime() + (driftMinutes * 60000));
             if (systemTime > now) return;
@@ -156,6 +166,8 @@
             logs.push({
                 timestamp: `mock-ts-${med.id}-${dateStr}-${time}-${crypto.randomUUID()}`,
                 dateTaken: logTime.toISOString(),
+                logicalDate: dateStr,
+                profile: med.profile,
                 systemLoggedTime: systemTime.getTime(),
                 medId: med.id,
                 targetTime: time,
@@ -163,6 +175,7 @@
                 medName: med.name,
                 status: 'taken',
                 prnReason: prnReason,
+                efficacy: efficacy,
                 isBackdated: isBackdated
             });
         };
@@ -198,10 +211,10 @@
             }
 
             if (i === 1 || i === 9) {
-                simulateLog(dateStr, meds[1], '14:30', false, "Post-workout ache", 0);
+                simulateLog(dateStr, meds[1], '14:30', false, "Post-workout ache", 0, "Pain subsided after 45m");
             }
             if (i === 6) {
-                simulateLog(dateStr, meds[7], '09:15', false, "Shortness of breath", 0);
+                simulateLog(dateStr, meds[7], '09:15', false, "Shortness of breath", 0, "Airway cleared immediately");
             }
 
             if (i === 3) {
@@ -211,6 +224,8 @@
                 logs.push({
                     timestamp: `mock-ts-dup-${meds[0].id}`,
                     dateTaken: dupTime.toISOString(),
+                    logicalDate: dateStr,
+                    profile: meds[0].profile,
                     systemLoggedTime: dupTime.getTime(),
                     medId: meds[0].id,
                     targetTime: '08:00',
@@ -218,6 +233,7 @@
                     medName: meds[0].name,
                     status: 'taken',
                     prnReason: "",
+                    efficacy: "",
                     isBackdated: false
                 });
             }
@@ -238,6 +254,7 @@
         window.MOCK_DATA = generateMockData();
         window.syncDevData();
         if(typeof showVaultStatus === 'function') showVaultStatus("Dev Sandbox Reset.", "var(--success-color)");
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
         if (typeof loadChecklist === 'function') loadChecklist();
         if (typeof refreshHistory === 'function') refreshHistory();
         if (typeof calculateAdherence === 'function') calculateAdherence();
@@ -266,6 +283,7 @@
             if (!checkMeds) { window.MOCK_DATA = generateMockData(); window.syncDevData(); }
         }
         
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
         if (typeof loadChecklist === 'function') loadChecklist();
         if (typeof refreshHistory === 'function') refreshHistory();
         if (typeof calculateAdherence === 'function') calculateAdherence(); 
