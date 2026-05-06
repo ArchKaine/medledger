@@ -419,7 +419,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
 
         const card = document.createElement('div');
-        card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
+        card.card.className = 'card'; card.style.padding = '0'; card.style.overflow = 'hidden';
 
         let timesHtml = '<div class="checklist" style="padding: 0.5rem 1rem;">';
         const timesToProcess = (med.times && med.times.length > 0) ? med.times : [null];
