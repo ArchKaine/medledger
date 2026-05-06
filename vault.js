@@ -57,7 +57,10 @@ async function generateEncryptedBlob(password) {
     const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
     const archived_logs = await new Promise(res => db.transaction(["archived_logs"], "readonly").objectStore("archived_logs").getAll().onsuccess = e => res(e.target.result));
     
-    const rawData = JSON.stringify({ meds, logs, archived_logs, exportedAt: new Date().toISOString() });
+    // Capture the profiles array to prevent data loss on restoration
+    const profiles = JSON.parse(localStorage.getItem('cfg_profiles') || '["Primary"]');
+    
+    const rawData = JSON.stringify({ meds, logs, archived_logs, profiles, exportedAt: new Date().toISOString() });
     
     const keyMaterial = await getKeyMaterial(password);
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -103,7 +106,13 @@ function restoreDataToDB(parsedData) {
     if (parsedData.logs) parsedData.logs.forEach(log => logStore.add(log));
     if (parsedData.archived_logs) parsedData.archived_logs.forEach(log => archiveStore.add(log));
 
+    // Restore the profiles array
+    if (parsedData.profiles && Array.isArray(parsedData.profiles)) {
+        localStorage.setItem('cfg_profiles', JSON.stringify(parsedData.profiles));
+    }
+
     transaction.oncomplete = () => {
+        if(typeof window.populateProfileDropdowns === 'function') window.populateProfileDropdowns();
         if(typeof loadChecklist === 'function') loadChecklist(); 
         if(typeof refreshHistory === 'function') refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
