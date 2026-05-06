@@ -30,7 +30,7 @@
     max-width: 100%;
     margin: 0 auto;
     width: 100%;
-    gap: 1rem; /* Force spacing between name and controls */
+    /*gap: 1rem; /* Force spacing between name and controls */
 }
 
 /* FIX: Prevent left-side items from overlapping the right controls */
