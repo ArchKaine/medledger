@@ -172,7 +172,7 @@
                         <button id="tab-today" class="tab-btn active" onclick="switchTab('today')">Today's Regimen</button>
                         <button id="tab-history" class="tab-btn" onclick="switchTab('history')">History Log</button>
                     </div>
-                    <select id="profile-filter" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; border-color: var(--border-color); border-radius: 4px; background: var(--bg-surface); color: var(--text-primary); font-weight: 600;">
+                    <select id="profile-filter" onchange="switchActiveProfile(this.value)" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; border-color: var(--border-color); border-radius: 4px; background: var(--bg-surface); color: var(--text-primary); font-weight: 600;">
                         <option value="Primary">Profile: Primary</option>
                     </select>
                 </div>
