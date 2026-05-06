@@ -49,6 +49,22 @@
     --danger-color: #ff0000; 
 }
 
+/* vars.css - Arcanum "Old Blood" Theme */
+
+[data-theme="old-blood"] {
+    color-scheme: dark;
+    --bg-primary: #0a0a0a;     /* Deep matte black (Echo) */
+    --bg-surface: #1a1b1e;     /* Star Metal / TAM base */
+    --text-primary: #ffffff;    /* Refractive White (Sola) */
+    --text-secondary: #94a3b8;  /* Muted steel grey */
+    --border-color: #2d2f36;    /* Cold iron */
+    
+    --accent-color: #8b0000;    /* Old Blood crimson */
+    --accent-hover: #a50000;    /* Slightly fresher blood */
+    --success-color: #2d5a27;   /* Oxidized copper green */
+    --danger-color: #7f1d1d;    /* Heavy warning red */
+}
+
 /* ==========================================
    High Contrast Strict Overrides
    ========================================== */
