@@ -16,7 +16,7 @@
 .app-header {
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
-    padding: 1rem;
+    padding: 0.75rem 1rem; /* Slightly tighter padding for better fit */
     position: sticky;
     top: 0;
     z-index: 100;
@@ -30,29 +30,51 @@
     max-width: 100%;
     margin: 0 auto;
     width: 100%;
-    /*gap: 1rem; /* Force spacing between name and controls */
+    gap: 1rem; /* Physical gap to prevent touching */
 }
 
-/* FIX: Prevent left-side items from overlapping the right controls */
+/* FIX: Branding area takes remaining space but MUST shrink first if crowded */
 .header-content > div:first-child {
-    flex: 1;
+    flex: 1 1 auto; 
     min-width: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
+/* FIX: Protected block. This group is FORBIDDEN from shrinking. */
 .header-controls {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    flex-shrink: 0; /* NEVER squish the buttons or profile selector */
+    gap: 0.5rem;
+    flex-shrink: 0; /* Protects the entire right-side block */
 }
 
-/* FIX: Ensure user selector doesn't balloon on mobile */
+/* Ensure individual buttons and icons inside controls never crush */
+.header-controls .icon-btn, 
+.header-controls .nav-dev-mode-btn,
+.header-controls .status-indicator {
+    flex-shrink: 0;
+}
+
+/* FIX: Constrain the profile selector so it doesn't push icons off-screen */
 .global-profile-select {
-    max-width: 120px;
+    flex: 0 1 auto;
+    max-width: 140px; /* Sane limit for desktop/tablet */
+    min-width: 90px;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Specific Mobile Profile Tuning */
+@media (max-width: 600px) {
+    .global-profile-select {
+        max-width: 100px; /* Tighter limit for phone screens */
+    }
+    .header-content {
+        gap: 0.5rem;
+    }
 }
 
 main#app {
@@ -77,33 +99,22 @@ main#app {
         padding: 2rem;
     }
 
-    .main-content-area {
+    .main-content-area, .side-content-area {
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
     }
 
-    .side-content-area {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-
-    /* Show history alongside tabs */
     .tab-navigation { 
         display: none !important; 
     }
     
-    .tab-view.hidden-view { 
+    .tab-view.hidden-view, .tab-view.active-view { 
         display: block !important; 
-    }
-
-    .tab-view.active-view {
-        display: block !important;
     }
     
     .global-profile-select {
-        max-width: none;
+        max-width: 180px; /* Allow a bit more room on tablets */
     }
 }
 
@@ -113,7 +124,6 @@ main#app {
         padding-bottom: 0;
     }
 
-    /* Redundancy Fix */
     .app-header {
         display: none !important;
     }
@@ -139,9 +149,9 @@ main#app {
 
     main#app {
         display: grid;
-        grid-template-columns: 1fr 340px; /* Two side-by-side columns */
-        max-width: none !important; /* FIX: Remove artificial width limits */
-        width: 100% !important; /* FIX: Force to span entire space */
+        grid-template-columns: 1fr 340px;
+        max-width: none !important;
+        width: 100% !important;
         margin: 0;
         padding: 2rem;
         height: 100vh;
@@ -149,21 +159,13 @@ main#app {
         gap: 2rem;
     }
 
-    .main-content-area {
+    .main-content-area, .side-content-area {
         max-height: 100%;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
         padding-right: 1rem;
-    }
-
-    .side-content-area {
-        max-height: 100%;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
     }
 
     .tab-navigation { 
@@ -212,7 +214,6 @@ main#app {
         font-size: 0.75rem;
     }
 
-    /* Hide Mobile Footer on Desktop */
     .mobile-legal-footer {
         display: none !important;
     }
