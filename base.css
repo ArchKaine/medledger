@@ -22,6 +22,10 @@ h1 {
     font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: -0.025em;
+    white-space: nowrap;       /* Keep on one line */
+    overflow: hidden;          /* Hide the overflow */
+    text-overflow: ellipsis;   /* Add '...' if it gets too tight */
+    min-width: 0;              /* Flexbox trick to allow shrinking */
 }
 
 h2 {
