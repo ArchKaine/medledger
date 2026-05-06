@@ -59,10 +59,12 @@
 
         <header class="app-header">
             <div class="header-content">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="header-branding">
                     <h1>MedLedger</h1>
                 </div>
                 <div class="header-controls">
+                    <div id="status-bar" class="status-indicator"></div>
+                    
                     <div class="nav-dev-mode-btn" style="display: none;">
                         <button aria-label="Toggle Dev Mode" class="icon-btn" onclick="if(typeof toggleDevMode === 'function') toggleDevMode()" style="color: var(--danger-color);">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -85,11 +87,13 @@
 
         <main id="app">
             <div class="main-content-area">
-                <div id="mobile-dashboard-header" class="mobile-dashboard-header">
-                    <select id="global-profile-header" class="global-profile-select" onchange="switchActiveProfile(this.value)">
-                        <option value="Primary">Primary</option>
-                    </select>
-                    <div id="status-bar" class="status-indicator">Initializing...</div>
+                <div class="mobile-utility-bar">
+                    <div class="mobile-utility-row">
+                        <select id="global-profile-mobile" class="global-profile-select" onchange="switchActiveProfile(this.value)">
+                            <option value="Primary">Primary</option>
+                        </select>
+                        <div id="status-bar-mobile" class="status-indicator">Initializing...</div>
+                    </div>
                 </div>
 
                 <section id="med-config" class="card">
@@ -171,6 +175,7 @@
                         </div>
                     </form>
                 </section>
+
                 <div class="tab-navigation" style="justify-content: flex-start; align-items: center;">
                     <button id="tab-today" class="tab-btn active" onclick="switchTab('today')">Today's Regimen</button>
                     <button id="tab-history" class="tab-btn" onclick="switchTab('history')">History Log</button>
@@ -193,12 +198,15 @@
                     </form>
                 </section>
             </div>
+
             <div class="side-content-area">
                 <section id="log-history" class="card tab-view hidden-view">
+                    
                     <div id="adherence-dashboard" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; position: relative;">
                         <h3 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">7-Day Adherence</h3>
                         <div id="adherence-score" style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); margin-top: 0.5rem;">--%</div>
                         <div id="adherence-subtext" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Calculating...</div>
+                        
                         <div class="streak-stats" style="display: flex; justify-content: center; gap: 2rem; width: 100%; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);">
                             <div style="margin-bottom: 0.25rem;">🔥 Current Streak: <strong id="current-streak" style="color: var(--text-primary);">0</strong></div>
                             <div>🏆 Best Streak: <strong id="longest-streak" style="color: var(--text-primary);">0</strong></div>
@@ -214,8 +222,10 @@
                                 <option value="90">3 Months</option>
                             </select>
                         </div>
+                        
                         <div id="heatmap-grid" class="heatmap-grid"></div>
                         <div id="heatmap-details" style="display:none; padding: 1rem; margin-top: 1rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem;"></div>
+
                         <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-secondary);">
                             <span>Missed</span>
                             <div class="heatmap-cell level-0" style="width: 12px; height: 12px; min-width: auto; min-height: auto;"></div>
@@ -224,18 +234,23 @@
                             <span>Perfect</span>
                         </div>
                     </div>
+                    
                     <div id="analytics-insights" class="insights-grid"></div>            
+                    
                     <ul id="history-list" class="history-feed"></ul>
                 </section>
             </div>
+            
             <div class="mobile-legal-footer" style="grid-column: 1 / -1; padding: 1rem 0; display: flex; justify-content: center; gap: 2rem; font-size: 0.85rem; border-top: 1px solid var(--border-color); margin-top: 1rem;">
                 <a href="privacy.html" class="legal-link">Privacy Policy</a>
                 <a href="terms.html" class="legal-link">Terms of Service</a>
             </div>
         </main>
     </div>
+
     <dialog id="settings-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
         <h2>System Settings</h2>
+        
         <div class="checklist" style="margin-bottom: 2rem;">
             <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-babysitter" class="med-checkbox">
@@ -244,6 +259,7 @@
                     <span class="med-dose">Disables all confirmation dialogs for deletions.</span>
                 </span>
             </label>
+            
             <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-expert" class="med-checkbox">
                 <span class="med-details">
@@ -251,6 +267,7 @@
                     <span class="med-dose">Double-click to instantly log a med. Ctrl+Enter to batch log.</span>
                 </span>
             </label>
+
             <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-reminders" class="med-checkbox">
                 <span class="med-details">
@@ -258,6 +275,7 @@
                     <span class="med-dose">Triggers native push notifications for scheduled items.</span>
                 </span>
             </label>
+
             <label class="med-item" style="cursor:pointer;">
                 <input type="checkbox" id="toggle-inventory" class="med-checkbox">
                 <span class="med-details">
@@ -265,6 +283,7 @@
                     <span class="med-dose">Tracks remaining pills and warns when inventory is low.</span>
                 </span>
             </label>
+
             <label class="med-item" style="cursor:pointer; margin-bottom: 0.5rem;">
                 <input type="checkbox" id="toggle-lookup" class="med-checkbox">
                 <span class="med-details">
@@ -273,6 +292,7 @@
                 </span>
             </label>
         </div>
+
         <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem; margin-bottom: 2rem;">
             <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--danger-color); display: flex; align-items: center; gap: 0.5rem;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -294,6 +314,7 @@
                 </label>
             </div>
         </div>
+        
         <form id="vault-auth-form" class="vault-section" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;" onsubmit="event.preventDefault();">
             <h2>The Data Vault</h2>
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">Set a password to encrypt data locally before syncing or exporting.</p>
@@ -307,6 +328,7 @@
                     </svg>
                 </button>
             </div>
+            
             <div id="session-lock-controls" style="display: none; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 4px; border: 1px solid var(--success-color);">
                 <span style="font-size: 0.85rem; color: var(--success-color); display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -314,6 +336,7 @@
                 </span>
                 <button type="button" id="btn-lock-vault" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Lock Now</button>
             </div>
+
             <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
                 <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -326,6 +349,7 @@
                     <button type="button" id="btn-gdrive-logout" class="btn btn-danger" style="flex: 100%; margin-top: 0.5rem; margin-right: 0;" onclick="if(typeof logoutGoogleDrive === 'function') logoutGoogleDrive()">Disconnect Cloud</button>
                 </div>
             </div>
+
             <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
                 <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
@@ -337,6 +361,7 @@
                     <input type="file" id="import-vault-file" accept=".medvault,.json" style="display: none;" onclick="this.value=null;">
                 </div>
             </div>
+
             <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
                 <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -347,6 +372,7 @@
                     <button type="button" id="btn-export-html" class="btn btn-primary" style="font-size: 0.85rem; flex: 2;">Printable Report (HTML)</button>
                 </div>
             </div>
+
             <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
                 <h3 style="font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
@@ -358,30 +384,37 @@
                 </div>
                 <button type="button" id="btn-restore-archives" class="btn btn-primary" style="width: 100%; font-size: 0.85rem; margin-top: 0.25rem;">Restore All Archives to Active</button>
             </div>
+            
             <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold; text-align: center;"></div>
         </form>
+
         <div class="action-group modal-actions" style="margin-top: 1.5rem;">
             <button type="button" id="btn-close-settings" class="btn btn-primary" style="width:100%;" onclick="document.getElementById('settings-modal').close()">Done</button>
         </div>
     </dialog>
+
     <dialog id="edit-med-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
         <h2>Edit Medication</h2>
         <form id="edit-med-form" class="edit-form">
             <input type="hidden" id="edit-med-id">
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-name">Name</label>
                 <input type="text" id="edit-med-name" required>
             </div>
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-dose">Dosage</label>
                 <input type="text" id="edit-med-dose" required>
             </div>
+
             <div class="form-group">
                 <label class="form-label" for="edit-med-profile">Assigned Profile</label>
                 <select id="edit-med-profile" onchange="handleProfileChange('edit-med-profile')" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
                     <option value="Primary">Primary</option>
                 </select>
             </div>
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-freq">Frequency</label>
                 <select id="edit-med-freq" required>
@@ -394,6 +427,7 @@
                     <option value="Cyclic">Cyclic (On/Off)</option>
                 </select>
             </div>
+
             <div id="edit-med-specific-days" style="display: none; margin-bottom: 1rem;">
                 <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.25rem; display: block;">Select Days:</label>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; background: var(--bg-primary); padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
@@ -406,6 +440,7 @@
                     <label><input type="checkbox" name="edit-med-days" value="6"> Sat</label>
                 </div>
             </div>
+
             <div id="edit-med-cyclic" style="display: none; margin-bottom: 1rem; gap: 0.5rem; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 80px;">
                     <label class="form-label" style="font-size: 0.8rem;">Days On</label>
@@ -420,12 +455,14 @@
                     <input type="date" id="edit-med-cycle-start" style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
                 </div>
             </div>
+
             <div class="form-group">
                 <label class="form-label">Reminder Times</label>
                 <div id="edit-med-times-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
                 </div>
                 <button type="button" onclick="addTimeField('edit-med-times-container')" class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.8rem; align-self: flex-start;">+ Add Another Time</button>
             </div>
+
             <details style="margin-bottom: 1rem; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 4px; background: rgba(0,0,0,0.1);">
                 <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; user-select: none;">Rx & Refill Info (Optional)</summary>
                 <div class="form-group" style="margin-top: 0.75rem;">
@@ -441,18 +478,22 @@
                     <input type="tel" id="edit-med-phone" style="padding: 0.6rem; font-size: 0.9rem;">
                 </div>
             </details>
+
             <div class="form-group">
                 <label class="form-label" for="edit-med-instructions">Bottle Instructions</label>
                 <input type="text" id="edit-med-instructions" placeholder="e.g., Do not crush" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
             </div>
+            
             <div class="form-group">
                 <label class="form-label" for="edit-med-side-effects">Side Effects to Watch</label>
                 <input type="text" id="edit-med-side-effects" placeholder="e.g., Drowsiness, Nausea" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
             </div>
+
             <div class="form-group" id="edit-inventory-group" style="display: none;">
                 <label class="form-label" for="edit-med-inventory">Current Pill Count</label>
                 <input type="number" id="edit-med-inventory" placeholder="Remaining pills" min="0" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
             </div>
+
             <div class="action-group modal-actions">
                 <button type="button" id="btn-cancel-edit" class="btn btn-secondary" onclick="document.getElementById('edit-med-modal').close()">Cancel</button>
                 <button type="button" id="btn-delete-med" class="btn btn-danger" onclick="deleteMedication()">Delete</button>
@@ -460,6 +501,7 @@
             </div>
         </form>
     </dialog>
+
     <script src="app.js"></script>
     <script src="dev.js"></script>
     <script src="reports.js"></script>
