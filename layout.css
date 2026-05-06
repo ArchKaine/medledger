@@ -10,7 +10,7 @@
 }
 
 .sidebar-nav {
-    display: none; 
+    display: none; /* Hidden on phone/tablet */
 }
 
 /* HARDENED THREE-ZONE STICKY HEADER */
@@ -30,10 +30,10 @@
     align-items: center;
     width: 100%;
     height: 48px;
-    gap: 0; /* Gaps handled by internal zones */
+    gap: 0;
 }
 
-/* ZONE 1: TIGHTLY ISOLATED BRANDING */
+/* ZONE 1: TIGHTLY ISOLATED BRANDING (LEFT) */
 .header-branding {
     flex: 0 0 auto;
     display: flex;
@@ -44,7 +44,7 @@
     min-width: 0;
 }
 
-/* ZONE 2: RESTRICTED SYSTEM AREA (DEV MODE) */
+/* ZONE 2: RESTRICTED SYSTEM AREA (CENTER - DEV MODE) */
 .header-restricted-zone {
     flex: 1;
     display: flex;
@@ -53,8 +53,8 @@
     min-width: 0;
 }
 
-/* ZONE 3: LOCKED SYSTEM BOX (Help, Theme, Settings) */
-/* Calculated Lock: 3 icons (120px) + 2 gaps (16px) + 8px buffer = 144px */
+/* ZONE 3: LOCKED SYSTEM BOX (RIGHT - HELP, THEME, SETTINGS) */
+/* Lock calculation: 3 icons (120px) + 2 gaps (16px) + buffer = 144px */
 .header-controls {
     flex: 0 0 144px; 
     width: 144px;
@@ -75,13 +75,13 @@
     justify-content: center;
 }
 
-/* MOBILE UTILITY BAR (Dashboard Content Area) */
+/* MOBILE DASHBOARD UTILITY BAR (DASHBOARD AREA) */
 .mobile-utility-bar {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
-    padding: 1rem;
+    padding: 1.25rem;
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -100,6 +100,11 @@
     min-width: 0;
     max-width: 180px;
     text-overflow: ellipsis;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
 }
 
 main#app {
@@ -113,18 +118,20 @@ main#app {
     flex: 1;
 }
 
-/* Visibility Control for Mobile/Tablet */
+/* Visibility Control and Breakpoints */
 @media (max-width: 1199px) {
-    /* Hide the redundant header status slot on small screens */
     .header-controls #status-bar {
         display: none !important;
     }
 }
 
-/* Hide restricted zone if screen is critically narrow (< 360px) */
-@media (max-width: 360px) {
+@media (max-width: 380px) {
     .header-restricted-zone {
-        display: none !important;
+        display: none !important; /* Protect functional reach on tiny screens */
+    }
+    .header-branding {
+        padding-right: 0.5rem;
+        border-right: none;
     }
 }
 
