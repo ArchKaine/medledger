@@ -13,26 +13,30 @@ function getMockClinicalData(drugName) {
     if (name.includes('tam') || name.includes('nanobiotics')) {
         return {
             description: "Classified Tunable Adaptive Matter (TAM) lattice compound. Self-replicating nanite structure designed for accelerated cellular binding.",
-            indications: "Critical trauma repair, localized tissue regeneration."
+            indications: "Critical trauma repair, localized tissue regeneration.",
+            sideEffects: "Temporary bio-luminescence, elevated core temperature, heavy caloric burn."
         };
     }
     if (name.includes('forge') || name.includes('adrenaline')) {
         return {
             description: "High-yield, hyper-oxygenating combat stimulant manufactured by Hephaestus Forgeworks.",
-            indications: "Immediate neural override, shock recovery, extreme cardiovascular stimulation."
+            indications: "Immediate neural override, shock recovery, extreme cardiovascular stimulation.",
+            sideEffects: "Severe tachycardia, micro-fractures in bone density, adrenal crash."
         };
     }
     if (name.includes('spectre') || name.includes('revenant')) {
         return {
             description: "Ultra-dense nutrient block formulated for prolonged zero-gravity operations.",
-            indications: "Deep space caloric maintenance, sustained dietary replacement."
+            indications: "Deep space caloric maintenance, sustained dietary replacement.",
+            sideEffects: "Gastrointestinal stasis, metabolic slowing, lethargy."
         };
     }
     
-    // Generic response for standard test meds (Lisinopril, Ibuprofen, etc.)
+    // Generic response for standard test meds
     return {
         description: `[DEV MODE] Mock clinical description generated for testing ${drugName}.`,
-        indications: `[DEV MODE] Mock indications for ${drugName}.`
+        indications: `[DEV MODE] Mock indications for ${drugName}.`,
+        sideEffects: `[DEV MODE] Mock adverse reactions and side effects for ${drugName}.`
     };
 }
 
@@ -70,7 +74,7 @@ window.fetchDrugInfo = async function(drugName) {
         return getMockClinicalData(drugName);
     }
 
-    if (!drugName) return { description: "", indications: "" };
+    if (!drugName) return { description: "", indications: "", sideEffects: "" };
     
     const dbName = drugName.toLowerCase().trim();
 
@@ -85,13 +89,17 @@ window.fetchDrugInfo = async function(drugName) {
         });
 
         if (cached && (Date.now() - cached.timestamp < 30 * 24 * 60 * 60 * 1000)) { 
-            return { description: cached.description, indications: cached.indications };
+            return { 
+                description: cached.description || "", 
+                indications: cached.indications || "",
+                sideEffects: cached.sideEffects || ""
+            };
         }
     } catch (e) {
         console.warn("Clinical Cache Read Error:", e);
     }
 
-    let result = { description: "", indications: "" };
+    let result = { description: "", indications: "", sideEffects: "" };
 
     // 3. Query OpenFDA
     try {
@@ -101,13 +109,23 @@ window.fetchDrugInfo = async function(drugName) {
             const fdaData = await fdaRes.json();
             if (fdaData.results && fdaData.results.length > 0) {
                 const label = fdaData.results[0];
+                
+                // Fetch Indications
                 if (label.indications_and_usage) {
                     result.indications = label.indications_and_usage[0].replace(/INDICATIONS AND USAGE|Indications and Usage/g, '').trim();
                     if (result.indications.length > 150) result.indications = result.indications.substring(0, 147) + '...';
                 }
+                
+                // Fetch Description
                 if (label.description) {
                     result.description = label.description[0].replace(/DESCRIPTION|Description/g, '').trim();
                     if (result.description.length > 200) result.description = result.description.substring(0, 197) + '...';
+                }
+
+                // NEW: Fetch Adverse Reactions (Side Effects)
+                if (label.adverse_reactions) {
+                    result.sideEffects = label.adverse_reactions[0].replace(/ADVERSE REACTIONS|Adverse Reactions/g, '').trim();
+                    if (result.sideEffects.length > 150) result.sideEffects = result.sideEffects.substring(0, 147) + '...';
                 }
             }
         }
@@ -115,7 +133,7 @@ window.fetchDrugInfo = async function(drugName) {
         console.warn("OpenFDA fetch failed, trying Wikidata fallback...", err);
     }
 
-    // 4. Fallback to Wikidata if FDA data is incomplete
+    // 4. Fallback to Wikidata if FDA description is incomplete
     if (!result.description) {
         try {
             const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(dbName)}&language=en&format=json&origin=*`;
@@ -124,7 +142,6 @@ window.fetchDrugInfo = async function(drugName) {
                 const wikiData = await wikiRes.json();
                 if (wikiData.search && wikiData.search.length > 0) {
                     result.description = wikiData.search[0].description || "";
-                    // Capitalize first letter
                     if (result.description) {
                         result.description = result.description.charAt(0).toUpperCase() + result.description.slice(1);
                     }
@@ -135,7 +152,7 @@ window.fetchDrugInfo = async function(drugName) {
         }
     }
 
-    // 5. Cache the Result (Even if empty, to prevent spamming APIs for invalid names)
+    // 5. Cache the Result
     try {
         if (typeof db !== 'undefined') {
             const tx = db.transaction([CLINICAL_CACHE_STORE], "readwrite");
@@ -143,6 +160,7 @@ window.fetchDrugInfo = async function(drugName) {
                 id: dbName,
                 description: result.description,
                 indications: result.indications,
+                sideEffects: result.sideEffects,
                 timestamp: Date.now()
             });
         }
@@ -154,10 +172,9 @@ window.fetchDrugInfo = async function(drugName) {
 };
 
 // --- Background Refresh Task ---
-// Scans the active medications list and pre-caches missing clinical data
 window.refreshAllClinicalData = async function(force = false) {
     if (typeof AppSettings !== 'undefined' && !AppSettings.clinicalLookups) return;
-    if (typeof AppSettings !== 'undefined' && AppSettings.devMode) return; // Never run background fetch in Dev Mode
+    if (typeof AppSettings !== 'undefined' && AppSettings.devMode) return; 
     if (typeof db === 'undefined') return;
 
     try {
@@ -165,15 +182,19 @@ window.refreshAllClinicalData = async function(force = false) {
         const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
         
         for (const med of meds) {
-            if (force || !med.description) {
+            // Force fetch if missing description OR sideEffects (since it's a new feature)
+            if (force || !med.description || !med.sideEffects) {
                 const data = await window.fetchDrugInfo(med.name);
+                
                 if ((data.description && data.description !== med.description) || 
-                    (data.indications && data.indications !== med.indications)) {
+                    (data.indications && data.indications !== med.indications) ||
+                    (data.sideEffects && data.sideEffects !== med.sideEffects)) {
                     
                     const writeTx = db.transaction(["meds"], "readwrite");
                     const store = writeTx.objectStore("meds");
                     med.description = data.description || med.description;
                     med.indications = data.indications || med.indications;
+                    med.sideEffects = data.sideEffects || med.sideEffects; // Inject new data layer
                     store.put(med);
                 }
                 // Small delay to respect API rate limits
