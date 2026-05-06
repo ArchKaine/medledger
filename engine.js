@@ -4,6 +4,7 @@
 // ==========================================
 
 // --- 1. Helper Logic ---
+
 function getTimesFromContainer(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return [];
@@ -13,14 +14,73 @@ function getTimesFromContainer(containerId) {
     return [...new Set(times)].sort();
 }
 
-// Generates a timezone-locked YYYY-MM-DD string
+/**
+ * Generates a localized YYYY-MM-DD string for logic comparisons.
+ * This anchors logs to the user's actual day, preventing timezone drift.
+ */
 function getLogicalDateString(dateObj) {
     return dateObj.getFullYear() + '-' + 
            String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + 
            String(dateObj.getDate()).padStart(2, '0');
 }
 
+/**
+ * Scans the database (or mock data) for unique profile strings and populates all dropdowns.
+ */
+async function populateProfileDropdowns() {
+    let meds = [];
+    if (AppSettings.devMode) {
+        meds = window.MOCK_DATA.meds;
+    } else {
+        if (!db) return;
+        meds = await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
+    }
+    
+    // Ensure "Primary" is always available and unique
+    const profiles = ["Primary", ...new Set(meds.map(m => m.profile).filter(p => p && p !== "Primary"))];
+    const selectors = ['profile-filter', 'new-med-profile', 'edit-med-profile'];
+    
+    selectors.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        
+        el.innerHTML = profiles.map(p => {
+            const label = (id === 'profile-filter') ? `Profile: ${p}` : p;
+            return `<option value="${p}">${label}</option>`;
+        }).join('') + `<option value="ADD_NEW">+ Create New Profile...</option>`;
+        
+        // Restore previous value or default to active profile for the filter
+        if (id === 'profile-filter') {
+            el.value = AppSettings.activeProfile || "Primary";
+        } else {
+            el.value = currentVal || "Primary";
+        }
+    });
+}
+
+/**
+ * Prompt-driven creation of new Profile names.
+ */
+function handleProfileChange(selectId) {
+    const el = document.getElementById(selectId);
+    if (el.value === "ADD_NEW") {
+        const name = prompt("Enter a name for the new profile (e.g., Mischief, Michele):");
+        if (name && name.trim()) {
+            const cleanName = name.trim();
+            const option = document.createElement("option");
+            option.value = cleanName; 
+            option.text = cleanName;
+            el.add(option, el.options[el.options.length - 1]);
+            el.value = cleanName;
+        } else {
+            el.value = "Primary";
+        }
+    }
+}
+
 // --- 2. Archiving Logic ---
+
 function archiveOldLogs() {
     const archiveDaysEl = document.getElementById('archive-days');
     const days = parseInt(archiveDaysEl ? archiveDaysEl.value : 90) || 90;
@@ -58,7 +118,7 @@ function archiveOldLogs() {
 }
 
 function restoreArchivedLogs() {
-    if (AppSettings.devMode) return; // Dev mode has no cold storage
+    if (AppSettings.devMode) return;
     const tx = db.transaction(["logs", "archived_logs"], "readwrite");
     const logStore = tx.objectStore("logs");
     const archiveStore = tx.objectStore("archived_logs");
@@ -77,19 +137,13 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- 3. Zero-Knowledge Interaction Engine ---
+// --- 3. Interaction & PRN Efficacy Engine ---
+
 async function checkLocalInteractions(newMedName) {
     try {
         const res = await fetch('interactions.json');
         const db_int = await res.json();
-        
-        let activeMeds = [];
-        if (AppSettings.devMode) {
-            activeMeds = window.MOCK_DATA.meds;
-        } else {
-            activeMeds = await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
-        }
-        
+        let activeMeds = AppSettings.devMode ? window.MOCK_DATA.meds : await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
         const drug = newMedName.toLowerCase().trim();
         let warnings = [];
         activeMeds.forEach(m => {
@@ -101,21 +155,47 @@ async function checkLocalInteractions(newMedName) {
     } catch (err) { return []; }
 }
 
-// --- 4. Configuration Logic (Add/Edit/Delete) ---
+/**
+ * Updates a specific PRN log entry with its efficacy outcome.
+ */
+window.updateEfficacy = function(ts) {
+    const outcome = prompt("What was the outcome of this dose? (e.g. Headache resolved, Relief 2/10):");
+    if (outcome === null) return;
+
+    if (AppSettings.devMode) {
+        const log = window.MOCK_DATA.logs.find(l => l.timestamp === ts);
+        if (log) log.efficacy = outcome;
+        window.syncDevData();
+        refreshHistory();
+        return;
+    }
+
+    const tx = db.transaction(["logs"], "readwrite");
+    const store = tx.objectStore("logs");
+    store.get(ts).onsuccess = (e) => {
+        const log = e.target.result;
+        if (log) { 
+            log.efficacy = outcome; 
+            store.put(log); 
+        }
+    };
+    tx.oncomplete = refreshHistory;
+};
+
+// --- 4. Configuration Logic (CRUD) ---
+
 async function handleAddMed(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new-med-name').value.trim();
     const doseInput = document.getElementById('new-med-dose').value.trim();
     const freqInput = document.getElementById('new-med-freq').value;
+    const profileInput = document.getElementById('new-med-profile').value;
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
-    
-    // Extended Metadata
     const rxNumberInput = document.getElementById('new-med-rx')?.value.trim() || "";
     const doctorInput = document.getElementById('new-med-doctor')?.value.trim() || "";
     const pharmacyPhoneInput = document.getElementById('new-med-phone')?.value.trim() || "";
-    
     const timesArray = getTimesFromContainer('new-med-times-container');
 
     if (!nameInput || !doseInput) return;
@@ -125,36 +205,28 @@ async function handleAddMed(e) {
 
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
-        if(typeof showVaultStatus === 'function') showVaultStatus("Querying clinical databases...", "var(--accent-color)");
         clinicalData = await fetchDrugInfo(nameInput);
     }
 
     const specificDaysChecked = Array.from(document.querySelectorAll('input[name="new-med-days"]:checked')).map(cb => parseInt(cb.value));
-    const cycleOn = parseInt(document.getElementById('new-med-cycle-on').value) || 0;
-    const cycleOff = parseInt(document.getElementById('new-med-cycle-off').value) || 0;
-    const cycleStart = document.getElementById('new-med-cycle-start').value;
 
     const newMed = {
         id: crypto.randomUUID(), name: nameInput, dose: doseInput, frequency: freqInput, times: timesArray,
+        profile: profileInput, 
         instructions: instructionsInput, sideEffects: sideEffectsInput, inventory: AppSettings.inventory ? inventoryInput : "",
         rxNumber: rxNumberInput, doctor: doctorInput, pharmacyPhone: pharmacyPhoneInput,
         specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
-        cycleOn: freqInput === 'Cyclic' ? cycleOn : null,
-        cycleOff: freqInput === 'Cyclic' ? cycleOff : null,
-        cycleStartDate: freqInput === 'Cyclic' ? cycleStart : null,
+        cycleOn: freqInput === 'Cyclic' ? parseInt(document.getElementById('new-med-cycle-on').value) || 0 : null,
+        cycleOff: freqInput === 'Cyclic' ? parseInt(document.getElementById('new-med-cycle-off').value) || 0 : null,
+        cycleStartDate: freqInput === 'Cyclic' ? document.getElementById('new-med-cycle-start').value : null,
         description: clinicalData.description, indications: clinicalData.indications
     };
 
-    // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
         window.MOCK_DATA.meds.push(newMed);
         window.syncDevData();
         document.getElementById('add-med-form').reset();
-        document.getElementById('new-med-freq').value = 'Daily';
-        document.getElementById('new-med-specific-days').style.display = 'none';
-        document.getElementById('new-med-cyclic').style.display = 'none';
-        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary);">`;
-        loadChecklist();
+        loadChecklist(); populateProfileDropdowns();
         if(typeof showVaultStatus === 'function') showVaultStatus("Test Medication added.", "var(--success-color)");
         return;
     }
@@ -163,19 +235,13 @@ async function handleAddMed(e) {
     tx.objectStore("meds").add(newMed);
     tx.oncomplete = () => {
         document.getElementById('add-med-form').reset();
-        document.getElementById('new-med-freq').value = 'Daily';
-        document.getElementById('new-med-specific-days').style.display = 'none';
-        document.getElementById('new-med-cyclic').style.display = 'none';
-        document.getElementById('new-med-times-container').innerHTML = `<input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary);">`;
-        loadChecklist();
+        loadChecklist(); populateProfileDropdowns();
         if(typeof showVaultStatus === 'function') showVaultStatus("Medication added.", "var(--success-color)");
     };
 }
 
 window.openEditModal = async function(id) {
     let med;
-
-    // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
         med = window.MOCK_DATA.meds.find(m => m.id === id);
     } else {
@@ -189,20 +255,15 @@ window.openEditModal = async function(id) {
     document.getElementById('edit-med-id').value = med.id;
     document.getElementById('edit-med-name').value = med.name;
     document.getElementById('edit-med-dose').value = med.dose;
+    document.getElementById('edit-med-profile').value = med.profile || "Primary";
     document.getElementById('edit-med-freq').value = med.frequency || 'Daily';
     document.getElementById('edit-med-instructions').value = med.instructions || '';
     document.getElementById('edit-med-side-effects').value = med.sideEffects || ''; 
+    document.getElementById('edit-med-rx').value = med.rxNumber || '';
+    document.getElementById('edit-med-doctor').value = med.doctor || '';
+    document.getElementById('edit-med-phone').value = med.pharmacyPhone || '';
     
-    // Metadata
-    if(document.getElementById('edit-med-rx')) document.getElementById('edit-med-rx').value = med.rxNumber || '';
-    if(document.getElementById('edit-med-doctor')) document.getElementById('edit-med-doctor').value = med.doctor || '';
-    if(document.getElementById('edit-med-phone')) document.getElementById('edit-med-phone').value = med.pharmacyPhone || '';
-    
-    const invGroup = document.getElementById('edit-inventory-group');
-    if (AppSettings.inventory && invGroup) {
-        invGroup.style.display = 'block';
-        document.getElementById('edit-med-inventory').value = med.inventory || '';
-    }
+    if (AppSettings.inventory) document.getElementById('edit-med-inventory').value = med.inventory || '';
     
     const specDiv = document.getElementById('edit-med-specific-days');
     const cycDiv = document.getElementById('edit-med-cyclic');
@@ -219,35 +280,10 @@ window.openEditModal = async function(id) {
     
     const container = document.getElementById('edit-med-times-container');
     container.innerHTML = ''; 
-    const times = med.times || [];
-    if (times.length === 0) {
+    (med.times || []).forEach(t => {
         if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
-    } else {
-        times.forEach(t => {
-            if(typeof addTimeField === 'function') addTimeField('edit-med-times-container');
-            if(container.lastElementChild) container.lastElementChild.value = t;
-        });
-    }
-
-    let clinicalPanel = document.getElementById('modal-clinical-info');
-    if (!clinicalPanel) {
-        clinicalPanel = document.createElement('div');
-        clinicalPanel.id = 'modal-clinical-info';
-        clinicalPanel.style.marginTop = '1.5rem';
-        clinicalPanel.style.padding = '1rem';
-        clinicalPanel.style.background = 'var(--bg-primary)';
-        clinicalPanel.style.border = '1px solid var(--border-color)';
-        clinicalPanel.style.borderRadius = '6px';
-        clinicalPanel.style.maxHeight = '150px';
-        clinicalPanel.style.overflowY = 'auto';
-        document.querySelector('#edit-med-modal form').appendChild(clinicalPanel);
-    }
-    clinicalPanel.innerHTML = (med.description || med.indications) ? `
-        <div style="font-size: 0.8rem; line-height: 1.5;">
-            <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color); font-size: 0.75rem; text-transform: uppercase;">Drug Reference (Fetched Data)</h4>
-            ${med.description ? `<p style="margin-bottom: 0.5rem;"><strong>Summary:</strong> ${med.description}</p>` : ''}
-            ${med.indications ? `<p style="margin: 0;"><strong>Primary Indications:</strong> ${med.indications}</p>` : ''}
-        </div>` : '<p style="font-size:0.7rem; color:var(--text-secondary); text-align:center;">No clinical data cached for this pill.</p>';
+        if(container.lastElementChild) container.lastElementChild.value = t;
+    });
 
     document.getElementById('edit-med-modal')?.showModal();
 };
@@ -256,6 +292,7 @@ async function saveEditedMed(e) {
     e.preventDefault();
     const id = document.getElementById('edit-med-id').value;
     const name = document.getElementById('edit-med-name').value.trim();
+    const freq = document.getElementById('edit-med-freq').value;
     
     let existing;
     if (AppSettings.devMode) {
@@ -265,70 +302,60 @@ async function saveEditedMed(e) {
         existing = await new Promise(res => tx.objectStore("meds").get(id).onsuccess = ev => res(ev.target.result));
     }
 
-    let description = existing.description || "";
-    let indications = existing.indications || "";
-    
-    if (document.getElementById('toggle-lookup')?.checked && existing.name !== name && typeof fetchDrugInfo === 'function') {
-        const clinicalData = await fetchDrugInfo(name);
-        description = clinicalData.description;
-        indications = clinicalData.indications;
-    }
-
-    const freq = document.getElementById('edit-med-freq').value;
     const updatedMed = { 
-        id, name, dose: document.getElementById('edit-med-dose').value.trim(), 
-        frequency: freq, times: getTimesFromContainer('edit-med-times-container'),
+        ...existing,
+        name, 
+        dose: document.getElementById('edit-med-dose').value.trim(), 
+        profile: document.getElementById('edit-med-profile').value,
+        frequency: freq, 
+        times: getTimesFromContainer('edit-med-times-container'),
         instructions: document.getElementById('edit-med-instructions').value.trim(),
         sideEffects: document.getElementById('edit-med-side-effects').value.trim(),
+        rxNumber: document.getElementById('edit-med-rx').value.trim(),
+        doctor: document.getElementById('edit-med-doctor').value.trim(),
+        pharmacyPhone: document.getElementById('edit-med-phone').value.trim(),
         inventory: AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "",
-        rxNumber: document.getElementById('edit-med-rx')?.value.trim() || "",
-        doctor: document.getElementById('edit-med-doctor')?.value.trim() || "",
-        pharmacyPhone: document.getElementById('edit-med-phone')?.value.trim() || "",
         specificDays: freq === 'Specific Days' ? Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value)) : [],
-        cycleOn: parseInt(document.getElementById('edit-med-cycle-on').value) || null,
-        cycleOff: parseInt(document.getElementById('edit-med-cycle-off').value) || null,
-        cycleStartDate: document.getElementById('edit-med-cycle-start').value || null,
-        description, indications
+        cycleOn: freq === 'Cyclic' ? parseInt(document.getElementById('edit-med-cycle-on').value) || 0 : null,
+        cycleOff: freq === 'Cyclic' ? parseInt(document.getElementById('edit-med-cycle-off').value) || 0 : null,
+        cycleStartDate: freq === 'Cyclic' ? document.getElementById('edit-med-cycle-start').value : null
     };
 
-    // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
         let idx = window.MOCK_DATA.meds.findIndex(m => m.id === id);
         window.MOCK_DATA.meds[idx] = updatedMed;
         window.syncDevData();
         document.getElementById('edit-med-modal')?.close(); 
-        loadChecklist();
+        loadChecklist(); populateProfileDropdowns();
         return;
     }
 
     const txWrite = db.transaction(["meds"], "readwrite");
     txWrite.objectStore("meds").put(updatedMed);
-    txWrite.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); };
+    txWrite.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); populateProfileDropdowns(); };
 }
 
 window.deleteMedication = function() {
     if (!AppSettings.noBabysitter && !confirm("Remove medication?")) return;
     const id = document.getElementById('edit-med-id').value;
 
-    // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
         window.MOCK_DATA.meds = window.MOCK_DATA.meds.filter(m => m.id !== id);
         window.syncDevData();
         document.getElementById('edit-med-modal')?.close(); 
-        loadChecklist();
+        loadChecklist(); populateProfileDropdowns();
         return;
     }
 
     const tx = db.transaction(["meds"], "readwrite");
     tx.objectStore("meds").delete(id);
-    tx.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); };
+    tx.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); populateProfileDropdowns(); };
 }
 
 window.refillMed = function(id, amount) {
     const qty = amount === 'custom' ? (parseInt(document.getElementById(`refill-custom-${id}`).value) || 0) : parseInt(amount);
     if (qty <= 0) return;
 
-    // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
         let m = window.MOCK_DATA.meds.find(x => x.id === id);
         if (m) m.inventory = (parseInt(m.inventory) || 0) + qty;
@@ -347,12 +374,14 @@ window.refillMed = function(id, amount) {
 };
 
 // --- 5. Regimen Logic ---
+
 function loadChecklist() {
     const container = document.getElementById('checklist-container');
     if(!container) return;
 
     if (AppSettings.devMode && window.MOCK_DATA) {
-        renderChecklistUI(window.MOCK_DATA.meds, window.MOCK_DATA.logs, container);
+        const filtered = window.MOCK_DATA.meds.filter(m => m.profile === AppSettings.activeProfile);
+        renderChecklistUI(filtered, window.MOCK_DATA.logs, container);
         return;
     }
 
@@ -362,7 +391,8 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        renderChecklistUI(medReq.result, logReq.result, container);
+        const filtered = medReq.result.filter(m => m.profile === AppSettings.activeProfile);
+        renderChecklistUI(filtered, logReq.result, container);
     };
 }
 
@@ -371,15 +401,16 @@ function renderChecklistUI(rawMeds, logs, container) {
     
     // --- First-Time User Experience (FTUE) ---
     if (rawMeds.length === 0) { 
+        const isFilt = AppSettings.activeProfile !== 'Primary';
         container.innerHTML = `
             <div class="card ftue-card" style="text-align: center; padding: 3rem 2rem; background: linear-gradient(145deg, var(--bg-surface), var(--bg-primary)); border: 2px dashed var(--border-color); box-shadow: none; grid-column: 1 / -1; margin-bottom: 2rem;">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">🛡️</div>
-                <h3 style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 1.25rem;">Welcome to MedLedger</h3>
+                <div style="font-size: 3rem; margin-bottom: 1rem;">${isFilt ? '📂' : '🛡️'}</div>
+                <h3 style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 1.25rem;">${isFilt ? `Profile: ${AppSettings.activeProfile}` : 'Welcome to MedLedger'}</h3>
                 <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">
-                    Your zero-knowledge, local-first health vault. All data is encrypted and stored exclusively on your device. We track nothing.
+                    ${isFilt ? `No medications have been assigned to this profile yet.` : 'Your zero-knowledge, local-first health vault. All data is encrypted and stored exclusively on your device.'}
                 </p>
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('new-med-name').focus();" style="padding: 0.75rem 1.5rem; font-size: 0.9rem; border-radius: 8px;">
-                    + Add Your First Medication
+                    + Add Medication to ${AppSettings.activeProfile}
                 </button>
             </div>
         `; 
@@ -427,12 +458,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         
         timesToProcess.forEach(t => {
             const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
-            
-            // Verifies against the new timezone-locked Logical Date, with fallback for old data
-            const taken = logs.some(l => 
-                l.compositeId === compId && 
-                (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === todayLocaleStr)
-            );
+            const taken = logs.some(l => l.compositeId === compId && (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === todayLocaleStr));
             
             if (!isPrn) {
                 visibleCount++;
@@ -444,7 +470,7 @@ function renderChecklistUI(rawMeds, logs, container) {
                     <input type="checkbox" value="${compId}" data-name="${med.name}" class="med-checkbox ${isPrn ? 'prn-checkbox' : ''}" ${taken ? 'checked disabled' : ''}>
                     <span class="med-details"><span>${t ? `@ ${t}` : 'Take Dosage'}</span></span>
                 </label>
-                ${isPrn && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom (e.g. Headache 7/10)..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
+                ${isPrn && !taken ? `<div style="padding: 0 1rem 0.5rem 2.25rem;"><input type="text" id="prn-reason-${compId}" placeholder="Reason/Symptom..." style="width:100%; font-size:0.8rem; background:var(--bg-surface); border:1px solid var(--border-color); color:var(--text-primary); padding:6px; border-radius:4px;"></div>` : ''}
             `;
         });
         timesHtml += '</div>';
@@ -485,7 +511,7 @@ function renderChecklistUI(rawMeds, logs, container) {
             <div style="text-align: center; padding: 2rem; color: var(--text-secondary); grid-column: 1 / -1;">
                 <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🌿</div>
                 <div style="font-weight: 500;">Clear schedule for today.</div>
-                <div style="font-size: 0.8rem; margin-top: 0.25rem;">You have active regimens, but none are scheduled for ${today.toLocaleDateString(undefined, {weekday: 'long'})}.</div>
+                <div style="font-size: 0.8rem; margin-top: 0.25rem;">You have active regimens for this profile, but none are scheduled for ${today.toLocaleDateString(undefined, {weekday: 'long'})}.</div>
             </div>
         `;
     }
@@ -495,6 +521,7 @@ function renderChecklistUI(rawMeds, logs, container) {
 }
 
 // --- 6. Logging Logic ---
+
 window.logSelected = function() {
     const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
     if (checked.length === 0) return;
@@ -508,11 +535,13 @@ window.logSelected = function() {
     if (AppSettings.devMode) {
         checked.forEach(cb => {
             const [id, target] = cb.value.split('|');
+            const med = window.MOCK_DATA.meds.find(m => m.id === id);
             const reason = document.getElementById(`prn-reason-${cb.value}`)?.value || "";
             window.MOCK_DATA.logs.push({
                 timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
                 dateTaken: timestamp, 
                 logicalDate: logicalDateStr,
+                profile: med.profile, // Stamp log with Profile
                 systemLoggedTime: Date.now(), 
                 medId: id,
                 targetTime: target === 'none' ? null : target, 
@@ -520,6 +549,7 @@ window.logSelected = function() {
                 medName: cb.getAttribute('data-name'), 
                 status: "taken", 
                 prnReason: reason,
+                efficacy: "", // Initialize Outcome field
                 isBackdated: !!manualInput
             });
             if (AppSettings.inventory) {
@@ -536,25 +566,31 @@ window.logSelected = function() {
     checked.forEach(cb => {
         const [id, target] = cb.value.split('|');
         const reason = document.getElementById(`prn-reason-${cb.value}`)?.value || "";
-        tx.objectStore("logs").add({
-            timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
-            dateTaken: timestamp, 
-            logicalDate: logicalDateStr,
-            systemLoggedTime: Date.now(), 
-            medId: id,
-            targetTime: target === 'none' ? null : target, 
-            compositeId: cb.value,
-            medName: cb.getAttribute('data-name'), 
-            status: "taken", 
-            prnReason: reason,
-            isBackdated: !!manualInput
-        });
-        if (AppSettings.inventory) {
-            tx.objectStore("meds").get(id).onsuccess = (e) => {
-                const m = e.target.result;
-                if (m && m.inventory) { m.inventory = Math.max(0, parseInt(m.inventory) - 1); tx.objectStore("meds").put(m); }
-            };
-        }
+        
+        // Fetch med record to get Profile tag
+        tx.objectStore("meds").get(id).onsuccess = (e) => {
+            const med = e.target.result;
+            tx.objectStore("logs").add({
+                timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
+                dateTaken: timestamp, 
+                logicalDate: logicalDateStr,
+                profile: med.profile,
+                systemLoggedTime: Date.now(), 
+                medId: id,
+                targetTime: target === 'none' ? null : target, 
+                compositeId: cb.value,
+                medName: cb.getAttribute('data-name'), 
+                status: "taken", 
+                prnReason: reason,
+                efficacy: "",
+                isBackdated: !!manualInput
+            });
+
+            if (AppSettings.inventory && med.inventory) {
+                med.inventory = Math.max(0, parseInt(med.inventory) - 1);
+                tx.objectStore("meds").put(med);
+            }
+        };
     });
     tx.oncomplete = () => { loadChecklist(); refreshHistory(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 }
@@ -581,32 +617,34 @@ window.refreshHistory = function() {
 }
 
 function renderHistoryUI(logsArray, list) {
-    const sortedLogs = logsArray.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+    // Filter history by the currently active profile
+    const profileLogs = logsArray.filter(l => l.profile === AppSettings.activeProfile);
+    const sortedLogs = profileLogs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
+    
     list.innerHTML = '';
     const tracker = {};
-    
-    // Fallback to formatting local date string if logicalDate is missing on old entries
-    sortedLogs.forEach(log => { 
-        if (log.targetTime) { 
-            const trackingDate = log.logicalDate || new Date(log.dateTaken).toLocaleDateString();
-            const key = trackingDate + '|' + log.compositeId; 
-            tracker[key] = (tracker[key] || 0) + 1; 
-        } 
-    });
+    sortedLogs.forEach(log => { if (log.targetTime) { const trackingDate = log.logicalDate || new Date(log.dateTaken).toLocaleDateString(); const key = trackingDate + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
     
     list.innerHTML = sortedLogs.slice(0, 15).map(l => {
         const trackingDate = l.logicalDate || new Date(l.dateTaken).toLocaleDateString();
         const isDup = l.targetTime && tracker[trackingDate + '|' + l.compositeId] > 1;
+        const isPrn = !l.targetTime;
+        const needsEfficacy = isPrn && !l.efficacy;
+
         return `
-        <li class="history-item">
-            <div class="history-info">
-                <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px; font-weight:bold;">DUPLICATE</span>' : ''}
-                <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
-                ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
+        <li class="history-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <div class="history-info">
+                    <strong>${l.medName}</strong> ${isDup ? '<span style="color:var(--danger-color); font-size:0.7rem; border:1px solid; padding:0 4px; border-radius:4px; font-weight:bold;">DUPLICATE</span>' : ''}
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">${new Date(l.dateTaken).toLocaleString()}</div>
+                </div>
+                <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
             </div>
-            <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
+            ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 Reason: ${l.prnReason}</div>` : ''}
+            ${l.efficacy ? `<div style="font-size:0.75rem; color:var(--success-color);">✨ Outcome: ${l.efficacy}</div>` : ''}
+            ${needsEfficacy ? `<button class="btn btn-secondary" style="font-size: 0.7rem; padding: 4px 8px; margin-top: 4px;" onclick="updateEfficacy('${l.timestamp}')">📝 Update Outcome?</button>` : ''}
         </li>`;
-    }).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found.</li>';
+    }).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found for this profile.</li>';
 }
 
 window.deleteLog = function(ts) {
@@ -644,7 +682,8 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
-// --- CLI Report Export Logic ---
+// --- 7. Report Export Logic ---
+
 window.exportHTMLReport = async function() {
     let meds, logs;
     
@@ -657,14 +696,18 @@ window.exportHTMLReport = async function() {
         logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     }
     
-    if (!logs.length) {
-        if(typeof showVaultStatus === 'function') showVaultStatus("No logs to export.", "var(--danger-color)");
+    // Isolation: Report only reflects the currently active profile
+    const profileMeds = meds.filter(m => m.profile === AppSettings.activeProfile);
+    const profileLogs = logs.filter(l => l.profile === AppSettings.activeProfile);
+
+    if (!profileLogs.length) {
+        if(typeof showVaultStatus === 'function') showVaultStatus("No logs for this profile.", "var(--danger-color)");
         return;
     }
 
-    const lowInv = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
+    const lowInv = profileMeds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
     const grouped = {};
-    logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
+    profileLogs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken).toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
         if (!grouped[d]) grouped[d] = [];
         grouped[d].push(l);
@@ -676,42 +719,29 @@ window.exportHTMLReport = async function() {
         clinicalBody += grouped[date].map(l => {
             const timeStr = new Date(l.dateTaken).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
             const isPrn = !l.targetTime;
-            return `<tr class="${isPrn ? 'prn-row' : ''}"><td><strong>${timeStr}</strong></td><td><div class="med-name-cell">${l.medName} ${isPrn ? '<span class="prn-badge">As Needed</span>' : ''}</div>${l.prnReason ? `<div class="note-box">📝 ${l.prnReason}</div>`:''}</td><td style="text-align: center; color: #64748b;">${l.targetTime || '--'}</td></tr>`;
+            return `<tr class="${isPrn ? 'prn-row' : ''}"><td><strong>${timeStr}</strong></td><td><div class="med-name-cell">${l.medName} ${isPrn ? '<span class="prn-badge">As Needed</span>' : ''}</div>${l.prnReason ? `<div class="note-box">📝 Reason: ${l.prnReason}</div>`:''}${l.efficacy ? `<div style="color:var(--success-color); margin-top:4px;">✨ Outcome: ${l.efficacy}</div>` : ''}</td><td style="text-align: center; color: #64748b;">${l.targetTime || '--'}</td></tr>`;
         }).join('');
         clinicalBody += `</tbody></table></div>`;
     });
 
-    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left) ${m.rxNumber ? `[Rx: ${m.rxNumber}]` : ''} ${m.pharmacyPhone ? `Ph: ${m.pharmacyPhone}` : ''}</div>`).join('')}</div>` : "";
+    const refillHtml = lowInv.length ? `<div class="refill-section"><h3 style="color: #e11d48; margin-top: 0;">⚠️ Refill Requirements</h3>${lowInv.map(m => `<div>• <strong>${m.name}</strong> (${m.inventory} left) ${m.rxNumber ? `[Rx: ${m.rxNumber}]` : ''}</div>`).join('')}</div>` : "";
 
-    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger Clinical Summary</title><style>
-        body { font-family: -apple-system, system-ui, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
-        .report-paper { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; border-top: 8px solid #2563eb; }
-        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-        .patient-meta { font-size: 14px; color: #64748b; }
+    const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger: ${AppSettings.activeProfile}</title><style>
+        body { font-family: sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: #f8fafc; }
+        .report-paper { background: white; padding: 40px; border-radius: 8px; max-width: 900px; margin: 0 auto; border-top: 8px solid #2563eb; }
         .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
         .stat-card { background: #f1f5f9; padding: 15px; border-radius: 6px; text-align: center; }
-        .stat-val { font-size: 20px; font-weight: 800; color: #2563eb; }
-        .stat-lab { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; }
-        .date-group { margin-bottom: 40px; }
-        .date-header { font-size: 16px; font-weight: 700; background: #e2e8f0; padding: 8px 15px; border-radius: 4px; margin-bottom: 10px; }
         .clinical-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .clinical-table th { text-align: left; padding: 10px; border-bottom: 1px solid #cbd5e1; }
         .clinical-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-        .med-name-cell { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-        .prn-badge { background: #dbeafe; color: #1e40af; font-size: 10px; padding: 2px 6px; border-radius: 10px; text-transform: uppercase; }
-        .prn-row { background-color: #f0f9ff; }
-        .note-box { margin-top: 4px; font-style: italic; color: #2563eb; }
-        .refill-section { background: #fff1f2; border: 1px solid #fecdd3; padding: 20px; border-radius: 8px; margin-top: 30px; }
-        .btn-print { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 20px; }
-        @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
-    </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper">
-    <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Generated: ${new Date().toLocaleString()}${AppSettings.devMode ? ' <b>(DEV MODE)</b>' : ''}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
-    <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInv.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
-    ${refillHtml}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${clinicalBody}
-    <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
+        .date-header { font-size: 16px; font-weight: 700; background: #e2e8f0; padding: 8px 15px; border-radius: 4px; margin-bottom: 10px; }
+    </style></head><body><div class="report-paper">
+    <h1>Clinical Adherence Summary: ${AppSettings.activeProfile}</h1>
+    <p>Patient Data for: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}</p>
+    <div class="stat-grid"><div class="stat-card"><strong>${profileLogs.length}</strong><br><small>Doses Logged</small></div><div class="stat-card"><strong>${profileLogs.filter(l => !l.targetTime).length}</strong><br><small>PRN Instances</small></div><div class="stat-card"><strong>${lowInv.length}</strong><br><small>Meds Low</small></div></div>
+    ${refillHtml}${clinicalBody}</div></body></html>`;
 
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_Report_${new Date().toISOString().split('T')[0]}.html`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `MedLedger_${AppSettings.activeProfile}_Report.html`; a.click();
 }
 
 window.exportCSV = async function() {
@@ -723,36 +753,25 @@ window.exportCSV = async function() {
         logs = await new Promise(r => tx.objectStore("logs").getAll().onsuccess = e => r(e.target.result));
     }
     
-    if (!logs.length) return;
-    let csv = "Date,Time,Medication,Target,Status,PRN Reason\n";
-    logs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
+    // CSV only exports the active profile
+    const profileLogs = logs.filter(l => l.profile === AppSettings.activeProfile);
+    if (!profileLogs.length) return;
+
+    let csv = "Date,Time,Medication,Target,Status,PRN Reason,Outcome\n";
+    profileLogs.sort((a,b) => new Date(b.dateTaken) - new Date(a.dateTaken)).forEach(l => {
         const d = new Date(l.dateTaken);
-        csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},"${l.medName}",${l.targetTime || 'PRN'},${l.status},"${(l.prnReason || '')}"\n`;
+        csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},"${l.medName}",${l.targetTime || 'PRN'},${l.status},"${(l.prnReason || '')}","${(l.efficacy || '')}"\n`;
     });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "MedLedger_Data.csv"; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = `MedLedger_${AppSettings.activeProfile}_Data.csv`; a.click();
 }
 
-// --- Initialisation ---
+// --- 8. Initialization & Tasks ---
+
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
-        if (localStorage.getItem('medledger_clinical_lookups') === null) {
-            localStorage.setItem('medledger_clinical_lookups', 'true');
-        }
-        toggle.checked = localStorage.getItem('medledger_clinical_lookups') === 'true';
-        
-        toggle.addEventListener('change', (e) => {
-            localStorage.setItem('medledger_clinical_lookups', e.target.checked);
-        });
-
-        if (toggle.checked && localStorage.getItem('medledger_initial_fetch_done') !== 'true') {
-            const checkDB = setInterval(() => {
-                if (typeof db !== 'undefined' && typeof refreshAllClinicalData === 'function') {
-                    clearInterval(checkDB);
-                    refreshAllClinicalData(true);
-                }
-            }, 500);
-        }
+        toggle.checked = localStorage.getItem('medledger_clinical_lookups') !== 'false';
+        toggle.addEventListener('change', (e) => localStorage.setItem('medledger_clinical_lookups', e.target.checked));
     }
 });
 
@@ -760,49 +779,39 @@ function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
     const curTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    
-    // Reminders use the local string as well to prevent timezone drift triggering duplicate notifications
     const logicalTodayStr = getLogicalDateString(now);
     
-    if (AppSettings.devMode) {
-        processReminders(window.MOCK_DATA.meds, window.MOCK_DATA.logs, curTime, logicalTodayStr);
-    } else {
-        db.transaction(["meds", "logs"], "readonly").objectStore("meds").getAll().onsuccess = (e) => {
-            const meds = e.target.result;
-            db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (ev) => {
-                processReminders(meds, ev.target.result, curTime, logicalTodayStr);
-            };
-        };
-    }
-}
-
-function processReminders(meds, logs, curTime, logicalTodayStr) {
-    meds.forEach(m => {
-        if (m.frequency === "As Needed") return;
-        (m.times || []).forEach(t => {
-            if (curTime >= t) {
-                const cid = `${m.id}|${t}`;
-                
-                // Check if already logged using either logicalDate or legacy local string fallback
-                if (!logs.some(l => l.compositeId === cid && (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === new Date().toLocaleDateString()))) {
-                    if (!window._notified) window._notified = {};
-                    if (!window._notified[cid + logicalTodayStr]) {
-                        navigator.serviceWorker.ready.then(r => r.showNotification("MedLedger", { body: `Due: ${m.name} at ${t}` }));
-                        window._notified[cid + logicalTodayStr] = true;
+    const checkSet = (meds, logs) => {
+        meds.forEach(m => {
+            if (m.frequency === "As Needed") return;
+            (m.times || []).forEach(t => {
+                if (curTime >= t) {
+                    const cid = `${m.id}|${t}`;
+                    if (!logs.some(l => l.compositeId === cid && (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === now.toLocaleDateString()))) {
+                        if (!window._notified) window._notified = {};
+                        if (!window._notified[cid + logicalTodayStr]) {
+                            navigator.serviceWorker.ready.then(r => r.showNotification("MedLedger", { body: `Due: ${m.name} (@${m.profile}) at ${t}` }));
+                            window._notified[cid + logicalTodayStr] = true;
+                        }
                     }
                 }
-            }
+            });
         });
-    });
+    };
+
+    if (AppSettings.devMode) checkSet(window.MOCK_DATA.meds, window.MOCK_DATA.logs);
+    else db.transaction(["meds", "logs"], "readonly").objectStore("meds").getAll().onsuccess = e => {
+        const m = e.target.result;
+        db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = ev => checkSet(m, ev.target.result);
+    };
 }
 setInterval(checkReminders, 60000);
 
-let lastCheckedDate = getLogicalDateString(new Date());
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-        const currentDate = getLogicalDateString(new Date());
-        if (currentDate !== lastCheckedDate) {
-            lastCheckedDate = currentDate;
+        const current = getLogicalDateString(new Date());
+        if (typeof lastCheckedDate !== 'undefined' && current !== lastCheckedDate) {
+            lastCheckedDate = current;
             loadChecklist(); 
             refreshHistory(); 
             if(typeof calculateAdherence === 'function') calculateAdherence(); 
