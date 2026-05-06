@@ -295,13 +295,36 @@ main#app {
         display: block !important; 
     }
 
+    /* Dashboard Grid Layout */
+#checklist-container {
+    display: grid;
+    /* Adjust minmax to your preferred card width */
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    align-items: stretch; /* Forces cards in the same row to equal height */
+}
+
+/* Card Internal Alignment */
+#checklist-container .card {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Fill the grid cell */
+    margin-bottom: 0 !important; /* Grid handles spacing via gap */
+}
+
+/* This ensures the checklist area expands to fill space, 
+   pushing the instructions/Rx footer to the bottom. */
+#checklist-container .checklist {
+    flex: 1;
+}
+
+/* Mobile Responsive adjustment */
+@media (max-width: 600px) {
     #checklist-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.25rem;
-        align-items: start;
-        align-content: start;
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
+}
 
     .sidebar-brand {
         display: flex;
