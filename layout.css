@@ -27,15 +27,32 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    max-width: 100%;
+    margin: 0 auto;
     width: 100%;
-    gap: 1rem; /* Forces a gap between text and icons */
+    gap: 1rem; /* Force spacing between name and controls */
+}
+
+/* FIX: Prevent left-side items from overlapping the right controls */
+.header-content > div:first-child {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .header-controls {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    flex-shrink: 0; /* NEVER squish the icons */
+    flex-shrink: 0; /* NEVER squish the buttons or profile selector */
+}
+
+/* FIX: Ensure user selector doesn't balloon on mobile */
+.global-profile-select {
+    max-width: 120px;
+    text-overflow: ellipsis;
 }
 
 main#app {
@@ -83,6 +100,10 @@ main#app {
 
     .tab-view.active-view {
         display: block !important;
+    }
+    
+    .global-profile-select {
+        max-width: none;
     }
 }
 
