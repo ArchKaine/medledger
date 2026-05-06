@@ -24,6 +24,14 @@ function getLogicalDateString(dateObj) {
            String(dateObj.getDate()).padStart(2, '0');
 }
 
+// Ensures the inventory input on the main dashboard is visible if the feature is enabled
+function updateInventoryUI() {
+    const newInv = document.getElementById('new-med-inventory');
+    if (newInv) {
+        newInv.style.display = (typeof AppSettings !== 'undefined' && AppSettings.inventory) ? 'block' : 'none';
+    }
+}
+
 // --- 2. Archiving Logic ---
 
 function archiveOldLogs() {
@@ -82,7 +90,7 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- 3. PRN Efficacy Engine ---
+// --- 3. Interaction & PRN Efficacy Engine ---
 
 window.updateEfficacy = function(ts) {
     const outcome = prompt("What was the outcome of this dose? (e.g. Headache resolved, Relief 2/10):");
@@ -193,7 +201,13 @@ window.openEditModal = async function(id) {
     document.getElementById('edit-med-doctor').value = med.doctor || '';
     document.getElementById('edit-med-phone').value = med.pharmacyPhone || '';
     
-    if (AppSettings.inventory) document.getElementById('edit-med-inventory').value = med.inventory || '';
+    const invGroup = document.getElementById('edit-inventory-group');
+    if (AppSettings.inventory && invGroup) {
+        invGroup.style.display = 'block';
+        document.getElementById('edit-med-inventory').value = med.inventory || '';
+    } else if (invGroup) {
+        invGroup.style.display = 'none';
+    }
     
     const specDiv = document.getElementById('edit-med-specific-days');
     const cycDiv = document.getElementById('edit-med-cyclic');
@@ -298,7 +312,10 @@ window.refillMed = function(id, amount) {
 
     if (AppSettings.devMode) {
         let m = window.MOCK_DATA.meds.find(x => x.id === id);
-        if (m) m.inventory = (parseInt(m.inventory) || 0) + qty;
+        if (m && m.inventory !== "" && m.inventory !== null && m.inventory !== undefined) {
+            let current = parseInt(m.inventory);
+            if (!isNaN(current)) m.inventory = current + qty;
+        }
         window.syncDevData();
         loadChecklist();
         return;
@@ -308,7 +325,13 @@ window.refillMed = function(id, amount) {
     const medStore = tx.objectStore("meds");
     medStore.get(id).onsuccess = (e) => {
         const m = e.target.result;
-        if (m) { m.inventory = (parseInt(m.inventory) || 0) + qty; medStore.put(m); }
+        if (m && m.inventory !== "" && m.inventory !== null && m.inventory !== undefined) { 
+            let current = parseInt(m.inventory);
+            if (!isNaN(current)) {
+                m.inventory = current + qty; 
+                medStore.put(m); 
+            }
+        }
     };
     tx.oncomplete = loadChecklist;
 };
@@ -316,6 +339,7 @@ window.refillMed = function(id, amount) {
 // --- 5. Regimen Logic ---
 
 function loadChecklist() {
+    updateInventoryUI(); // Force check UI state
     const container = document.getElementById('checklist-container');
     if(!container) return;
 
@@ -339,7 +363,6 @@ function loadChecklist() {
 function renderChecklistUI(rawMeds, logs, container) {
     container.innerHTML = '';
     
-    // --- First-Time User Experience (FTUE) ---
     if (rawMeds.length === 0) { 
         const isFilt = AppSettings.activeProfile !== 'Primary';
         container.innerHTML = `
@@ -388,7 +411,13 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        const isLow = AppSettings.inventory && parseInt(med.inventory) <= 10;
+        // Hardened check against NaN or Empty string for the Low warning
+        let isLow = false;
+        if (AppSettings.inventory && med.inventory !== "" && med.inventory !== null && med.inventory !== undefined) {
+            const invCount = parseInt(med.inventory);
+            if (!isNaN(invCount) && invCount <= 10) isLow = true;
+        }
+
         const card = document.createElement('div');
         card.className = 'card'; card.style.padding = '0'; card.style.marginBottom = '1.5rem'; card.style.overflow = 'hidden';
 
@@ -425,7 +454,6 @@ function renderChecklistUI(rawMeds, logs, container) {
                 </div>
             </div>` : '';
 
-        // RX Info specifically moved to the very bottom as a predictable footer component
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; padding:1rem; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
                 <div><h3 style="margin:0; font-size:1.1rem;">${med.name}</h3><div style="font-size:0.85rem; color:var(--text-secondary);">${med.dose}</div></div>
@@ -496,7 +524,10 @@ window.logSelected = function() {
             });
             if (AppSettings.inventory) {
                 let m = window.MOCK_DATA.meds.find(x => x.id === id);
-                if (m && m.inventory !== undefined) m.inventory = Math.max(0, parseInt(m.inventory) - 1);
+                if (m && m.inventory !== "" && m.inventory !== null && m.inventory !== undefined) {
+                    let current = parseInt(m.inventory);
+                    if (!isNaN(current)) m.inventory = Math.max(0, current - 1);
+                }
             }
         });
         window.syncDevData();
@@ -525,9 +556,12 @@ window.logSelected = function() {
                 efficacy: "",
                 isBackdated: !!manualInput
             });
-            if (AppSettings.inventory && med.inventory !== undefined) { 
-                med.inventory = Math.max(0, parseInt(med.inventory) - 1); 
-                tx.objectStore("meds").put(med); 
+            if (AppSettings.inventory && med.inventory !== "" && med.inventory !== null && med.inventory !== undefined) { 
+                let current = parseInt(med.inventory);
+                if (!isNaN(current)) {
+                    med.inventory = Math.max(0, current - 1); 
+                    tx.objectStore("meds").put(med); 
+                }
             }
         };
     });
@@ -561,7 +595,6 @@ function renderHistoryUI(logsArray, list) {
     list.innerHTML = '';
     const tracker = {};
     
-    // Fallback to formatting local date string if logicalDate is missing on old entries
     sortedLogs.forEach(log => { 
         if (log.targetTime) { 
             const trackingDate = log.logicalDate || new Date(log.dateTaken).toLocaleDateString();
@@ -585,7 +618,7 @@ function renderHistoryUI(logsArray, list) {
                 </div>
                 <button class="icon-btn" onclick="deleteLog('${l.timestamp}')" type="button">🗑️</button>
             </div>
-            ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
+            ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 Reason: ${l.prnReason}</div>` : ''}
             ${l.efficacy ? `<div style="font-size:0.75rem; color:var(--success-color);">✨ Outcome: ${l.efficacy}</div>` : ''}
             ${needsEff ? `<button class="btn btn-secondary" style="font-size: 0.7rem; padding: 4px 8px; margin-top: 4px;" onclick="updateEfficacy('${l.timestamp}')">📝 Update Outcome?</button>` : ''}
         </li>`;
@@ -602,7 +635,10 @@ window.deleteLog = function(ts) {
             window.MOCK_DATA.logs.splice(logIdx, 1);
             if (AppSettings.inventory && log.medId) {
                 let m = window.MOCK_DATA.meds.find(x => x.id === log.medId);
-                if (m && m.inventory !== undefined) m.inventory = (parseInt(m.inventory) || 0) + 1;
+                if (m && m.inventory !== "" && m.inventory !== null && m.inventory !== undefined) {
+                    let current = parseInt(m.inventory);
+                    if (!isNaN(current)) m.inventory = current + 1;
+                }
             }
             window.syncDevData();
         }
@@ -618,7 +654,13 @@ window.deleteLog = function(ts) {
             if (AppSettings.inventory && log.medId) {
                 tx.objectStore("meds").get(log.medId).onsuccess = (ev) => {
                     const m = ev.target.result;
-                    if (m && m.inventory !== undefined) { m.inventory = (parseInt(m.inventory) || 0) + 1; tx.objectStore("meds").put(m); }
+                    if (m && m.inventory !== "" && m.inventory !== null && m.inventory !== undefined) { 
+                        let current = parseInt(m.inventory);
+                        if (!isNaN(current)) {
+                            m.inventory = current + 1; 
+                            tx.objectStore("meds").put(m); 
+                        }
+                    }
                 };
             }
         }
@@ -629,6 +671,7 @@ window.deleteLog = function(ts) {
 // --- 8. Initialization & Tasks ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    updateInventoryUI(); // Unhide input on initial load if needed
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
         toggle.checked = localStorage.getItem('medledger_clinical_lookups') !== 'false';
