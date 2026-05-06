@@ -13,6 +13,13 @@ function getTimesFromContainer(containerId) {
     return [...new Set(times)].sort();
 }
 
+// Generates a timezone-locked YYYY-MM-DD string
+function getLogicalDateString(dateObj) {
+    return dateObj.getFullYear() + '-' + 
+           String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(dateObj.getDate()).padStart(2, '0');
+}
+
 // --- 2. Archiving Logic ---
 function archiveOldLogs() {
     const archiveDaysEl = document.getElementById('archive-days');
@@ -377,7 +384,6 @@ function renderChecklistUI(rawMeds, logs, container) {
             </div>
         `; 
         
-        // Zero out adherence stats if app is empty
         if(typeof updateStatus === 'function') updateStatus(0, 0);
         const adhereEl = document.getElementById('adherence-score');
         if (adhereEl) adhereEl.innerText = '--%';
@@ -389,8 +395,10 @@ function renderChecklistUI(rawMeds, logs, container) {
         return (weights[a.frequency] || 99) - (weights[b.frequency] || 99) || a.name.localeCompare(b.name);
     });
 
-    const today = new Date(); today.setHours(0,0,0,0);
-    const todayStr = today.toLocaleDateString();
+    const today = new Date(); 
+    today.setHours(0,0,0,0);
+    const logicalTodayStr = getLogicalDateString(today);
+    const todayLocaleStr = today.toLocaleDateString();
     
     let takenCount = 0;
     let visibleCount = 0;
@@ -419,7 +427,12 @@ function renderChecklistUI(rawMeds, logs, container) {
         
         timesToProcess.forEach(t => {
             const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
-            const taken = logs.some(l => l.compositeId === compId && new Date(l.dateTaken).toLocaleDateString() === todayStr);
+            
+            // Verifies against the new timezone-locked Logical Date, with fallback for old data
+            const taken = logs.some(l => 
+                l.compositeId === compId && 
+                (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === todayLocaleStr)
+            );
             
             if (!isPrn) {
                 visibleCount++;
@@ -467,7 +480,6 @@ function renderChecklistUI(rawMeds, logs, container) {
         container.appendChild(card);
     });
 
-    // Sub-FTUE logic: If meds exist, but none are scheduled for TODAY specifically.
     if (visibleCount === 0 && rawMeds.filter(m => m.frequency !== "As Needed").length > 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: var(--text-secondary); grid-column: 1 / -1;">
@@ -488,7 +500,9 @@ window.logSelected = function() {
     if (checked.length === 0) return;
     
     const manualInput = document.getElementById('manual-time')?.value;
-    const timestamp = manualInput ? new Date(manualInput).toISOString() : new Date().toISOString();
+    const logDateObj = manualInput ? new Date(manualInput) : new Date();
+    const timestamp = logDateObj.toISOString();
+    const logicalDateStr = getLogicalDateString(logDateObj);
 
     // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
@@ -498,6 +512,7 @@ window.logSelected = function() {
             window.MOCK_DATA.logs.push({
                 timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
                 dateTaken: timestamp, 
+                logicalDate: logicalDateStr,
                 systemLoggedTime: Date.now(), 
                 medId: id,
                 targetTime: target === 'none' ? null : target, 
@@ -524,6 +539,7 @@ window.logSelected = function() {
         tx.objectStore("logs").add({
             timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
             dateTaken: timestamp, 
+            logicalDate: logicalDateStr,
             systemLoggedTime: Date.now(), 
             medId: id,
             targetTime: target === 'none' ? null : target, 
@@ -568,10 +584,19 @@ function renderHistoryUI(logsArray, list) {
     const sortedLogs = logsArray.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
     list.innerHTML = '';
     const tracker = {};
-    sortedLogs.forEach(log => { if (log.targetTime) { const key = new Date(log.dateTaken).toLocaleDateString() + '|' + log.compositeId; tracker[key] = (tracker[key] || 0) + 1; } });
+    
+    // Fallback to formatting local date string if logicalDate is missing on old entries
+    sortedLogs.forEach(log => { 
+        if (log.targetTime) { 
+            const trackingDate = log.logicalDate || new Date(log.dateTaken).toLocaleDateString();
+            const key = trackingDate + '|' + log.compositeId; 
+            tracker[key] = (tracker[key] || 0) + 1; 
+        } 
+    });
     
     list.innerHTML = sortedLogs.slice(0, 15).map(l => {
-        const isDup = l.targetTime && tracker[new Date(l.dateTaken).toLocaleDateString() + '|' + l.compositeId] > 1;
+        const trackingDate = l.logicalDate || new Date(l.dateTaken).toLocaleDateString();
+        const isDup = l.targetTime && tracker[trackingDate + '|' + l.compositeId] > 1;
         return `
         <li class="history-item">
             <div class="history-info">
@@ -680,7 +705,7 @@ window.exportHTMLReport = async function() {
         .btn-print { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 20px; }
         @media print { body { padding: 0; background: white; } .report-paper { box-shadow: none; border: none; max-width: 100%; padding: 0; } .no-print { display: none; } }
     </style></head><body><div class="no-print" style="text-align:right;"><button class="btn-print" onclick="window.print()">Print Clinical Summary</button></div><div class="report-paper">
-    <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Patient: <strong>Brian E Turner</strong> | Generated: ${new Date().toLocaleString()}${AppSettings.devMode ? ' <b>(DEV MODE)</b>' : ''}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
+    <div class="header"><div><h1>Medication Adherence Summary</h1><div class="patient-meta">Generated: ${new Date().toLocaleString()}${AppSettings.devMode ? ' <b>(DEV MODE)</b>' : ''}</div></div><div style="text-align: right;"><div style="font-weight: 900; font-size: 20px; color: #2563eb;">MedLedger</div><div class="patient-meta">Self-Reported Adherence Data</div></div></div>
     <div class="stat-grid"><div class="stat-card"><div class="stat-val">${logs.length}</div><div class="stat-lab">Total Doses Logged</div></div><div class="stat-card"><div class="stat-val">${logs.filter(l => !l.targetTime).length}</div><div class="stat-lab">PRN Instances</div></div><div class="stat-card"><div class="stat-val">${lowInv.length}</div><div class="stat-lab">Meds Needing Refill</div></div></div>
     ${refillHtml}<h2 style="font-size: 18px; margin-top: 30px; border-bottom: 2px solid #2563eb; display: inline-block;">Detailed Daily Logs</h2>${clinicalBody}
     <div style="margin-top: 50px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px;">MedLedger Health Analytics | Data resides locally on user device.</div></div></body></html>`;
@@ -735,31 +760,35 @@ function checkReminders() {
     if (!AppSettings.reminders || Notification.permission !== 'granted' || typeof db === 'undefined') return;
     const now = new Date();
     const curTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    const todayStr = now.toLocaleDateString();
+    
+    // Reminders use the local string as well to prevent timezone drift triggering duplicate notifications
+    const logicalTodayStr = getLogicalDateString(now);
     
     if (AppSettings.devMode) {
-        processReminders(window.MOCK_DATA.meds, window.MOCK_DATA.logs, curTime, todayStr);
+        processReminders(window.MOCK_DATA.meds, window.MOCK_DATA.logs, curTime, logicalTodayStr);
     } else {
         db.transaction(["meds", "logs"], "readonly").objectStore("meds").getAll().onsuccess = (e) => {
             const meds = e.target.result;
             db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = (ev) => {
-                processReminders(meds, ev.target.result, curTime, todayStr);
+                processReminders(meds, ev.target.result, curTime, logicalTodayStr);
             };
         };
     }
 }
 
-function processReminders(meds, logs, curTime, todayStr) {
+function processReminders(meds, logs, curTime, logicalTodayStr) {
     meds.forEach(m => {
         if (m.frequency === "As Needed") return;
         (m.times || []).forEach(t => {
             if (curTime >= t) {
                 const cid = `${m.id}|${t}`;
-                if (!logs.some(l => l.compositeId === cid && new Date(l.dateTaken).toLocaleDateString() === todayStr)) {
+                
+                // Check if already logged using either logicalDate or legacy local string fallback
+                if (!logs.some(l => l.compositeId === cid && (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === new Date().toLocaleDateString()))) {
                     if (!window._notified) window._notified = {};
-                    if (!window._notified[cid + todayStr]) {
+                    if (!window._notified[cid + logicalTodayStr]) {
                         navigator.serviceWorker.ready.then(r => r.showNotification("MedLedger", { body: `Due: ${m.name} at ${t}` }));
-                        window._notified[cid + todayStr] = true;
+                        window._notified[cid + logicalTodayStr] = true;
                     }
                 }
             }
@@ -768,10 +797,10 @@ function processReminders(meds, logs, curTime, todayStr) {
 }
 setInterval(checkReminders, 60000);
 
-let lastCheckedDate = new Date().toLocaleDateString();
+let lastCheckedDate = getLogicalDateString(new Date());
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-        const currentDate = new Date().toLocaleDateString();
+        const currentDate = getLogicalDateString(new Date());
         if (currentDate !== lastCheckedDate) {
             lastCheckedDate = currentDate;
             loadChecklist(); 
