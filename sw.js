@@ -10,7 +10,7 @@ const ASSETS = [
     'layout.css',
     'components.css',
     'modules.css',
-    '/style.css',
+    /*'/style.css',*/
     '/app.js',
     '/profiles.js',
     '/reports.js',
