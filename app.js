@@ -5,7 +5,7 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 3;
+const DB_VERSION = 4; // Bumped to 4 for Rx Metadata Migration
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -22,17 +22,15 @@ const AppSettings = {
 // Explicitly bind to window for cross-script safety
 window.AppSettings = AppSettings;
 
-// --- DOM Elements (Core Bootloader Needs) ---
+// --- DOM Elements ---
 let checklistContainer, historyList, addMedForm, editModal, editForm, settingsModal, helpModal;
 
-// --- Helper: Safe Element Getter ---
 function getEl(id) {
     return document.getElementById(id);
 }
 
 // --- Initialization / Bootloader ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Bind core elements used directly by the engine
     checklistContainer = getEl('checklist-container');
     historyList = getEl('history-list');
     addMedForm = getEl('add-med-form');
@@ -41,13 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsModal = getEl('settings-modal');
     helpModal = getEl('help-modal');
 
-    // Boot UI and Database
     if(typeof initializeTheme === 'function') initializeTheme();
     if(typeof initSettings === 'function') initSettings();
     initDB();
     registerServiceWorker();
 
-    // Attach all event listeners
     bindCoreListeners();
     bindModalListeners();
     bindExportListeners();
@@ -57,11 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bindKeyboardShortcuts();
     bindGlobalErrorHandler();
 
-    // Full initialization
     setTimeout(fullAppInit, 150);
 });
 
-// --- Event Listener Binding Functions ---
 function bindCoreListeners() {
     getEl('btn-submit-selected')?.addEventListener('click', logSelected);
     getEl('btn-submit-all')?.addEventListener('click', logAll);
@@ -71,7 +65,6 @@ function bindCoreListeners() {
 }
 
 function bindModalListeners() {
-    // Settings Modal
     getEl('settings-toggle')?.addEventListener('click', () => {
         const cachedPass = sessionStorage.getItem('medledger_session_key');
         const vaultPassInput = getEl('vault-password');
@@ -89,7 +82,6 @@ function bindModalListeners() {
     });
     getEl('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
     
-    // Help Modal
     getEl('help-toggle')?.addEventListener('click', () => {
         helpModal?.showModal();
         if(helpModal) helpModal.scrollTop = 0;
@@ -156,7 +148,7 @@ function fullAppInit() {
     if (typeof calculateAdherence === 'function') calculateAdherence();
 }
 
-// --- Database Initialization ---
+// --- Database Initialization & Migration ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
@@ -165,14 +157,17 @@ function initDB() {
         const oldVersion = e.oldVersion;
         const transaction = e.target.transaction;
 
+        // V1: Initial Store Creation
         if (oldVersion < 1) {
             db.createObjectStore("meds", { keyPath: "id" });
             db.createObjectStore("logs", { keyPath: "timestamp" });
         }
+        
+        // V2: Injected sideEffects field
         if (oldVersion >= 1 && oldVersion < 2) {
             const medStore = transaction.objectStore("meds");
-            medStore.openCursor().onsuccess = (event) => {
-                const cursor = event.target.result;
+            medStore.openCursor().onsuccess = (ev) => {
+                const cursor = ev.target.result;
                 if (cursor) {
                     const med = cursor.value;
                     if (med.sideEffects === undefined) med.sideEffects = "";
@@ -181,16 +176,36 @@ function initDB() {
                 }
             };
         }
+        
+        // V3: Create Archive Store
         if (oldVersion < 3) {
             if (!db.objectStoreNames.contains("archived_logs")) {
                 db.createObjectStore("archived_logs", { keyPath: "timestamp" });
             }
         }
+
+        // V4: Injected Rx Metadata fields (rxNumber, doctor, pharmacyPhone)
+        if (oldVersion >= 1 && oldVersion < 4) {
+            const medStore = transaction.objectStore("meds");
+            medStore.openCursor().onsuccess = (ev) => {
+                const cursor = ev.target.result;
+                if (cursor) {
+                    const med = cursor.value;
+                    let changed = false;
+                    if (med.rxNumber === undefined) { med.rxNumber = ""; changed = true; }
+                    if (med.doctor === undefined) { med.doctor = ""; changed = true; }
+                    if (med.pharmacyPhone === undefined) { med.pharmacyPhone = ""; changed = true; }
+                    
+                    if (changed) cursor.update(med);
+                    cursor.continue();
+                }
+            };
+        }
     };
     
     request.onsuccess = (e) => {
         db = e.target.result;
-        console.log("✅ MedLedger DB ready");
+        console.log("✅ MedLedger DB ready (Version " + DB_VERSION + ")");
         fullAppInit();
     };
     request.onerror = (e) => {
@@ -199,7 +214,6 @@ function initDB() {
     };
 }
 
-// --- Service Worker ---
 function registerServiceWorker() {
     if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
         navigator.serviceWorker.register('sw.js').catch(err => console.error('Service Worker Failed:', err));
