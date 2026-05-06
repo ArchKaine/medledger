@@ -17,7 +17,8 @@ const AppSettings = {
     expertMode: localStorage.getItem('cfg_expertMode') === 'true',
     reminders: localStorage.getItem('cfg_reminders') === 'true',
     inventory: localStorage.getItem('cfg_inventory') === 'true',
-    activeProfile: localStorage.getItem('cfg_activeProfile') || 'Primary'
+    activeProfile: localStorage.getItem('cfg_activeProfile') || 'Primary',
+    clinicalLookups: localStorage.getItem('medledger_clinical_lookups') !== 'false'
 };
 
 window.AppSettings = AppSettings;
@@ -63,13 +64,10 @@ function bindCoreListeners() {
     getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
     getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
-    // Profile Filter Change - FIXED: Now routes to the global switch function
-    // to properly handle "ADD_NEW" profile creations and full UI re-renders.
     getEl('profile-filter')?.addEventListener('change', (e) => {
         if (typeof window.switchActiveProfile === 'function') {
             window.switchActiveProfile(e.target.value);
         } else {
-            // Fallback just in case engine.js hasn't loaded
             AppSettings.activeProfile = e.target.value;
             localStorage.setItem('cfg_activeProfile', e.target.value);
             if (typeof loadChecklist === 'function') loadChecklist();
