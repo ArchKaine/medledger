@@ -9,7 +9,7 @@ const HelpContent = {
             <p>Because this app respects your privacy, your data lives <b>only on your device</b>. There is no central server.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;"><b>No Password Recovery:</b> If you set an encryption password for your Data Vault and forget it, your exported backups and cloud syncs are permanently unreadable. <i>There is no "Forgot Password" button because the developer never sees your password.</i></li>
-                <li><b>Browser Data:</b> Your active schedule lives inside your browser's local storage. If you clear your browser's site data/cookies without making a backup first, your ledger will be erased. Always Backup to Device or Push to Cloud first!</li>
+                <li><b>Browser Data:</b> Your active schedule lives inside your browser's local storage (IndexedDB). If you clear your browser's site data or cookies without a backup, your ledger will be erased. Always Backup to Device or Push to Cloud first!</li>
             </ul>
         </div>
     `,
@@ -44,8 +44,8 @@ const HelpContent = {
                 <li style="margin-bottom: 0.5rem;"><b>Daily / Morning / Night / Weekly:</b> Standard schedules. Tap "+ Add Time" to create multiple specific reminders (e.g., 8:00 AM and 8:00 PM for the same pill).</li>
                 <li style="margin-bottom: 0.5rem;"><b>As Needed (PRN):</b> For things like pain relievers. They always appear on your daily list so they are ready when you need them, but they <i>never</i> count against your adherence streaks if you don't take them.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Specific Days:</b> Select exactly which days of the week a pill should appear (e.g., Mondays, Wednesdays, Fridays). It will automatically hide itself on the off days to keep your dashboard clean.</li>
-                <li style="margin-bottom: 0.5rem;"><b>Cyclic (On/Off):</b> Used for medications like birth control. Set the "Days On" (e.g., 21), the "Days Off" (e.g., 7), and the date the cycle begins. The app handles the math and automatically hides the pill during the "Off" phase.</li>
-                <li><b>Zero-Knowledge Safety:</b> MedLedger contains a local interaction database. It will explicitly warn you if you attempt to combine dangerous medications, completely offline.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Cyclic (On/Off):</b> Used for medications like birth control. Set the "On" period (e.g., 21 days), the "Off" period (e.g., 7 days), and the date the cycle begins. The app handles the math and automatically hides the pill during the "Off" phase.</li>
+                <li><b>Clinical Intelligence:</b> If Clinical Lookups are enabled, the app auto-fetches FDA indications and <b>Known Side Effects</b> for your medications. It also checks for dangerous interactions locally.</li>
             </ul>
         </div>
     `,
@@ -95,8 +95,8 @@ const HelpContent = {
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;"><b>Local Reminders:</b> Let your browser/phone send native push notifications when a scheduled pill is due.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Expert Mode:</b> Streamlines the interface. Double-click any item on the checklist to log it instantly without hitting submit.</li>
-                <li style="margin-bottom: 0.5rem;"><b>Pill Tracker:</b> Opt-in to track physical pill inventory. A red warning banner automatically appears on the pill's card when you drop to 10 pills or fewer, with quick +30/+90 refill buttons.</li>
-                <li style="margin-bottom: 0.5rem;"><b>Clinical Lookups:</b> Automatically fetches FDA/Wikidata indications and descriptions when you type a drug name, providing a mini-reference guide inside the app.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Pill Tracker:</b> Opt-in to track physical pill inventory. A red warning banner automatically appears on the pill's card when you drop to 10 pills or fewer, with quick refill buttons.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Clinical Lookups:</b> Automatically fetches FDA indications, descriptions, and potential side effects when you type a drug name.</li>
                 <li><b>Data Archival:</b> Move old history logs to cold storage to keep the app lightning fast. Restore them instantly whenever you need to generate a complete clinical report.</li>
             </ul>
         </div>
@@ -104,13 +104,20 @@ const HelpContent = {
     vault: `
         <div class="help-section">
             <h3 style="color: var(--accent-color);">🔐 8. The Encrypted Vault & Sync</h3>
-            <p>Your data is completely private. You hold the encryption keys.</p>
+            <p>MedLedger uses a "Zero-Knowledge" security model. You hold the keys.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
-                <li style="margin-bottom: 0.5rem;"><b>Session Unlock:</b> Type your Master Password <b>once</b> to unlock the vault for your session. A green indicator will appear when secure syncing and exporting are available.</li>
-                <li style="margin-bottom: 0.5rem;"><b>Backup Device:</b> Encrypts your database into a secure <code>.medvault</code> file to store on a USB drive or email to yourself. Use "Restore Device" to load it on a new phone.</li>
-                <li style="margin-bottom: 0.5rem;"><b>Google Drive Sync:</b> Click "Sign in to Google." Use Push/Pull to securely sync your encrypted <code>.medvault</code> file directly to an invisible, protected AppData folder in your Google Drive.</li>
-                <li><b>Clinician Reports:</b> Generate a clean, profile-isolated HTML summary of your adherence, PRN usage, and refill requirements to hand directly to your doctor, or export raw CSV data for spreadsheet analysis.</li>
+                <li style="margin-bottom: 0.5rem;"><b>AES-GCM 256-bit Encryption:</b> When you set a password, your entire ecosystem—medications, history, caches, and settings—is encrypted locally before export.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Backup Device:</b> Generates a <code>.medvault</code> file. This is a complete snapshot of the app state. Use "Restore Device" to move your data to a new phone or browser.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Google Drive Sync:</b> Syncs your encrypted vault directly to a protected AppData folder in your personal Google Drive. MedLedger cannot see other files in your Drive.</li>
+                <li><b>Clinician Reports:</b> Generate a printable HTML summary of your adherence, including clinical drug context and refill requirements, to hand directly to your doctor.</li>
             </ul>
+        </div>
+    `,
+    inspector: `
+        <div class="help-section" style="border: 1px solid var(--accent-color); padding: 1.25rem; border-radius: 8px; background: rgba(var(--accent-color-rgb), 0.05);">
+            <h3 style="color: var(--accent-color); margin-top: 0;">🔍 9. Vault Data Inspector</h3>
+            <p>Transparency is a core pillar of MedLedger. We provide a standalone tool to let you see exactly what is inside your backups.</p>
+            <p style="margin-top: 0.5rem;">The <b>Vault Data Inspector</b> is a read-only utility that lets you upload a <code>.medvault</code> file, enter your password, and view the raw, highlighted JSON data. This allows you to verify your adherence logs and clinical caches without importing them into your active database.</p>
         </div>
     `,
     footer: `
@@ -132,7 +139,6 @@ function openHelpModal() {
         document.body.appendChild(helpModal);
     }
     
-    // Inject dynamic, fully detailed content
     helpModal.innerHTML = `
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1.5rem;">
@@ -152,6 +158,7 @@ function openHelpModal() {
                 ${HelpContent.mistakes}
                 ${HelpContent.settings}
                 ${HelpContent.vault}
+                ${HelpContent.inspector}
                 ${HelpContent.footer}
             </div>
             
@@ -164,5 +171,4 @@ function openHelpModal() {
     helpModal.showModal();
 }
 
-// Attach to window object for global accessibility
 window.openHelpModal = openHelpModal;
