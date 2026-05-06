@@ -26,7 +26,6 @@ window.updateThemeIcon = function(theme) {
     }
 
     iconSlots.forEach(slot => { slot.innerHTML = svgContent; });
-    
     const textSlots = document.querySelectorAll('.theme-text-slot');
     textSlots.forEach(slot => { slot.textContent = textLabel; });
 }
@@ -34,7 +33,6 @@ window.updateThemeIcon = function(theme) {
 window.initializeTheme = function() {
     const rootElement = document.documentElement;
     const themes = ['dark', 'light', 'hc', 'old-blood'];
-    
     let savedTheme = localStorage.getItem('theme');
     
     if (!themes.includes(savedTheme)) {
@@ -57,7 +55,6 @@ window.initializeTheme = function() {
     });
 }
 
-// --- Tab Logic ---
 window.switchTab = function(tab) {
     const tabTodayBtn = document.getElementById('tab-today');
     const tabHistoryBtn = document.getElementById('tab-history');
@@ -67,7 +64,6 @@ window.switchTab = function(tab) {
     if (tab === 'today') {
         if(tabTodayBtn) tabTodayBtn.classList.add('active');
         if(tabHistoryBtn) tabHistoryBtn.classList.remove('active');
-        
         if(dailyScheduleView) {
             dailyScheduleView.classList.remove('hidden-view');
             dailyScheduleView.classList.add('active-view');
@@ -79,7 +75,6 @@ window.switchTab = function(tab) {
     } else {
         if(tabHistoryBtn) tabHistoryBtn.classList.add('active');
         if(tabTodayBtn) tabTodayBtn.classList.remove('active');
-        
         if(logHistoryView) {
             logHistoryView.classList.remove('hidden-view');
             logHistoryView.classList.add('active-view');
@@ -92,7 +87,6 @@ window.switchTab = function(tab) {
     }
 }
 
-// --- Dynamic Form Utilities ---
 window.addTimeField = function(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -115,14 +109,11 @@ window.getTimesFromContainer = function(containerId) {
     return [...new Set(times)].sort();
 }
 
-// --- Complex Scheduling UI Toggles ---
 window.handleFrequencyToggle = function(freqId, specificDaysId, cyclicId) {
     const freqSelect = document.getElementById(freqId);
     const specificDaysDiv = document.getElementById(specificDaysId);
     const cyclicDiv = document.getElementById(cyclicId);
-
     if (!freqSelect || !specificDaysDiv || !cyclicDiv) return;
-
     freqSelect.addEventListener('change', (e) => {
         const val = e.target.value;
         specificDaysDiv.style.display = (val === 'Specific Days') ? 'block' : 'none';
@@ -130,7 +121,6 @@ window.handleFrequencyToggle = function(freqId, specificDaysId, cyclicId) {
     });
 }
 
-// --- Settings Initializer ---
 window.initSettings = function() {
     const toggleBabysitter = document.getElementById('toggle-babysitter');
     const toggleExpert = document.getElementById('toggle-expert');
@@ -146,7 +136,6 @@ window.initSettings = function() {
             localStorage.setItem('cfg_noBabysitter', e.target.checked);
         });
     }
-
     if (toggleExpert) {
         toggleExpert.checked = AppSettings.expertMode;
         toggleExpert.addEventListener('change', (e) => {
@@ -155,7 +144,6 @@ window.initSettings = function() {
             if(typeof loadChecklist === 'function') loadChecklist(); 
         });
     }
-
     if (toggleInventory) {
         toggleInventory.checked = AppSettings.inventory;
         if(newMedInventory) newMedInventory.style.display = AppSettings.inventory ? 'block' : 'none';
@@ -166,25 +154,22 @@ window.initSettings = function() {
             if(typeof loadChecklist === 'function') loadChecklist(); 
         });
     }
-
     if (toggleReminders) {
         toggleReminders.checked = AppSettings.reminders;
         toggleReminders.addEventListener('change', async (e) => {
             AppSettings.reminders = e.target.checked;
             localStorage.setItem('cfg_reminders', e.target.checked);
-            
             if (AppSettings.reminders && Notification.permission !== 'granted') {
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') {
                     e.target.checked = false;
                     AppSettings.reminders = false;
                     localStorage.setItem('cfg_reminders', 'false');
-                    alert("Notification permission denied by your browser/OS.");
+                    alert("Notification permission denied.");
                 }
             }
         });
     }
-    
     if (toggleLookup) {
         toggleLookup.checked = AppSettings.clinicalLookups;
         toggleLookup.addEventListener('change', (e) => {
@@ -193,40 +178,32 @@ window.initSettings = function() {
         });
     }
 
-    // --- Dev Mode Safety Gate ---
     const toggleDevMenu = document.getElementById('toggle-dev-menu');
     const devMenuWarning = document.getElementById('dev-menu-warning');
     const confirmDevMode = document.getElementById('confirm-dev-mode');
     const navDevModeBtns = document.querySelectorAll('.nav-dev-mode-btn'); 
-
     if (toggleDevMenu && devMenuWarning && confirmDevMode) {
         const isDevMenuEnabled = localStorage.getItem('cfg_devMenu') === 'true';
-        
         toggleDevMenu.checked = isDevMenuEnabled;
         confirmDevMode.checked = isDevMenuEnabled;
         devMenuWarning.style.display = isDevMenuEnabled ? 'block' : 'none';
         navDevModeBtns.forEach(btn => btn.style.display = isDevMenuEnabled ? 'block' : 'none');
-
         toggleDevMenu.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
             devMenuWarning.style.display = isChecked ? 'block' : 'none';
-            
             if (!isChecked) {
                 confirmDevMode.checked = false;
                 navDevModeBtns.forEach(btn => btn.style.display = 'none');
                 localStorage.setItem('cfg_devMenu', 'false');
-                
                 if (window.AppSettings && window.AppSettings.devMode) {
                     if (typeof toggleDevMode === 'function') toggleDevMode();
                 }
             }
         });
-
         confirmDevMode.addEventListener('change', (e) => {
             const isConfirmed = e.target.checked;
             navDevModeBtns.forEach(btn => btn.style.display = isConfirmed ? 'block' : 'none');
             localStorage.setItem('cfg_devMenu', isConfirmed ? 'true' : 'false');
-            
             if (!isConfirmed && window.AppSettings && window.AppSettings.devMode) {
                 if (typeof toggleDevMode === 'function') toggleDevMode();
             }
@@ -234,12 +211,10 @@ window.initSettings = function() {
     }
 }
 
-// --- Status & Readability Utilities ---
 window.togglePasswordVisibility = function() {
     const vaultPassInput = document.getElementById('vault-password');
     const peekIcon = document.getElementById('peek-icon');
     if (!vaultPassInput || !peekIcon) return;
-    
     const isPassword = vaultPassInput.type === 'password';
     vaultPassInput.type = isPassword ? 'text' : 'password';
     if (isPassword) {
@@ -261,74 +236,31 @@ window.updateStatus = function(takenCount, visibleCount) {
     const mobileStatus = document.getElementById('status-bar-mobile');
     const desktopStatus = document.getElementById('sidebar-status');
     const headerStatus = document.getElementById('status-bar');
-    
     let text = "Ready.";
     let className = "status-indicator";
-
     if (typeof takenCount !== 'undefined' && typeof visibleCount !== 'undefined') {
-        if (visibleCount === 0) {
-            text = "Ready.";
-        } else if (takenCount >= visibleCount) {
-            text = "All regimens complete.";
-            className = "status-indicator complete";
-        } else {
-            text = "Pending actions required.";
-        }
+        if (visibleCount === 0) { text = "Ready."; } 
+        else if (takenCount >= visibleCount) { text = "All regimens complete."; className = "status-indicator complete"; } 
+        else { text = "Pending actions required."; }
     } else {
         const remaining = document.querySelectorAll('#checklist-container .med-checkbox:not(:disabled):not(.prn-checkbox)');
         const total = document.querySelectorAll('#checklist-container .med-checkbox:not(.prn-checkbox)');
-        if (total.length === 0) {
-            text = "Ready.";
-        } else if (remaining.length === 0) {
-            text = "All regimens complete.";
-            className = "status-indicator complete";
-        } else {
-            text = "Pending actions required.";
-        }
+        if (total.length === 0) { text = "Ready."; } 
+        else if (remaining.length === 0) { text = "All regimens complete."; className = "status-indicator complete"; } 
+        else { text = "Pending actions required."; }
     }
-
     [mobileStatus, desktopStatus, headerStatus].forEach(el => {
-        if (el) {
-            el.textContent = text;
-            el.className = className;
-        }
+        if (el) { el.textContent = text; el.className = className; }
     });
 }
 
-// --- Initialization & Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
     setTimeout(initSettings, 100);
-
     handleFrequencyToggle('new-med-freq', 'new-med-specific-days', 'new-med-cyclic');
     handleFrequencyToggle('edit-med-freq', 'edit-med-specific-days', 'edit-med-cyclic');
-    
     const btnCancelEdit = document.getElementById('btn-cancel-edit');
-    if (btnCancelEdit) {
-        btnCancelEdit.addEventListener('click', () => {
-            const modal = document.getElementById('edit-med-modal');
-            if (modal) modal.close();
-        });
-    }
-
-    const btnCloseSettings = document.getElementById('btn-close-settings');
-    if (btnCloseSettings) {
-        btnCloseSettings.addEventListener('click', () => {
-            const modal = document.getElementById('settings-modal');
-            if (modal) modal.close();
-        });
-    }
-
-    const btnCloseHelp = document.getElementById('btn-close-help');
-    if (btnCloseHelp) {
-        btnCloseHelp.addEventListener('click', () => {
-            const modal = document.getElementById('help-modal');
-            if (modal) modal.close();
-        });
-    }
-
+    if (btnCancelEdit) { btnCancelEdit.addEventListener('click', () => { const modal = document.getElementById('edit-med-modal'); if (modal) modal.close(); }); }
     const btnPeekPassword = document.getElementById('btn-peek-password');
-    if (btnPeekPassword) {
-        btnPeekPassword.addEventListener('click', togglePasswordVisibility);
-    }
+    if (btnPeekPassword) { btnPeekPassword.addEventListener('click', togglePasswordVisibility); }
 });
