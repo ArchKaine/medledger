@@ -53,15 +53,39 @@ async function getKey(keyMaterial, salt) {
 
 async function generateEncryptedBlob(password) {
     if (!db) throw new Error("Database not initialized");
-    const meds = await new Promise(res => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => res(e.target.result));
-    const logs = await new Promise(res => db.transaction(["logs"], "readonly").objectStore("logs").getAll().onsuccess = e => res(e.target.result));
-    const archived_logs = await new Promise(res => db.transaction(["archived_logs"], "readonly").objectStore("archived_logs").getAll().onsuccess = e => res(e.target.result));
     
-    // Capture the profiles array to prevent data loss on restoration
-    const profiles = JSON.parse(localStorage.getItem('cfg_profiles') || '["Primary"]');
+    // 1. Dynamically scrape all IndexedDB Object Stores (meds, logs, archives, clinical_cache)
+    const stores = Array.from(db.objectStoreNames);
+    const dbData = {};
     
-    const rawData = JSON.stringify({ meds, logs, archived_logs, profiles, exportedAt: new Date().toISOString() });
+    if (stores.length > 0) {
+        const tx = db.transaction(stores, "readonly");
+        for (const storeName of stores) {
+            dbData[storeName] = await new Promise(res => {
+                const req = tx.objectStore(storeName).getAll();
+                req.onsuccess = e => res(e.target.result);
+                req.onerror = () => res([]);
+            });
+        }
+    }
     
+    // 2. Dynamically scrape LocalStorage for UI, Profiles, and Configurations
+    const settings = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('cfg_') || key.startsWith('medledger_') || key === 'theme' || key === 'gapi_token' || key === 'gapi_token_expiry') {
+            settings[key] = localStorage.getItem(key);
+        }
+    }
+    
+    // 3. Compile the schema-agnostic payload
+    const rawData = JSON.stringify({ 
+        stores: dbData, 
+        settings: settings, 
+        exportedAt: new Date().toISOString() 
+    });
+    
+    // 4. AES-GCM 256 Encryption
     const keyMaterial = await getKeyMaterial(password);
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
     const key = await getKey(keyMaterial, salt);
@@ -93,30 +117,63 @@ async function processEncryptedBlob(password, base64Blob) {
 
 function restoreDataToDB(parsedData) {
     if (!db) return;
-    const transaction = db.transaction(["meds", "logs", "archived_logs"], "readwrite");
-    const medStore = transaction.objectStore("meds");
-    const logStore = transaction.objectStore("logs");
-    const archiveStore = transaction.objectStore("archived_logs");
 
-    medStore.clear(); 
-    logStore.clear(); 
-    archiveStore.clear();
-
-    if (parsedData.meds) parsedData.meds.forEach(med => medStore.add(med));
-    if (parsedData.logs) parsedData.logs.forEach(log => logStore.add(log));
-    if (parsedData.archived_logs) parsedData.archived_logs.forEach(log => archiveStore.add(log));
-
-    // Restore the profiles array
-    if (parsedData.profiles && Array.isArray(parsedData.profiles)) {
-        localStorage.setItem('cfg_profiles', JSON.stringify(parsedData.profiles));
-    }
-
-    transaction.oncomplete = () => {
+    function finishRestore() {
         if(typeof window.populateProfileDropdowns === 'function') window.populateProfileDropdowns();
         if(typeof loadChecklist === 'function') loadChecklist(); 
         if(typeof refreshHistory === 'function') refreshHistory();
         if(typeof calculateAdherence === 'function') calculateAdherence(); 
-    };
+        if(typeof initializeTheme === 'function') initializeTheme();
+    }
+
+    // LEGACY FORMAT SUPPORT: Handle old backups before the schema-agnostic update
+    if (parsedData.meds || parsedData.logs || parsedData.archived_logs) {
+        const legacyStores = [];
+        if (parsedData.meds && db.objectStoreNames.contains("meds")) legacyStores.push("meds");
+        if (parsedData.logs && db.objectStoreNames.contains("logs")) legacyStores.push("logs");
+        if (parsedData.archived_logs && db.objectStoreNames.contains("archived_logs")) legacyStores.push("archived_logs");
+        
+        if (legacyStores.length > 0) {
+            const tx = db.transaction(legacyStores, "readwrite");
+            if (parsedData.meds) { const s = tx.objectStore("meds"); s.clear(); parsedData.meds.forEach(x => s.add(x)); }
+            if (parsedData.logs) { const s = tx.objectStore("logs"); s.clear(); parsedData.logs.forEach(x => s.add(x)); }
+            if (parsedData.archived_logs) { const s = tx.objectStore("archived_logs"); s.clear(); parsedData.archived_logs.forEach(x => s.add(x)); }
+            tx.oncomplete = finishRestore;
+        } else {
+            finishRestore();
+        }
+
+        if (parsedData.profiles && Array.isArray(parsedData.profiles)) {
+            localStorage.setItem('cfg_profiles', JSON.stringify(parsedData.profiles));
+        }
+        return;
+    }
+
+    // NEW FORMAT SUPPORT: Schema-Agnostic Restore
+    if (parsedData.settings) {
+        Object.keys(parsedData.settings).forEach(key => {
+            localStorage.setItem(key, parsedData.settings[key]);
+        });
+    }
+
+    if (parsedData.stores) {
+        const storesToUpdate = Object.keys(parsedData.stores).filter(s => db.objectStoreNames.contains(s));
+        if (storesToUpdate.length > 0) {
+            const tx = db.transaction(storesToUpdate, "readwrite");
+            
+            storesToUpdate.forEach(storeName => {
+                const store = tx.objectStore(storeName);
+                store.clear();
+                parsedData.stores[storeName].forEach(item => store.add(item));
+            });
+
+            tx.oncomplete = finishRestore;
+        } else {
+            finishRestore();
+        }
+    } else {
+        finishRestore();
+    }
 }
 
 function togglePasswordVisibility() {
