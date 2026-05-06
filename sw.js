@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medledger-v3'; // Bumped version to force cache update
+const CACHE_NAME = 'medledger-v4'; // Bumped version to include V5 architecture files
 const ASSETS = [
     '/',
     '/index.html',
@@ -6,6 +6,8 @@ const ASSETS = [
     '/terms.html',
     '/style.css',
     '/app.js',
+    '/profiles.js',
+    '/reports.js',
     '/engine.js',
     '/ui.js',
     '/analytics.js',
