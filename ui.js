@@ -34,11 +34,11 @@ window.updateThemeIcon = function(theme) {
 
 window.initializeTheme = function() {
     const rootElement = document.documentElement;
+    
+    // Check both potential storage keys just in case
+    let savedTheme = localStorage.getItem('theme') || localStorage.getItem('medledger_theme');
     const themes = ['dark', 'light', 'hc', 'old-blood'];
     
-    let savedTheme = localStorage.getItem('theme');
-    
-    // Hardened validation to include old-blood
     if (!themes.includes(savedTheme)) {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -46,20 +46,31 @@ window.initializeTheme = function() {
     rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 
+    // Attach to any buttons with the class
     const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
     themeToggleBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            let currentTheme = rootElement.getAttribute('data-theme') || 'dark';
-            
-            // Cycle through all four available themes
-            let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
-            let newTheme = themes[nextIndex];
-            
-            rootElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
+        // Remove old listeners by cloning (standard JS trick)
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', window.cycleTheme);
     });
+}
+
+// Global function so inline onclick="cycleTheme()" in HTML also works
+window.cycleTheme = function(e) {
+    if(e) e.preventDefault();
+    const rootElement = document.documentElement;
+    const themes = ['dark', 'light', 'hc', 'old-blood'];
+    
+    let currentTheme = rootElement.getAttribute('data-theme') || 'dark';
+    let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
+    let newTheme = themes[nextIndex];
+    
+    rootElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    localStorage.setItem('medledger_theme', newTheme); // Sync both keys
+    
+    updateThemeIcon(newTheme);
 }
 
 // --- Tab Logic ---
