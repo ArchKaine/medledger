@@ -5,7 +5,7 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 4; // Bumped to 4 for Rx Metadata Migration
+const DB_VERSION = 5; // Bumped to 5 for Multi-Profile & Efficacy
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -16,10 +16,10 @@ const AppSettings = {
     noBabysitter: localStorage.getItem('cfg_noBabysitter') === 'true',
     expertMode: localStorage.getItem('cfg_expertMode') === 'true',
     reminders: localStorage.getItem('cfg_reminders') === 'true',
-    inventory: localStorage.getItem('cfg_inventory') === 'true'
+    inventory: localStorage.getItem('cfg_inventory') === 'true',
+    activeProfile: localStorage.getItem('cfg_activeProfile') || 'Primary'
 };
 
-// Explicitly bind to window for cross-script safety
 window.AppSettings = AppSettings;
 
 // --- DOM Elements ---
@@ -29,7 +29,6 @@ function getEl(id) {
     return document.getElementById(id);
 }
 
-// --- Initialization / Bootloader ---
 document.addEventListener('DOMContentLoaded', () => {
     checklistContainer = getEl('checklist-container');
     historyList = getEl('history-list');
@@ -62,6 +61,14 @@ function bindCoreListeners() {
     getEl('add-med-form')?.addEventListener('submit', handleAddMed);
     getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
     getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
+    
+    // Profile Filter Listener
+    getEl('profile-filter')?.addEventListener('change', (e) => {
+        AppSettings.activeProfile = e.target.value;
+        localStorage.setItem('cfg_activeProfile', e.target.value);
+        if (typeof loadChecklist === 'function') loadChecklist();
+        if (typeof refreshHistory === 'function') refreshHistory();
+    });
 }
 
 function bindModalListeners() {
@@ -146,9 +153,9 @@ function fullAppInit() {
     if (typeof loadChecklist === 'function') loadChecklist();
     if (typeof refreshHistory === 'function') refreshHistory();
     if (typeof calculateAdherence === 'function') calculateAdherence();
+    if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
 }
 
-// --- Database Initialization & Migration ---
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
@@ -157,13 +164,11 @@ function initDB() {
         const oldVersion = e.oldVersion;
         const transaction = e.target.transaction;
 
-        // V1: Initial Store Creation
         if (oldVersion < 1) {
             db.createObjectStore("meds", { keyPath: "id" });
             db.createObjectStore("logs", { keyPath: "timestamp" });
         }
         
-        // V2: Injected sideEffects field
         if (oldVersion >= 1 && oldVersion < 2) {
             const medStore = transaction.objectStore("meds");
             medStore.openCursor().onsuccess = (ev) => {
@@ -177,14 +182,12 @@ function initDB() {
             };
         }
         
-        // V3: Create Archive Store
         if (oldVersion < 3) {
             if (!db.objectStoreNames.contains("archived_logs")) {
                 db.createObjectStore("archived_logs", { keyPath: "timestamp" });
             }
         }
 
-        // V4: Injected Rx Metadata fields (rxNumber, doctor, pharmacyPhone)
         if (oldVersion >= 1 && oldVersion < 4) {
             const medStore = transaction.objectStore("meds");
             medStore.openCursor().onsuccess = (ev) => {
@@ -195,8 +198,34 @@ function initDB() {
                     if (med.rxNumber === undefined) { med.rxNumber = ""; changed = true; }
                     if (med.doctor === undefined) { med.doctor = ""; changed = true; }
                     if (med.pharmacyPhone === undefined) { med.pharmacyPhone = ""; changed = true; }
-                    
                     if (changed) cursor.update(med);
+                    cursor.continue();
+                }
+            };
+        }
+
+        // V5 Migration: Profile Tagging & Efficacy
+        if (oldVersion >= 1 && oldVersion < 5) {
+            const medStore = transaction.objectStore("meds");
+            const logStore = transaction.objectStore("logs");
+
+            medStore.openCursor().onsuccess = (ev) => {
+                const cursor = ev.target.result;
+                if (cursor) {
+                    const med = cursor.value;
+                    if (med.profile === undefined) med.profile = "Primary";
+                    cursor.update(med);
+                    cursor.continue();
+                }
+            };
+
+            logStore.openCursor().onsuccess = (ev) => {
+                const cursor = ev.target.result;
+                if (cursor) {
+                    const log = cursor.value;
+                    if (log.profile === undefined) log.profile = "Primary";
+                    if (log.efficacy === undefined) log.efficacy = "";
+                    cursor.update(log);
                     cursor.continue();
                 }
             };
@@ -210,7 +239,7 @@ function initDB() {
     };
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
-        if(typeof showVaultStatus === 'function') showVaultStatus("Database connection error.", "var(--danger-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Database error.", "var(--danger-color)");
     };
 }
 
