@@ -62,12 +62,13 @@
         <div class="header-branding">
             <h1>MedLedger</h1>
         </div>
+
+        <select id="global-profile-header" class="global-profile-select" onchange="switchActiveProfile(this.value)">
+            <option value="Primary">Primary</option>
+        </select>
+
         <div class="header-controls">
-            <select id="global-profile-header" class="global-profile-select" onchange="switchActiveProfile(this.value)">
-                <option value="Primary">Primary</option>
-            </select>
-            
-            <div id="status-bar" class="status-indicator" style="display: none;"></div>
+            <div id="status-bar" class="status-indicator"></div>
             
             <div class="nav-dev-mode-btn" style="display: none;">
                 <button aria-label="Toggle Dev Mode" class="icon-btn" onclick="if(typeof toggleDevMode === 'function') toggleDevMode()" style="color: var(--danger-color);">
