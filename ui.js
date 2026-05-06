@@ -17,6 +17,10 @@ window.updateThemeIcon = function(theme) {
     } else if (theme === 'hc') {
         svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
         textLabel = "High Contrast";
+    } else if (theme === 'old-blood') {
+        // Drop/Oxidized icon for Arcanum aesthetic
+        svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+        textLabel = "Old Blood";
     } else {
         svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
         textLabel = "Dark Mode";
@@ -30,18 +34,27 @@ window.updateThemeIcon = function(theme) {
 
 window.initializeTheme = function() {
     const rootElement = document.documentElement;
+    const themes = ['dark', 'light', 'hc', 'old-blood'];
+    
     let savedTheme = localStorage.getItem('theme');
-    if (savedTheme !== 'dark' && savedTheme !== 'light' && savedTheme !== 'hc') {
+    
+    // Validate saved theme against the new supported list
+    if (!themes.includes(savedTheme)) {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
+    
     rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 
     const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
     themeToggleBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            let currentTheme = rootElement.getAttribute('data-theme');
-            let newTheme = currentTheme === 'dark' ? 'light' : (currentTheme === 'light' ? 'hc' : 'dark');
+            let currentTheme = rootElement.getAttribute('data-theme') || 'dark';
+            
+            // Cycle through the four available themes
+            let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
+            let newTheme = themes[nextIndex];
+            
             rootElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
             updateThemeIcon(newTheme);
