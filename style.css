@@ -978,3 +978,29 @@ input[type="time"] { flex: 1; min-width: 120px; }
     background: var(--success-color);
     transition: width 0.3s ease;
 }
+
+/* V5: Profile Filter Dashboard Bar */
+.tab-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Allows stacking on very small screens */
+    gap: 0.5rem;
+}
+
+#profile-filter {
+    appearance: auto;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    background-color: rgba(37, 99, 235, 0.1);
+    border: 1px solid var(--accent-color);
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 140px;
+}
+
+#profile-filter:hover {
+    background-color: rgba(37, 99, 235, 0.15);
+}
