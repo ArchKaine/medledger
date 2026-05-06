@@ -16,7 +16,7 @@
 .app-header {
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
-    padding: 0.75rem 1rem; /* Slightly tighter padding for better fit */
+    padding: 1rem;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -30,51 +30,38 @@
     max-width: 100%;
     margin: 0 auto;
     width: 100%;
-    gap: 1rem; /* Physical gap to prevent touching */
 }
 
-/* FIX: Branding area takes remaining space but MUST shrink first if crowded */
+/* NEW: Relocated controls for small screens */
+.mobile-dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
 .header-content > div:first-child {
-    flex: 1 1 auto; 
+    flex: 1;
     min-width: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-/* FIX: Protected block. This group is FORBIDDEN from shrinking. */
 .header-controls {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    flex-shrink: 0; /* Protects the entire right-side block */
+    gap: 0.75rem;
+    flex-shrink: 0; /* NEVER squish the buttons */
 }
 
-/* Ensure individual buttons and icons inside controls never crush */
-.header-controls .icon-btn, 
-.header-controls .nav-dev-mode-btn,
-.header-controls .status-indicator {
-    flex-shrink: 0;
-}
-
-/* FIX: Constrain the profile selector so it doesn't push icons off-screen */
+/* Ensure selector is readable on mobile */
 .global-profile-select {
-    flex: 0 1 auto;
-    max-width: 140px; /* Sane limit for desktop/tablet */
-    min-width: 90px;
+    flex: 1;
+    max-width: none; /* Allow flexibility in the new row */
     text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-/* Specific Mobile Profile Tuning */
-@media (max-width: 600px) {
-    .global-profile-select {
-        max-width: 100px; /* Tighter limit for phone screens */
-    }
-    .header-content {
-        gap: 0.5rem;
-    }
 }
 
 main#app {
@@ -105,28 +92,17 @@ main#app {
         gap: 1.5rem;
     }
 
-    .tab-navigation { 
-        display: none !important; 
-    }
-    
-    .tab-view.hidden-view, .tab-view.active-view { 
-        display: block !important; 
-    }
-    
-    .global-profile-select {
-        max-width: 180px; /* Allow a bit more room on tablets */
-    }
+    .tab-navigation { display: none !important; }
+    .tab-view.hidden-view, .tab-view.active-view { display: block !important; }
 }
 
 /* 3. Desktop Mode (> 1200px) */
 @media (min-width: 1200px) {
-    body {
-        padding-bottom: 0;
-    }
-
-    .app-header {
-        display: none !important;
-    }
+    body { padding-bottom: 0; }
+    .app-header { display: none !important; }
+    
+    /* HIDE the relocated row on desktop as it's in the sidebar */
+    .mobile-dashboard-header { display: none !important; }
 
     .app-shell {
         display: grid;
@@ -162,19 +138,11 @@ main#app {
     .main-content-area, .side-content-area {
         max-height: 100%;
         overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
         padding-right: 1rem;
     }
 
-    .tab-navigation { 
-        display: none !important; 
-    }
-
-    .tab-view.hidden-view { 
-        display: block !important; 
-    }
+    .tab-navigation { display: none !important; }
+    .tab-view.hidden-view { display: block !important; }
 
     .sidebar-brand {
         display: flex;
@@ -186,35 +154,13 @@ main#app {
     }
 
     .nav-item {
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        text-align: left;
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-        cursor: pointer;
-        width: 100%;
-        font-weight: 500;
-        transition: all 0.2s;
+        background: none; border: none; color: var(--text-secondary);
+        text-align: left; padding: 0.75rem 1rem; border-radius: 6px;
+        cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s;
         margin-bottom: 0.25rem;
     }
-
-    .nav-item:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text-primary);
-    }
-
-    .nav-item.active {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--accent-color);
-    }
-
-    #sidebar-status {
-        margin-top: auto;
-        font-size: 0.75rem;
-    }
-
-    .mobile-legal-footer {
-        display: none !important;
-    }
+    .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); }
+    .nav-item.active { background: rgba(59, 130, 246, 0.1); color: var(--accent-color); }
+    #sidebar-status { margin-top: auto; font-size: 0.75rem; }
+    .mobile-legal-footer { display: none !important; }
 }
