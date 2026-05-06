@@ -19,10 +19,12 @@ body {
 }
 
 h1 {
+    font-size: 1.25rem; /* Slightly smaller for more header room */
+    font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0; /* MANDATORY for flex-basis calculations */
+    min-width: 0;
 }
 
 h2 {
