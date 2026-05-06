@@ -2,26 +2,32 @@
    vars.css - CSS Variables & Theming Engine
    ========================================== */
 :root {
-    color-scheme: dark;
-    --bg-primary: #121214;
+    /* DARK THEME (Default) */
+    color-scheme: dark; /* Forces native browser UI (like time pickers) to dark mode */
+    --bg-primary: #121214; /* Deepened for higher contrast */
     --bg-surface: #202024;
-    --text-primary: #f8fafc;
+    --text-primary: #f8fafc; /* Cooler, brighter white for legibility */
     --text-secondary: #a1a1aa;
     --border-color: #3f3f46;
+    
     --accent-color: #3b82f6;
     --accent-hover: #60a5fa;
     --success-color: #10b981;
     --danger-color: #ef4444;
+
+    /* Layout Constants */
     --sidebar-width: 240px;
 }
 
 [data-theme="light"] {
+    /* LIGHT THEME */
     color-scheme: light;
     --bg-primary: #f8fafc;
     --bg-surface: #ffffff;
-    --text-primary: #0f172a;
+    --text-primary: #0f172a; /* Near black for stark contrast */
     --text-secondary: #475569;
     --border-color: #cbd5e1;
+    
     --accent-color: #2563eb;
     --accent-hover: #1d4ed8;
     --success-color: #059669;
@@ -29,25 +35,37 @@
 }
 
 [data-theme="hc"] {
+    /* HIGH CONTRAST MODE (ACCESSIBILITY) */
     color-scheme: dark;
     --bg-primary: #000000;
     --bg-surface: #000000;
     --text-primary: #ffffff;
-    --text-secondary: #00ffff;
+    --text-secondary: #00ffff; /* Cyan for secondary elements */
     --border-color: #ffffff;
-    --accent-color: #ffff00;
+    
+    --accent-color: #ffff00; /* Yellow for actions */
     --accent-hover: #ffffff;
     --success-color: #00ff00; 
     --danger-color: #ff0000; 
 }
 
-/* High Contrast Overrides */
-[data-theme="hc"] * { box-shadow: none !important; }
-[data-theme="hc"] .app-header { border-bottom: 3px solid var(--border-color); }
+/* ==========================================
+   High Contrast Strict Overrides
+   ========================================== */
+[data-theme="hc"] * {
+    box-shadow: none !important;
+}
+
+[data-theme="hc"] .app-header {
+    border-bottom: 3px solid var(--border-color);
+}
+
 [data-theme="hc"] .card, 
 [data-theme="hc"] input, 
 [data-theme="hc"] select,
-[data-theme="hc"] .med-instructions-box { border: 2px solid var(--border-color); }
+[data-theme="hc"] .med-instructions-box {
+    border: 2px solid var(--border-color);
+}
 
 [data-theme="hc"] .btn-primary {
     background-color: var(--accent-color);
@@ -55,7 +73,11 @@
     border: 2px solid var(--accent-color);
     font-weight: 900;
 }
-[data-theme="hc"] .btn-primary:hover { background-color: #ffffff; border-color: #ffffff; }
+
+[data-theme="hc"] .btn-primary:hover {
+    background-color: #ffffff;
+    border-color: #ffffff;
+}
 
 [data-theme="hc"] .btn-secondary {
     background-color: #000000;
@@ -63,10 +85,31 @@
     border: 2px solid var(--border-color);
     font-weight: 900;
 }
-[data-theme="hc"] .btn-secondary:hover { background-color: #ffffff; color: #000000; }
 
-[data-theme="hc"] .med-item { border: 2px solid transparent; }
-[data-theme="hc"] .med-item:hover { border-color: var(--accent-color); background-color: transparent; }
-[data-theme="hc"] .med-item.completed { opacity: 1; border: 2px dashed var(--success-color); }
-[data-theme="hc"] .med-item.completed .med-name { color: var(--success-color) !important; text-decoration: line-through; }
-[data-theme="hc"] .tab-btn.active::after { height: 4px; }
+[data-theme="hc"] .btn-secondary:hover {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+[data-theme="hc"] .med-item {
+    border: 2px solid transparent;
+}
+
+[data-theme="hc"] .med-item:hover {
+    border-color: var(--accent-color);
+    background-color: transparent;
+}
+
+[data-theme="hc"] .med-item.completed {
+    opacity: 1;
+    border: 2px dashed var(--success-color);
+}
+
+[data-theme="hc"] .med-item.completed .med-name {
+    color: var(--success-color) !important;
+    text-decoration: line-through;
+}
+
+[data-theme="hc"] .tab-btn.active::after {
+    height: 4px;
+}
