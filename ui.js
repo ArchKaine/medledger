@@ -20,6 +20,9 @@ window.updateThemeIcon = function(theme) {
     } else if (theme === 'old-blood') {
         svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
         textLabel = "Old Blood";
+    } else if (theme === 'custom') {
+        svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+        textLabel = "Custom Theme";
     } else {
         svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
         textLabel = "Dark Mode";
@@ -30,13 +33,24 @@ window.updateThemeIcon = function(theme) {
     textSlots.forEach(slot => { slot.textContent = textLabel; });
 }
 
+window.applyCustomVariables = function() {
+    const config = JSON.parse(localStorage.getItem('medledger_custom_theme_data') || '{}');
+    Object.keys(config).forEach(key => {
+        document.documentElement.style.setProperty(key, config[key]);
+    });
+}
+
 window.initializeTheme = function() {
     const rootElement = document.documentElement;
-    const themes = ['dark', 'light', 'hc', 'old-blood'];
+    const themes = ['dark', 'light', 'hc', 'old-blood', 'custom'];
     let savedTheme = localStorage.getItem('theme');
     
     if (!themes.includes(savedTheme)) {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    if (savedTheme === 'custom') {
+        applyCustomVariables();
     }
     
     rootElement.setAttribute('data-theme', savedTheme);
@@ -48,6 +62,18 @@ window.initializeTheme = function() {
             let currentTheme = rootElement.getAttribute('data-theme') || 'dark';
             let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
             let newTheme = themes[nextIndex];
+
+            // If switching away from custom, clean up inline styles
+            if (currentTheme === 'custom' && newTheme !== 'custom') {
+                const config = JSON.parse(localStorage.getItem('medledger_custom_theme_data') || '{}');
+                Object.keys(config).forEach(key => rootElement.style.removeProperty(key));
+            }
+            
+            // If switching to custom, apply the stored variables
+            if (newTheme === 'custom') {
+                applyCustomVariables();
+            }
+
             rootElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
             updateThemeIcon(newTheme);
