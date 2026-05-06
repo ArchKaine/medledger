@@ -25,34 +25,46 @@ const HelpContent = {
             <p style="margin-top: 0.5rem;">Once installed, the app runs offline natively without requiring an internet connection.</p>
         </div>
     `,
+    profiles: `
+        <div class="help-section">
+            <h3 style="color: var(--accent-color);">👥 2. Multi-Profile Management</h3>
+            <p>Track regimens for multiple people (or pets) securely from a single device.</p>
+            <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
+                <li style="margin-bottom: 0.5rem;"><b>Global Switcher:</b> Use the dropdown menu in the main header (or sidebar on desktop) to switch between active profiles. The entire dashboard, history ledger, and analytics engine will instantly isolate to show only the selected profile.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Creating Profiles:</b> Select "+ Create New Profile..." from any dropdown to add a new dependent.</li>
+                <li><b>Assigning Meds:</b> When adding or editing a medication, use the "Assign to Profile" dropdown to route the prescription to the correct person's vault.</li>
+            </ul>
+        </div>
+    `,
     scheduling: `
         <div class="help-section">
-            <h3 style="color: var(--accent-color);">💊 2. Adding Medications & Scheduling</h3>
+            <h3 style="color: var(--accent-color);">💊 3. Adding Medications & Scheduling</h3>
             <p>Use the "Add Medication" box to build your list. MedLedger supports highly complex scheduling to match real-world prescriptions.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;"><b>Daily / Morning / Night / Weekly:</b> Standard schedules. Tap "+ Add Time" to create multiple specific reminders (e.g., 8:00 AM and 8:00 PM for the same pill).</li>
                 <li style="margin-bottom: 0.5rem;"><b>As Needed (PRN):</b> For things like pain relievers. They always appear on your daily list so they are ready when you need them, but they <i>never</i> count against your adherence streaks if you don't take them.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Specific Days:</b> Select exactly which days of the week a pill should appear (e.g., Mondays, Wednesdays, Fridays). It will automatically hide itself on the off days to keep your dashboard clean.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Cyclic (On/Off):</b> Used for medications like birth control. Set the "Days On" (e.g., 21), the "Days Off" (e.g., 7), and the date the cycle begins. The app handles the math and automatically hides the pill during the "Off" phase.</li>
-                <li><b>Zero-Knowledge Safety:</b> MedLedger contains a local interaction database. It will explicitly warn you if you attempt to combine dangerous medications (like mixing Warfarin and Aspirin), completely offline.</li>
+                <li><b>Zero-Knowledge Safety:</b> MedLedger contains a local interaction database. It will explicitly warn you if you attempt to combine dangerous medications, completely offline.</li>
             </ul>
         </div>
     `,
     logging: `
         <div class="help-section">
-            <h3 style="color: var(--accent-color);">✅ 3. Logging Your Daily Regimen</h3>
+            <h3 style="color: var(--accent-color);">✅ 4. Logging Your Daily Regimen</h3>
             <p>The "Today's Regimen" list shows everything due today. It resets automatically at midnight.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;">Tap the square checkbox next to a time slot to select it. Emergency/PRN medications will prompt you for an optional reason/symptom (e.g., "Headache 7/10").</li>
+                <li style="margin-bottom: 0.5rem;"><b>Tracking Efficacy:</b> After logging a PRN dose, navigate to the History tab. You will see an option to "Update Outcome" where you can log the efficacy of the dose (e.g., "Relief within 45m").</li>
                 <li style="margin-bottom: 0.5rem;">Tap <b>Log Selected</b> to record only what you checked, or <b>Log All</b> to instantly record the entire day's scheduled list. (Note: "Log All" safely ignores As-Needed PRN meds).</li>
-                <li><b>Time Machine (Backdating):</b> If you took a pill hours ago but forgot to tap it, use the "Time Taken" calendar box to set the <i>actual</i> time you took it before clicking Log. Leave it blank if you are taking it exactly right now.</li>
+                <li><b>Time Machine (Backdating):</b> If you took a pill hours ago but forgot to tap it, use the "Time Taken" box to set the <i>actual</i> time you took it before clicking Log. Leave it blank if you are taking it exactly right now.</li>
             </ul>
         </div>
     `,
     analytics: `
         <div class="help-section">
-            <h3 style="color: var(--accent-color);">📊 4. Tracking Your Progress (Analytics)</h3>
-            <p>The History tab features clinical-grade analytics to monitor your consistency over time.</p>
+            <h3 style="color: var(--accent-color);">📊 5. Tracking Your Progress (Analytics)</h3>
+            <p>The History tab features clinical-grade analytics isolated to your active profile.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;"><b>Consistency Grid (Calendar):</b> A visual calendar of your habits. 
                     <br>🟩 <b>Green:</b> Perfect day.
@@ -68,9 +80,9 @@ const HelpContent = {
     `,
     mistakes: `
         <div class="help-section">
-            <h3 style="color: var(--accent-color);">✏️ 5. Fixing Mistakes</h3>
+            <h3 style="color: var(--accent-color);">✏️ 6. Fixing Mistakes</h3>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
-                <li style="margin-bottom: 0.5rem;"><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on any medication card to change its times, instructions, inventory, or cycle parameters.</li>
+                <li style="margin-bottom: 0.5rem;"><b>Edit a Pill:</b> Tap the <b>Pencil Icon</b> on any medication card to change its profile, times, instructions, inventory, or cycle parameters.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Undo a Log:</b> Accidentally checked something off? Go to the "History Log" tab and tap the <b>Trash Can</b> icon next to the entry. It will un-check the box in today's regimen, recalculate your adherence score, and refund the pill to your inventory tracker.</li>
                 <li><b>Duplicate Warnings:</b> If you accidentally double-log a scheduled pill, the History tab flags it with a bold red <b>DUPLICATE</b> badge so you can easily spot and delete it.</li>
             </ul>
@@ -78,7 +90,7 @@ const HelpContent = {
     `,
     settings: `
         <div class="help-section">
-            <h3 style="color: var(--accent-color);">⚙️ 6. Settings & Customization</h3>
+            <h3 style="color: var(--accent-color);">⚙️ 7. Settings & Customization</h3>
             <p>Tap the <b>Gear Icon</b> (or Settings in the desktop sidebar) to access power-user toggles.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;"><b>Local Reminders:</b> Let your browser/phone send native push notifications when a scheduled pill is due.</li>
@@ -91,13 +103,13 @@ const HelpContent = {
     `,
     vault: `
         <div class="help-section">
-            <h3 style="color: var(--accent-color);">🔐 7. The Encrypted Vault & Sync</h3>
+            <h3 style="color: var(--accent-color);">🔐 8. The Encrypted Vault & Sync</h3>
             <p>Your data is completely private. You hold the encryption keys.</p>
             <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
                 <li style="margin-bottom: 0.5rem;"><b>Session Unlock:</b> Type your Master Password <b>once</b> to unlock the vault for your session. A green indicator will appear when secure syncing and exporting are available.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Backup Device:</b> Encrypts your database into a secure <code>.medvault</code> file to store on a USB drive or email to yourself. Use "Restore Device" to load it on a new phone.</li>
                 <li style="margin-bottom: 0.5rem;"><b>Google Drive Sync:</b> Click "Sign in to Google." Use Push/Pull to securely sync your encrypted <code>.medvault</code> file directly to an invisible, protected AppData folder in your Google Drive.</li>
-                <li><b>Clinician Reports:</b> Generate a clean, printable HTML summary of your adherence, PRN usage, and refill requirements to hand directly to your doctor, or export raw CSV data for spreadsheet analysis.</li>
+                <li><b>Clinician Reports:</b> Generate a clean, profile-isolated HTML summary of your adherence, PRN usage, and refill requirements to hand directly to your doctor, or export raw CSV data for spreadsheet analysis.</li>
             </ul>
         </div>
     `,
@@ -133,6 +145,7 @@ function openHelpModal() {
             <div id="help-scroll-area" style="color: var(--text-primary);">
                 ${HelpContent.warnings}
                 ${HelpContent.installation}
+                ${HelpContent.profiles}
                 ${HelpContent.scheduling}
                 ${HelpContent.logging}
                 ${HelpContent.analytics}
