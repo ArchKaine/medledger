@@ -128,6 +128,7 @@ window.initSettings = function() {
     const toggleExpert = document.getElementById('toggle-expert');
     const toggleReminders = document.getElementById('toggle-reminders');
     const toggleInventory = document.getElementById('toggle-inventory');
+    const toggleLookup = document.getElementById('toggle-lookup');
     const newMedInventory = document.getElementById('new-med-inventory');
 
     if (toggleBabysitter) {
@@ -175,6 +176,14 @@ window.initSettings = function() {
             }
         });
     }
+    
+    if (toggleLookup) {
+        toggleLookup.checked = AppSettings.clinicalLookups;
+        toggleLookup.addEventListener('change', (e) => {
+            AppSettings.clinicalLookups = e.target.checked;
+            localStorage.setItem('medledger_clinical_lookups', e.target.checked);
+        });
+    }
 
     // --- Dev Mode Safety Gate ---
     const toggleDevMenu = document.getElementById('toggle-dev-menu');
@@ -199,7 +208,6 @@ window.initSettings = function() {
                 navDevModeBtns.forEach(btn => btn.style.display = 'none');
                 localStorage.setItem('cfg_devMenu', 'false');
                 
-                // Auto-kill safety feature: turn off Dev Mode if they hide the menu while it's running
                 if (window.AppSettings && window.AppSettings.devMode) {
                     if (typeof toggleDevMode === 'function') toggleDevMode();
                 }
@@ -211,7 +219,6 @@ window.initSettings = function() {
             navDevModeBtns.forEach(btn => btn.style.display = isConfirmed ? 'block' : 'none');
             localStorage.setItem('cfg_devMenu', isConfirmed ? 'true' : 'false');
             
-            // Auto-kill safety feature: turn off Dev Mode if they uncheck the confirmation
             if (!isConfirmed && window.AppSettings && window.AppSettings.devMode) {
                 if (typeof toggleDevMode === 'function') toggleDevMode();
             }
