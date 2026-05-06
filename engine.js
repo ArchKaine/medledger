@@ -361,8 +361,26 @@ function loadChecklist() {
 
 function renderChecklistUI(rawMeds, logs, container) {
     container.innerHTML = '';
+    
+    // --- First-Time User Experience (FTUE) ---
     if (rawMeds.length === 0) { 
-        container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:2rem; grid-column: 1 / -1;">No medications added.</p>'; 
+        container.innerHTML = `
+            <div class="card ftue-card" style="text-align: center; padding: 3rem 2rem; background: linear-gradient(145deg, var(--bg-surface), var(--bg-primary)); border: 2px dashed var(--border-color); box-shadow: none; grid-column: 1 / -1; margin-bottom: 2rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🛡️</div>
+                <h3 style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 1.25rem;">Welcome to MedLedger</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">
+                    Your zero-knowledge, local-first health vault. All data is encrypted and stored exclusively on your device. We track nothing.
+                </p>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('new-med-name').focus();" style="padding: 0.75rem 1.5rem; font-size: 0.9rem; border-radius: 8px;">
+                    + Add Your First Medication
+                </button>
+            </div>
+        `; 
+        
+        // Zero out adherence stats if app is empty
+        if(typeof updateStatus === 'function') updateStatus(0, 0);
+        const adhereEl = document.getElementById('adherence-score');
+        if (adhereEl) adhereEl.innerText = '--%';
         return; 
     }
 
@@ -449,8 +467,15 @@ function renderChecklistUI(rawMeds, logs, container) {
         container.appendChild(card);
     });
 
+    // Sub-FTUE logic: If meds exist, but none are scheduled for TODAY specifically.
     if (visibleCount === 0 && rawMeds.filter(m => m.frequency !== "As Needed").length > 0) {
-        container.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:2rem; grid-column: 1 / -1;">Clear for today.</p>';
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary); grid-column: 1 / -1;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🌿</div>
+                <div style="font-weight: 500;">Clear schedule for today.</div>
+                <div style="font-size: 0.8rem; margin-top: 0.25rem;">You have active regimens, but none are scheduled for ${today.toLocaleDateString(undefined, {weekday: 'long'})}.</div>
+            </div>
+        `;
     }
 
     if(typeof updateStatus === 'function') updateStatus(takenCount, visibleCount);
