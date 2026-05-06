@@ -255,7 +255,7 @@ function renderInsights(meds, logs, driftSum, driftCount, timeBlocks) {
         container.appendChild(effCard);
     }
 
-    // 2. Supply Forecast - FIXED MATH
+    // 2. Supply Forecast - CORRECTED TIERED MATH
     const inventoryMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) > 0);
     inventoryMeds.forEach(med => {
         let dailyBurnRate = 0;
@@ -266,16 +266,16 @@ function renderInsights(meds, logs, driftSum, driftCount, timeBlocks) {
             const last14Days = logs.filter(l => l.medId === med.id && (new Date() - new Date(l.dateTaken)) < (14 * 86400000));
             dailyBurnRate = Math.max(last14Days.length / 14, 0.1); 
         } else if (med.frequency === "Specific Days") {
-            // (Doses per active day * count of active days) / 7
+            // Scheduled: (doses per day * active days per week) / 7
             dailyBurnRate = (dosesPerDay * (med.specificDays?.length || 0)) / 7;
         } else if (med.frequency === "Cyclic") {
-            // (Doses per day * days on) / total duration of cycle
+            // Scheduled: (doses per day * days on) / total cycle duration
             const cycleLen = (parseInt(med.cycleOn) || 1) + (parseInt(med.cycleOff) || 0);
             dailyBurnRate = (dosesPerDay * (parseInt(med.cycleOn) || 1)) / cycleLen;
         } else if (med.frequency === "Weekly") {
             dailyBurnRate = dosesPerDay / 7;
         } else {
-            // Daily / Morning / Night: Burn rate is simply the number of doses per day
+            // Daily / Morning / Night: Burn rate is simple doses per day
             dailyBurnRate = dosesPerDay;
         }
 
