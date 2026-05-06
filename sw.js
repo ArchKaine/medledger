@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medledger-v4'; // Bumped version to include V5 architecture files
+const CACHE_NAME = 'medledger-v5'; // Bumped version to include V5 architecture files
 const ASSETS = [
     '/',
     '/index.html',
