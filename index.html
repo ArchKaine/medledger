@@ -189,7 +189,7 @@
 
                 <div class="tab-navigation" style="justify-content: flex-start; align-items: center;">
                     <button id="tab-today" class="tab-btn active" onclick="switchTab('today')">Today's Regimen</button>
-                    <button id="tab-history" class="tab-btn" onclick="switchTab('history') anchor">History Log</button>
+                    <button id="tab-history" class="tab-btn" onclick="switchTab('history')">History Log</button>
                 </div>
 
                 <section id="daily-schedule" class="card tab-view active-view">
@@ -353,6 +353,9 @@
                     <button type="button" id="btn-export-vault" class="btn btn-secondary" style="font-size: 0.85rem; flex: 1;">Backup Device</button>
                     <label for="import-vault-file" class="btn btn-secondary" style="cursor: pointer; font-size: 0.85rem; flex: 1; text-align: center; margin: 0;">Restore Device</label>
                     <input type="file" id="import-vault-file" accept=".medvault,.json" style="display: none;" onclick="this.value=null;">
+                </div>
+                <div style="text-align: center; margin-top: 0.75rem;">
+                    <a href="inspector.html" target="_blank" style="color: var(--accent-color); font-size: 0.8rem; text-decoration: none; font-weight: 500;">🔍 Open Vault Data Inspector</a>
                 </div>
             </div>
             <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
