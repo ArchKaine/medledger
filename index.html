@@ -83,11 +83,9 @@
                             <line x1="12" y1="17" x2="12.01" y2="17"></line>
                         </svg>
                     </button>
-                    
                     <button aria-label="Toggle Theme" class="icon-btn theme-toggle-btn">
                         <span class="theme-icon-slot"></span>
                     </button>
-
                     <button id="settings-toggle" aria-label="Settings" class="icon-btn" onclick="document.getElementById('settings-modal').showModal()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="3"></circle>
@@ -125,7 +123,6 @@
                                 <option value="Specific Days">Specific Days</option>
                                 <option value="Cyclic">Cyclic (On/Off)</option>
                             </select>
-                            
                             <div style="display: flex; flex-direction: column; gap: 0.25rem; flex: 1;">
                                 <div id="new-med-times-container" style="display: flex; flex-direction: column; gap: 0.25rem;">
                                     <input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
@@ -192,7 +189,7 @@
 
                 <div class="tab-navigation" style="justify-content: flex-start; align-items: center;">
                     <button id="tab-today" class="tab-btn active" onclick="switchTab('today')">Today's Regimen</button>
-                    <button id="tab-history" class="tab-btn" onclick="switchTab('history')">History Log</button>
+                    <button id="tab-history" class="tab-btn" onclick="switchTab('history') anchor">History Log</button>
                 </div>
 
                 <section id="daily-schedule" class="card tab-view active-view">
@@ -481,7 +478,6 @@
             </div>
         </form>
     </dialog>
-
     <script src="app.js"></script>
     <script src="dev.js"></script>
     <script src="reports.js"></script>
