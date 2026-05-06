@@ -18,7 +18,7 @@ window.updateThemeIcon = function(theme) {
         svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"></path></svg>`;
         textLabel = "High Contrast";
     } else if (theme === 'old-blood') {
-        // Drop/Shield icon for Arcanum aesthetic
+        // Shield icon for Arcanum aesthetic
         svgContent = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
         textLabel = "Old Blood";
     } else {
@@ -34,11 +34,11 @@ window.updateThemeIcon = function(theme) {
 
 window.initializeTheme = function() {
     const rootElement = document.documentElement;
-    
-    // Check both potential storage keys just in case
-    let savedTheme = localStorage.getItem('theme') || localStorage.getItem('medledger_theme');
     const themes = ['dark', 'light', 'hc', 'old-blood'];
     
+    let savedTheme = localStorage.getItem('theme');
+    
+    // Validate saved theme against the quad-toggle list
     if (!themes.includes(savedTheme)) {
         savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -46,31 +46,20 @@ window.initializeTheme = function() {
     rootElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 
-    // Attach to any buttons with the class
     const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
     themeToggleBtns.forEach(btn => {
-        // Remove old listeners by cloning (standard JS trick)
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-        newBtn.addEventListener('click', window.cycleTheme);
+        btn.addEventListener('click', () => {
+            let currentTheme = rootElement.getAttribute('data-theme') || 'dark';
+            
+            // Cycle through all four available themes
+            let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
+            let newTheme = themes[nextIndex];
+            
+            rootElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
     });
-}
-
-// Global function so inline onclick="cycleTheme()" in HTML also works
-window.cycleTheme = function(e) {
-    if(e) e.preventDefault();
-    const rootElement = document.documentElement;
-    const themes = ['dark', 'light', 'hc', 'old-blood'];
-    
-    let currentTheme = rootElement.getAttribute('data-theme') || 'dark';
-    let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
-    let newTheme = themes[nextIndex];
-    
-    rootElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    localStorage.setItem('medledger_theme', newTheme); // Sync both keys
-    
-    updateThemeIcon(newTheme);
 }
 
 // --- Tab Logic ---
@@ -312,7 +301,7 @@ window.updateStatus = function(takenCount, visibleCount) {
     }
 }
 
-// --- Initialization & Event Listeners ---
+// --- RESTORED: Initialization & Missing Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
     setTimeout(initSettings, 100);
