@@ -19,8 +19,9 @@ body {
 }
 
 h1 {
-    font-size: 1.25rem; /* Slightly smaller for more header room */
+    font-size: 1.5rem;
     font-weight: 700;
+    letter-spacing: -0.025em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -33,7 +34,21 @@ h2 {
     color: var(--text-primary);
 }
 
-/* Legal Links */
+.status-indicator {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: 100px;
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.status-indicator.complete {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: var(--success-color);
+}
+
 .legal-link {
     color: var(--text-primary);
     text-decoration: none;
