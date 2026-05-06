@@ -1,8 +1,17 @@
 /* ==========================================
    layout.css - Responsive Layout Engine
    ========================================== */
-.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-.sidebar-nav { display: none; }
+
+/* 1. Base / Phone Mode (Default) */
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.sidebar-nav {
+    display: none; /* Hidden on phone/tablet */
+}
 
 .app-header {
     background-color: var(--bg-surface);
@@ -14,8 +23,20 @@
     width: 100%;
 }
 
-.header-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.header-controls { display: flex; align-items: center; gap: 0.75rem; }
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 100%;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
 
 main#app {
     max-width: 100%;
@@ -28,23 +49,54 @@ main#app {
     flex: 1;
 }
 
-/* Tablet Mode (768px - 1199px) */
+/* 2. Tablet Mode (768px - 1199px) */
 @media (min-width: 768px) {
     main#app {
         display: grid;
         grid-template-columns: 1fr;
         grid-template-rows: auto auto auto;
+        max-width: 100%;
+        gap: 1.5rem;
         padding: 2rem;
     }
-    .main-content-area, .side-content-area { display: flex; flex-direction: column; gap: 1.5rem; }
-    .tab-navigation { display: none !important; }
-    .tab-view.hidden-view, .tab-view.active-view { display: block !important; }
+
+    .main-content-area {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .side-content-area {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* Show history alongside tabs */
+    .tab-navigation { 
+        display: none !important; 
+    }
+    
+    .tab-view.hidden-view { 
+        display: block !important; 
+    }
+
+    .tab-view.active-view {
+        display: block !important;
+    }
 }
 
-/* Desktop Mode (> 1200px) */
+/* 3. Desktop Mode (> 1200px) */
 @media (min-width: 1200px) {
-    body { padding-bottom: 0; }
-    .app-header { display: none !important; }
+    body {
+        padding-bottom: 0;
+    }
+
+    /* Redundancy Fix */
+    .app-header {
+        display: none !important;
+    }
+
     .app-shell {
         display: grid;
         grid-template-columns: var(--sidebar-width) 1fr;
@@ -52,6 +104,7 @@ main#app {
         overflow: hidden;
         width: 100%;
     }
+
     .sidebar-nav {
         display: flex;
         flex-direction: column;
@@ -59,28 +112,87 @@ main#app {
         border-right: 1px solid var(--border-color);
         padding: 1.5rem;
         overflow-y: auto;
+        overflow-x: hidden;
         height: 100vh;
     }
+
     main#app {
         display: grid;
-        grid-template-columns: 1fr 340px;
-        width: 100% !important;
+        grid-template-columns: 1fr 340px; /* Two side-by-side columns */
+        max-width: none !important; /* FIX: Remove artificial width limits */
+        width: 100% !important; /* FIX: Force to span entire space */
+        margin: 0;
         padding: 2rem;
         height: 100vh;
         overflow: hidden;
         gap: 2rem;
     }
-    .main-content-area, .side-content-area { max-height: 100%; overflow-y: auto; padding-right: 1rem; }
-    .tab-navigation { display: none !important; }
-    .tab-view.hidden-view { display: block !important; }
-    .sidebar-brand { display: flex; align-items: center; gap: 0.75rem; font-weight: 800; font-size: 1.2rem; margin-bottom: 2rem; }
-    .mobile-legal-footer { display: none !important; }
-}
 
-/* Mobile Adjustments */
-@media (max-width: 600px) {
-    .inline-form, .action-group { flex-direction: column; }
-    .inline-form > *, .btn { width: 100%; }
-    .modal { padding: 1.5rem; width: 95%; }
-    main#app { padding: 1rem; }
+    .main-content-area {
+        max-height: 100%;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        padding-right: 1rem;
+    }
+
+    .side-content-area {
+        max-height: 100%;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .tab-navigation { 
+        display: none !important; 
+    }
+
+    .tab-view.hidden-view { 
+        display: block !important; 
+    }
+
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 800;
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+    }
+
+    .nav-item {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        width: 100%;
+        font-weight: 500;
+        transition: all 0.2s;
+        margin-bottom: 0.25rem;
+    }
+
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+
+    .nav-item.active {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-color);
+    }
+
+    #sidebar-status {
+        margin-top: auto;
+        font-size: 0.75rem;
+    }
+
+    /* Hide Mobile Footer on Desktop */
+    .mobile-legal-footer {
+        display: none !important;
+    }
 }
