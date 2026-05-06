@@ -63,13 +63,19 @@ function bindCoreListeners() {
     getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
     getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
-    // Profile Filter Change
+    // Profile Filter Change - FIXED: Now routes to the global switch function
+    // to properly handle "ADD_NEW" profile creations and full UI re-renders.
     getEl('profile-filter')?.addEventListener('change', (e) => {
-        AppSettings.activeProfile = e.target.value;
-        localStorage.setItem('cfg_activeProfile', e.target.value);
-        loadChecklist();
-        refreshHistory();
-        if(typeof calculateAdherence === 'function') calculateAdherence();
+        if (typeof window.switchActiveProfile === 'function') {
+            window.switchActiveProfile(e.target.value);
+        } else {
+            // Fallback just in case engine.js hasn't loaded
+            AppSettings.activeProfile = e.target.value;
+            localStorage.setItem('cfg_activeProfile', e.target.value);
+            if (typeof loadChecklist === 'function') loadChecklist();
+            if (typeof refreshHistory === 'function') refreshHistory();
+            if (typeof calculateAdherence === 'function') calculateAdherence();
+        }
     });
 }
 
