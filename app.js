@@ -5,7 +5,7 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 5; // Bumped to 5 for Multi-Profile & Efficacy
+const DB_VERSION = 5; // Schema V5: Multi-Profile & Efficacy
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -29,6 +29,7 @@ function getEl(id) {
     return document.getElementById(id);
 }
 
+// --- Initialization / Bootloader ---
 document.addEventListener('DOMContentLoaded', () => {
     checklistContainer = getEl('checklist-container');
     historyList = getEl('history-list');
@@ -62,12 +63,13 @@ function bindCoreListeners() {
     getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
     getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
-    // Profile Filter Listener
+    // Profile Filter Change
     getEl('profile-filter')?.addEventListener('change', (e) => {
         AppSettings.activeProfile = e.target.value;
         localStorage.setItem('cfg_activeProfile', e.target.value);
-        if (typeof loadChecklist === 'function') loadChecklist();
-        if (typeof refreshHistory === 'function') refreshHistory();
+        loadChecklist();
+        refreshHistory();
+        if(typeof calculateAdherence === 'function') calculateAdherence();
     });
 }
 
@@ -204,7 +206,7 @@ function initDB() {
             };
         }
 
-        // V5 Migration: Profile Tagging & Efficacy
+        // V5 Migration: Profile Isolation & Efficacy
         if (oldVersion >= 1 && oldVersion < 5) {
             const medStore = transaction.objectStore("meds");
             const logStore = transaction.objectStore("logs");
@@ -234,12 +236,12 @@ function initDB() {
     
     request.onsuccess = (e) => {
         db = e.target.result;
-        console.log("✅ MedLedger DB ready (Version " + DB_VERSION + ")");
+        console.log("✅ MedLedger DB ready (V" + DB_VERSION + ")");
         fullAppInit();
     };
     request.onerror = (e) => {
         console.error("Database error: ", e.target.errorCode);
-        if(typeof showVaultStatus === 'function') showVaultStatus("Database error.", "var(--danger-color)");
+        if(typeof showVaultStatus === 'function') showVaultStatus("Database connection error.", "var(--danger-color)");
     };
 }
 
