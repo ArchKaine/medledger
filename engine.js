@@ -40,7 +40,7 @@ function archiveOldLogs() {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         window.MOCK_DATA.logs = window.MOCK_DATA.logs.filter(l => new Date(l.dateTaken) >= cutoffDate);
         window.syncDevData();
         if(typeof showVaultStatus === 'function') showVaultStatus(`Dev logs older than ${days} days purged.`, "var(--success-color)");
@@ -90,13 +90,13 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- 3. Interaction & PRN Efficacy Engine ---
+// --- 3. PRN Efficacy Engine ---
 
 window.updateEfficacy = function(ts) {
     const outcome = prompt("What was the outcome of this dose? (e.g. Headache resolved, Relief 2/10):");
     if (outcome === null) return;
 
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         const log = window.MOCK_DATA.logs.find(l => l.timestamp === ts);
         if (log) log.efficacy = outcome;
         window.syncDevData();
@@ -158,7 +158,7 @@ async function handleAddMed(e) {
         description: clinicalData.description, indications: clinicalData.indications
     };
 
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         window.MOCK_DATA.meds.push(newMed);
         window.syncDevData();
         document.getElementById('add-med-form').reset();
@@ -180,7 +180,7 @@ async function handleAddMed(e) {
 
 window.openEditModal = async function(id) {
     let med;
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         med = window.MOCK_DATA.meds.find(m => m.id === id);
     } else {
         if (typeof db === 'undefined') return;
@@ -239,7 +239,7 @@ async function saveEditedMed(e) {
     const freq = document.getElementById('edit-med-freq').value;
     
     let existing;
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         existing = window.MOCK_DATA.meds.find(m => m.id === id);
     } else {
         const tx = db.transaction(["meds"], "readonly");
@@ -265,7 +265,7 @@ async function saveEditedMed(e) {
         cycleStartDate: freq === 'Cyclic' ? document.getElementById('edit-med-cycle-start').value : null
     };
 
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         let idx = window.MOCK_DATA.meds.findIndex(m => m.id === id);
         window.MOCK_DATA.meds[idx] = updatedMed;
         window.syncDevData();
@@ -288,7 +288,7 @@ window.deleteMedication = function() {
     if (!AppSettings.noBabysitter && !confirm("Remove medication?")) return;
     const id = document.getElementById('edit-med-id').value;
 
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         window.MOCK_DATA.meds = window.MOCK_DATA.meds.filter(m => m.id !== id);
         window.syncDevData();
         document.getElementById('edit-med-modal')?.close(); 
@@ -310,7 +310,7 @@ window.refillMed = function(id, amount) {
     const qty = amount === 'custom' ? (parseInt(document.getElementById(`refill-custom-${id}`).value) || 0) : parseInt(amount);
     if (qty <= 0) return;
 
-    if (AppSettings.devMode) {
+    if (AppSettings.devMode && window.MOCK_DATA) {
         let m = window.MOCK_DATA.meds.find(x => x.id === id);
         if (m && m.inventory !== "" && m.inventory !== null && m.inventory !== undefined) {
             let current = parseInt(m.inventory);
@@ -339,12 +339,13 @@ window.refillMed = function(id, amount) {
 // --- 5. Regimen Logic ---
 
 function loadChecklist() {
-    updateInventoryUI(); // Force check UI state
+    updateInventoryUI();
     const container = document.getElementById('checklist-container');
     if(!container) return;
 
     if (AppSettings.devMode && window.MOCK_DATA) {
-        const filtered = window.MOCK_DATA.meds.filter(m => m.profile === AppSettings.activeProfile);
+        // FALLBACK: Default to 'Primary' if profile is missing
+        const filtered = window.MOCK_DATA.meds.filter(m => (m.profile || 'Primary') === AppSettings.activeProfile);
         renderChecklistUI(filtered, window.MOCK_DATA.logs, container);
         return;
     }
@@ -355,7 +356,8 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        const filtered = medReq.result.filter(m => m.profile === AppSettings.activeProfile);
+        // FALLBACK: Default to 'Primary' if profile is missing
+        const filtered = medReq.result.filter(m => (m.profile || 'Primary') === AppSettings.activeProfile);
         renderChecklistUI(filtered, logReq.result, container);
     };
 }
@@ -389,8 +391,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         return (weights[a.frequency] || 99) - (weights[b.frequency] || 99) || a.name.localeCompare(b.name);
     });
 
-    const today = new Date(); 
-    today.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
     const logicalTodayStr = getLogicalDateString(today);
     const todayLocaleStr = today.toLocaleDateString();
     
@@ -411,7 +412,6 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        // Hardened check against NaN or Empty string for the Low warning
         let isLow = false;
         if (AppSettings.inventory && med.inventory !== "" && med.inventory !== null && med.inventory !== undefined) {
             const invCount = parseInt(med.inventory);
@@ -427,6 +427,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         
         timesToProcess.forEach(t => {
             const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
+            // Fallback for logs without explicit logicalDate
             const taken = logs.some(l => l.compositeId === compId && (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === todayLocaleStr));
             
             if (!isPrn) {
@@ -447,8 +448,8 @@ function renderChecklistUI(rawMeds, logs, container) {
         const refillBanner = isLow ? `
             <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); flex-wrap:wrap; gap:0.5rem;">
                 <span style="color:var(--danger-color); font-size:0.75rem; font-weight:700;">⚠️ Low Supply (${med.inventory})</span>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                    ${med.pharmacyPhone ? `<a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" class="btn btn-primary" style="padding:2px 8px; font-size:0.7rem; text-decoration:none; display:flex; align-items:center; gap:4px;">📞 Call Rx</a>` : ''}
+                <div style="display:flex; gap:6px;">
+                    ${med.pharmacyPhone ? `<a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" class="btn btn-primary" style="padding:2px 8px; font-size:0.7rem; text-decoration:none;">📞 Call Rx</a>` : ''}
                     <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', 30)">+30</button>
                     <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', 90)">+90</button>
                 </div>
@@ -466,11 +467,11 @@ function renderChecklistUI(rawMeds, logs, container) {
                 ${med.description ? `<div style="border-top:1px dashed var(--border-color); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
                 ${med.indications ? `<div style="font-size: 0.75rem; opacity: 0.8;"><strong>Use:</strong> ${med.indications}</div>` : ''}
                 
-                ${(med.rxNumber || med.doctor || med.pharmacyPhone) ? `<div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 0.75rem;">
+                <div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 0.75rem;">
                     ${med.rxNumber ? `<span><strong>Rx:</strong> ${med.rxNumber}</span>` : ''}
                     ${med.doctor ? `<span><strong>Dr:</strong> ${med.doctor}</span>` : ''}
                     ${med.pharmacyPhone ? `<span><strong>Ph:</strong> <a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" style="color:var(--accent-color); text-decoration:none;">${med.pharmacyPhone}</a></span>` : ''}
-                </div>` : ''}
+                </div>
             </div>` : ''}
             ${refillBanner}
         `;
@@ -482,7 +483,6 @@ function renderChecklistUI(rawMeds, logs, container) {
             <div style="text-align: center; padding: 2rem; color: var(--text-secondary); grid-column: 1 / -1;">
                 <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🌿</div>
                 <div style="font-weight: 500;">Clear schedule for today.</div>
-                <div style="font-size: 0.8rem; margin-top: 0.25rem;">You have active regimens for this profile, but none are scheduled for ${today.toLocaleDateString(undefined, {weekday: 'long'})}.</div>
             </div>
         `;
     }
@@ -511,7 +511,7 @@ window.logSelected = function() {
                 timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
                 dateTaken: timestamp, 
                 logicalDate: logicalDateStr,
-                profile: med.profile, 
+                profile: med.profile || 'Primary', 
                 systemLoggedTime: Date.now(), 
                 medId: id,
                 targetTime: target === 'none' ? null : target, 
@@ -545,13 +545,13 @@ window.logSelected = function() {
                 timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
                 dateTaken: timestamp, 
                 logicalDate: logicalDateStr,
-                profile: med.profile,
+                profile: med.profile || 'Primary',
                 systemLoggedTime: Date.now(), 
                 medId: id,
                 targetTime: target === 'none' ? null : target, 
                 compositeId: cb.value,
-                medName: cb.getAttribute('data-name'), 
-                status: "taken", 
+                medName: cb.getAttribute('data-name'),
+                status: "taken",
                 prnReason: reason,
                 efficacy: "",
                 isBackdated: !!manualInput
@@ -590,7 +590,7 @@ window.refreshHistory = function() {
 }
 
 function renderHistoryUI(logsArray, list) {
-    const profileLogs = logsArray.filter(l => l.profile === AppSettings.activeProfile);
+    const profileLogs = logsArray.filter(l => (l.profile || 'Primary') === AppSettings.activeProfile);
     const sortedLogs = profileLogs.sort((a, b) => new Date(b.dateTaken) - new Date(a.dateTaken));
     list.innerHTML = '';
     const tracker = {};
@@ -671,7 +671,7 @@ window.deleteLog = function(ts) {
 // --- 8. Initialization & Tasks ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    updateInventoryUI(); // Unhide input on initial load if needed
+    updateInventoryUI(); 
     const toggle = document.getElementById('toggle-lookup');
     if (toggle) {
         toggle.checked = localStorage.getItem('medledger_clinical_lookups') !== 'false';
