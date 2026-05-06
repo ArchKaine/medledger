@@ -1,6 +1,6 @@
 // ==========================================
 // analytics.js - MedLedger Analytics Engine
-// Handles Heatmaps, Streaks, and Predictive Insights
+// Handles Heatmaps, Streaks, and Profile-Aware Predictive Insights
 // ==========================================
 
 function calculateAdherence() {
@@ -16,14 +16,19 @@ function calculateAdherence() {
 
     tx.oncomplete = () => {
         try {
-            // FIX: Force the Analytics engine to read the mock data when Dev Mode is active
-            const meds = (typeof AppSettings !== 'undefined' && AppSettings.devMode && window.MOCK_DATA) 
+            // 1. DATA RETRIEVAL & PROFILE ISOLATION
+            const rawMeds = (typeof AppSettings !== 'undefined' && AppSettings.devMode && window.MOCK_DATA) 
                 ? window.MOCK_DATA.meds 
                 : (medReq.result || []);
                 
-            const logs = (typeof AppSettings !== 'undefined' && AppSettings.devMode && window.MOCK_DATA) 
+            const rawLogs = (typeof AppSettings !== 'undefined' && AppSettings.devMode && window.MOCK_DATA) 
                 ? window.MOCK_DATA.logs 
                 : (logReq.result || []);
+
+            // V5 Filter: Only process data belonging to the currently active profile
+            const activeProfile = (typeof AppSettings !== 'undefined') ? AppSettings.activeProfile : 'Primary';
+            const meds = rawMeds.filter(m => (m.profile || 'Primary') === activeProfile);
+            const logs = rawLogs.filter(l => (l.profile || 'Primary') === activeProfile);
             
             const today = new Date();
             today.setHours(0,0,0,0);
@@ -35,7 +40,7 @@ function calculateAdherence() {
             const range = parseInt(heatmapRangeSelect && heatmapRangeSelect.value ? heatmapRangeSelect.value : 30);
             if (isNaN(range)) return; 
             
-            // --- 1. EPOCH CALCULATION ---
+            // --- 2. EPOCH CALCULATION ---
             let globalStartDate = new Date(today);
             if (logs.length > 0) {
                 const earliestLog = logs.reduce((min, log) => {
@@ -56,12 +61,12 @@ function calculateAdherence() {
             const nonPrnMedIds = new Set();
             meds.forEach(med => { if (med.frequency !== "As Needed") nonPrnMedIds.add(med.id); });
 
-            // --- 2. INSIGHTS PREP VARIABLES ---
+            // --- 3. INSIGHTS PREP VARIABLES ---
             let driftSum = 0;
             let driftCount = 0;
             let timeBlocks = { morning: { t: 0, e: 0 }, afternoon: { t: 0, e: 0 }, evening: { t: 0, e: 0 } };
 
-            // --- 3. TIMELINE INITIALIZATION ---
+            // --- 4. TIMELINE INITIALIZATION ---
             for (let i = 0; i < range; i++) {
                 const simDate = new Date(today);
                 simDate.setDate(today.getDate() - i);
@@ -102,7 +107,7 @@ function calculateAdherence() {
                 dailyMedDetails[dateStr] = { expected: expectedToday, expectedCount: expectedCount, taken: [], pending: [], missed: [], retroCount: 0 };
             }
 
-            // --- 4. TALLY LOGS & CALC DRIFT ---
+            // --- 5. TALLY LOGS & CALC DRIFT ---
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
             let actualTaken7Day = 0;
@@ -111,16 +116,19 @@ function calculateAdherence() {
                 const logDate = new Date(log.dateTaken);
                 const localDateStr = logDate.toLocaleDateString();
                 
+                // Hardened check against timezone-locked Logical Date or Locale Fallback
+                const matchDate = log.logicalDate ? new Date(log.logicalDate + 'T12:00:00').toLocaleDateString() : localDateStr;
+
                 if (nonPrnMedIds.has(log.medId) && log.status === "taken") {
                     if (logDate >= sevenDaysAgo) actualTaken7Day++;
                 }
 
-                if (dailyMedDetails[localDateStr]) {
-                    dailyMedDetails[localDateStr].taken.push(log.medName);
+                if (dailyMedDetails[matchDate]) {
+                    dailyMedDetails[matchDate].taken.push(log.medName);
                     const sysTime = log.systemLoggedTime || new Date(log.dateTaken).getTime();
                     const claimedTime = new Date(log.dateTaken).getTime();
                     const deltaHours = (sysTime - claimedTime) / (1000 * 60 * 60);
-                    if (deltaHours > 4) dailyMedDetails[localDateStr].retroCount++;
+                    if (deltaHours > 4) dailyMedDetails[matchDate].retroCount++;
                 }
 
                 if (log.targetTime && log.systemLoggedTime) {
@@ -136,7 +144,7 @@ function calculateAdherence() {
                 }
             });
 
-            // --- 5. PROCESS STATUS & TIME BLOCKS ---
+            // --- 6. PROCESS STATUS & TIME BLOCKS ---
             Object.keys(dailyMedDetails).forEach(dateStr => {
                 let details = dailyMedDetails[dateStr];
                 let takenCopy = [...details.taken];
@@ -168,7 +176,7 @@ function calculateAdherence() {
                 });
             });
 
-            // --- 6. RENDER ALL COMPONENTS ---
+            // --- 7. RENDER ALL COMPONENTS ---
             updateAdherenceHeader(dailyMedDetails, today, globalStartDate, actualTaken7Day);
             updateStreakDisplay(dailyMedDetails, range, today, globalStartDate);
             renderInsights(meds, logs, driftSum, driftCount, timeBlocks);
@@ -233,12 +241,50 @@ function renderInsights(meds, logs, driftSum, driftCount, timeBlocks) {
     if (!container) return;
     container.innerHTML = '';
 
-    const inventoryMeds = meds.filter(m => AppSettings.inventory && m.inventory > 0);
+    // 1. PRN Efficacy Insight
+    const efficacyLogs = logs.filter(l => l.efficacy);
+    if (efficacyLogs.length > 0) {
+        const lastEff = efficacyLogs[0];
+        const effCard = document.createElement('div');
+        effCard.className = 'insight-card';
+        effCard.style.borderLeft = '4px solid var(--success-color)';
+        effCard.innerHTML = `
+            <div class="insight-title">Treatment Insight: ${lastEff.medName}</div>
+            <div class="insight-value">✨ Latest Outcome</div>
+            <div class="insight-detail">"${lastEff.efficacy}"</div>
+        `;
+        container.appendChild(effCard);
+    }
+
+    // 2. Supply Forecast - UPDATED PREDICTION MATH
+    const inventoryMeds = meds.filter(m => AppSettings.inventory && parseInt(m.inventory) > 0);
     inventoryMeds.forEach(med => {
-        const last14Days = logs.filter(l => l.medId === med.id && (new Date() - new Date(l.dateTaken)) < (14 * 86400000));
-        const dailyRate = Math.max(last14Days.length / 14, 0.1); 
-        const daysLeft = Math.round(med.inventory / dailyRate);
-        const estDate = new Date(); estDate.setDate(estDate.getDate() + daysLeft);
+        let dailyBurnRate = 0;
+        const dosesPerDay = Math.max(1, (med.times && med.times.length > 0) ? med.times.length : 1);
+
+        if (med.frequency === "As Needed") {
+            // Variable burn rate: use the last 14 days of logs to find a realistic average
+            const last14Days = logs.filter(l => l.medId === med.id && (new Date() - new Date(l.dateTaken)) < (14 * 86400000));
+            dailyBurnRate = Math.max(last14Days.length / 14, 0.1); 
+        } else if (med.frequency === "Specific Days") {
+            // Hard math: (doses per day * active days per week) / 7
+            dailyBurnRate = (dosesPerDay * (med.specificDays?.length || 0)) / 7;
+        } else if (med.frequency === "Cyclic") {
+            // Hard math: (doses per day * days on) / total cycle duration
+            const cycleLen = (parseInt(med.cycleOn) || 1) + (parseInt(med.cycleOff) || 0);
+            dailyBurnRate = (dosesPerDay * (parseInt(med.cycleOn) || 1)) / cycleLen;
+        } else if (med.frequency === "Weekly") {
+            // One active day per week
+            dailyBurnRate = dosesPerDay / 7;
+        } else {
+            // Daily / Morning / Night: Burn rate is simple doses per day count
+            dailyBurnRate = dosesPerDay;
+        }
+
+        const currentInventory = parseInt(med.inventory) || 0;
+        const daysLeft = Math.round(currentInventory / dailyBurnRate);
+        const estDate = new Date(); 
+        estDate.setDate(estDate.getDate() + daysLeft);
 
         const card = document.createElement('div');
         card.className = 'insight-card';
