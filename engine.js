@@ -82,23 +82,7 @@ function restoreArchivedLogs() {
     };
 }
 
-// --- 3. Interaction & PRN Efficacy Engine ---
-
-async function checkLocalInteractions(newMedName) {
-    try {
-        const res = await fetch('interactions.json');
-        const db_int = await res.json();
-        let activeMeds = AppSettings.devMode ? window.MOCK_DATA.meds : await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
-        const drug = newMedName.toLowerCase().trim();
-        let warnings = [];
-        activeMeds.forEach(m => {
-            const active = m.name.toLowerCase().trim();
-            if (db_int[drug]?.[active]) warnings.push(`Warning with ${m.name}: ${db_int[drug][active]}`);
-            else if (db_int[active]?.[drug]) warnings.push(`Warning with ${m.name}: ${db_int[active][drug]}`);
-        });
-        return warnings;
-    } catch (err) { return []; }
-}
+// --- 3. PRN Efficacy Engine ---
 
 window.updateEfficacy = function(ts) {
     const outcome = prompt("What was the outcome of this dose? (e.g. Headache resolved, Relief 2/10):");
@@ -142,8 +126,10 @@ async function handleAddMed(e) {
 
     if (!nameInput || !doseInput) return;
 
-    const warnings = await checkLocalInteractions(nameInput);
-    if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
+    if (typeof checkLocalInteractions === 'function') {
+        const warnings = await checkLocalInteractions(nameInput);
+        if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
+    }
 
     let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
@@ -168,7 +154,8 @@ async function handleAddMed(e) {
         window.MOCK_DATA.meds.push(newMed);
         window.syncDevData();
         document.getElementById('add-med-form').reset();
-        loadChecklist(); populateProfileDropdowns();
+        loadChecklist(); 
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
         if(typeof showVaultStatus === 'function') showVaultStatus("Test Medication added.", "var(--success-color)");
         return;
     }
@@ -177,7 +164,8 @@ async function handleAddMed(e) {
     tx.objectStore("meds").add(newMed);
     tx.oncomplete = () => {
         document.getElementById('add-med-form').reset();
-        loadChecklist(); populateProfileDropdowns();
+        loadChecklist(); 
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
         if(typeof showVaultStatus === 'function') showVaultStatus("Medication added.", "var(--success-color)");
     };
 }
@@ -268,13 +256,18 @@ async function saveEditedMed(e) {
         window.MOCK_DATA.meds[idx] = updatedMed;
         window.syncDevData();
         document.getElementById('edit-med-modal')?.close(); 
-        loadChecklist(); populateProfileDropdowns();
+        loadChecklist(); 
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
         return;
     }
 
     const txWrite = db.transaction(["meds"], "readwrite");
     txWrite.objectStore("meds").put(updatedMed);
-    txWrite.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); populateProfileDropdowns(); };
+    txWrite.oncomplete = () => { 
+        document.getElementById('edit-med-modal')?.close(); 
+        loadChecklist(); 
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns(); 
+    };
 }
 
 window.deleteMedication = function() {
@@ -285,13 +278,18 @@ window.deleteMedication = function() {
         window.MOCK_DATA.meds = window.MOCK_DATA.meds.filter(m => m.id !== id);
         window.syncDevData();
         document.getElementById('edit-med-modal')?.close(); 
-        loadChecklist(); populateProfileDropdowns();
+        loadChecklist(); 
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
         return;
     }
 
     const tx = db.transaction(["meds"], "readwrite");
     tx.objectStore("meds").delete(id);
-    tx.oncomplete = () => { document.getElementById('edit-med-modal')?.close(); loadChecklist(); populateProfileDropdowns(); };
+    tx.oncomplete = () => { 
+        document.getElementById('edit-med-modal')?.close(); 
+        loadChecklist(); 
+        if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns(); 
+    };
 }
 
 window.refillMed = function(id, amount) {
@@ -427,21 +425,24 @@ function renderChecklistUI(rawMeds, logs, container) {
                 </div>
             </div>` : '';
 
+        // RX Info specifically moved to the very bottom as a predictable footer component
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; padding:1rem; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
                 <div><h3 style="margin:0; font-size:1.1rem;">${med.name}</h3><div style="font-size:0.85rem; color:var(--text-secondary);">${med.dose}</div></div>
                 <button class="icon-btn" onclick="openEditModal('${med.id}')" type="button">✏️</button>
             </div>
             ${timesHtml}
-            ${(med.instructions || med.sideEffects || med.description || med.indications || med.rxNumber || med.doctor) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto;">
+            ${(med.instructions || med.sideEffects || med.description || med.indications || med.rxNumber || med.doctor || med.pharmacyPhone) ? `<div style="padding:0.75rem 1rem; border-top:1px solid var(--border-color); background:var(--bg-primary); font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto;">
                 ${med.instructions ? `<div><i>${med.instructions}</i></div>` : ''}
                 ${med.sideEffects ? `<div>ℹ️ ${med.sideEffects}</div>` : ''}
-                ${(med.rxNumber || med.doctor) ? `<div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-color); font-size: 0.75rem;">
+                ${med.description ? `<div style="border-top:1px dashed var(--border-color); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
+                ${med.indications ? `<div style="font-size: 0.75rem; opacity: 0.8;"><strong>Use:</strong> ${med.indications}</div>` : ''}
+                
+                ${(med.rxNumber || med.doctor || med.pharmacyPhone) ? `<div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 0.75rem;">
                     ${med.rxNumber ? `<span><strong>Rx:</strong> ${med.rxNumber}</span>` : ''}
                     ${med.doctor ? `<span><strong>Dr:</strong> ${med.doctor}</span>` : ''}
+                    ${med.pharmacyPhone ? `<span><strong>Ph:</strong> <a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" style="color:var(--accent-color); text-decoration:none;">${med.pharmacyPhone}</a></span>` : ''}
                 </div>` : ''}
-                ${med.description ? `<div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><strong>Info:</strong> ${med.description}</div>` : ''}
-                ${med.indications ? `<div style="font-size: 0.75rem; opacity: 0.8;"><strong>Use:</strong> ${med.indications}</div>` : ''}
             </div>` : ''}
             ${refillBanner}
         `;
@@ -473,7 +474,6 @@ window.logSelected = function() {
     const timestamp = logDateObj.toISOString();
     const logicalDateStr = getLogicalDateString(logDateObj);
 
-    // DEV MODE INTERCEPTION
     if (AppSettings.devMode) {
         checked.forEach(cb => {
             const [id, target] = cb.value.split('|');
@@ -587,7 +587,7 @@ function renderHistoryUI(logsArray, list) {
             </div>
             ${l.prnReason ? `<div style="font-size:0.75rem; color:var(--accent-color);">📝 ${l.prnReason}</div>` : ''}
             ${l.efficacy ? `<div style="font-size:0.75rem; color:var(--success-color);">✨ Outcome: ${l.efficacy}</div>` : ''}
-            ${needsEff ? `<button class="btn btn-secondary" style="font-size: 0.7rem; padding: 4px 8px;" onclick="updateEfficacy('${l.timestamp}')">📝 Update Outcome?</button>` : ''}
+            ${needsEff ? `<button class="btn btn-secondary" style="font-size: 0.7rem; padding: 4px 8px; margin-top: 4px;" onclick="updateEfficacy('${l.timestamp}')">📝 Update Outcome?</button>` : ''}
         </li>`;
     }).join('') || '<li style="text-align:center; padding:1rem; color:var(--text-secondary);">No history found for this profile.</li>';
 }
