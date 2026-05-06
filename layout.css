@@ -13,10 +13,11 @@
     display: none; /* Hidden on phone/tablet */
 }
 
+/* HARDENED STICKY HEADER */
 .app-header {
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1.25rem;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -28,26 +29,47 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    gap: 1.5rem;
 }
 
+/* ZONE 1: Isolated Branding */
 .header-branding {
+    flex: 0 0 auto; /* Forbidden from growing or shrinking */
+    padding-right: 1rem;
+    border-right: 1px solid var(--border-color);
+}
+
+/* ZONE 2: Restricted System Maintenance (Dev Mode) */
+.header-restricted-zone {
     flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     min-width: 0;
 }
 
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-shrink: 0; /* Protect settings/dev icons from crushing */
+.nav-dev-mode-btn {
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 4px;
+    padding: 2px;
 }
 
-/* NEW: Relocated controls for small screens */
+/* ZONE 3: User Controls (Settings) */
+.header-controls {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-left: 1rem;
+    border-left: 1px solid var(--border-color);
+}
+
+/* MOBILE UTILITY BAR (Dashboard) */
 .mobile-utility-bar {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-bottom: 1.5rem;
     padding: 1rem;
     background: var(--bg-surface);
@@ -59,22 +81,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
     width: 100%;
 }
 
 .global-profile-select {
     flex: 1;
     min-width: 0;
+    max-width: 180px;
     text-overflow: ellipsis;
-    max-width: 160px;
-}
-
-/* Visibility Control */
-@media (max-width: 1199px) {
-    /* Hide the old slots in the sticky header on small screens */
-    .header-controls #status-bar {
-        display: none !important;
-    }
 }
 
 main#app {
@@ -86,6 +101,13 @@ main#app {
     gap: 1.5rem;
     width: 100%;
     flex: 1;
+}
+
+/* Visibility Control for Mobile/Tablet Header */
+@media (max-width: 1199px) {
+    .header-controls #status-bar {
+        display: none !important;
+    }
 }
 
 /* 2. Tablet Mode (768px - 1199px) */
@@ -135,7 +157,7 @@ main#app {
     }
 
     .mobile-utility-bar {
-        display: none !important; /* Sidebar handles this on Desktop */
+        display: none !important; 
     }
 
     .app-shell {
