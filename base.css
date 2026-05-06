@@ -18,23 +18,27 @@ body {
     min-height: 100vh;
 }
 
-h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
-h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-primary); }
+h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
 
+h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+/* Legal Links */
 .legal-link {
     color: var(--text-primary);
     text-decoration: none;
     opacity: 0.6;
     transition: opacity 0.2s, color 0.2s;
 }
-.legal-link:hover { opacity: 1; color: var(--accent-color); }
 
-.status-indicator {
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 0.35rem 0.75rem;
-    border-radius: 100px;
-    background-color: var(--bg-primary);
-    color: var(--text-secondary);
+.legal-link:hover {
+    opacity: 1;
+    color: var(--accent-color);
 }
-.status-indicator.complete { background-color: rgba(16, 185, 129, 0.15); color: var(--success-color); }
