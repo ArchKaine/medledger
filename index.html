@@ -62,9 +62,8 @@
                 <div class="header-branding">
                     <h1>MedLedger</h1>
                 </div>
-                <div class="header-controls">
-                    <div id="status-bar" class="status-indicator"></div>
-                    
+
+                <div class="header-restricted-zone">
                     <div class="nav-dev-mode-btn" style="display: none;">
                         <button aria-label="Toggle Dev Mode" class="icon-btn" onclick="if(typeof toggleDevMode === 'function') toggleDevMode()" style="color: var(--danger-color);">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -74,7 +73,10 @@
                             </svg>
                         </button>
                     </div>
+                </div>
 
+                <div class="header-controls">
+                    <div id="status-bar" class="status-indicator" style="display: none;"></div>
                     <button id="settings-toggle" aria-label="Settings" class="icon-btn" onclick="document.getElementById('settings-modal').showModal()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="3"></circle>
