@@ -77,6 +77,9 @@ window.initializeTheme = function() {
             rootElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
             updateThemeIcon(newTheme);
+
+            // Refresh Launch Button Previews if they exist
+            if(typeof updateLaunchButtonPreview === 'function') updateLaunchButtonPreview();
         });
     });
 }
