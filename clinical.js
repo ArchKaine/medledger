@@ -1,6 +1,6 @@
 // ==========================================
 // clinical.js - MedLedger Clinical Data Engine
-// Handles OpenFDA/Wikidata queries and local caching
+// Handles OpenFDA/Wikidata queries, local caching, and Interaction Checks
 // ==========================================
 
 const CLINICAL_CACHE_STORE = "clinical_cache";
@@ -36,8 +36,34 @@ function getMockClinicalData(drugName) {
     };
 }
 
+// --- Interaction Engine ---
+window.checkLocalInteractions = async function(newMedName) {
+    try {
+        const res = await fetch('interactions.json');
+        const db_int = await res.json();
+        
+        let activeMeds = [];
+        if (typeof AppSettings !== 'undefined' && AppSettings.devMode) {
+            activeMeds = window.MOCK_DATA.meds;
+        } else {
+            activeMeds = await new Promise(r => db.transaction(["meds"], "readonly").objectStore("meds").getAll().onsuccess = e => r(e.target.result));
+        }
+        
+        const drug = newMedName.toLowerCase().trim();
+        let warnings = [];
+        activeMeds.forEach(m => {
+            const active = m.name.toLowerCase().trim();
+            if (db_int[drug]?.[active]) warnings.push(`Warning with ${m.name}: ${db_int[drug][active]}`);
+            else if (db_int[active]?.[drug]) warnings.push(`Warning with ${m.name}: ${db_int[active][drug]}`);
+        });
+        return warnings;
+    } catch (err) { 
+        return []; 
+    }
+};
+
 // --- Main Retrieval Engine ---
-async function fetchDrugInfo(drugName) {
+window.fetchDrugInfo = async function(drugName) {
     // 1. Check if Dev Mode is intercepting the request
     if (typeof AppSettings !== 'undefined' && AppSettings.devMode) {
         console.log(`[MedLedger Dev Mode] Intercepting clinical fetch for: ${drugName}`);
@@ -125,7 +151,7 @@ async function fetchDrugInfo(drugName) {
     }
 
     return result;
-}
+};
 
 // --- Background Refresh Task ---
 // Scans the active medications list and pre-caches missing clinical data
@@ -140,7 +166,7 @@ window.refreshAllClinicalData = async function(force = false) {
         
         for (const med of meds) {
             if (force || !med.description) {
-                const data = await fetchDrugInfo(med.name);
+                const data = await window.fetchDrugInfo(med.name);
                 if ((data.description && data.description !== med.description) || 
                     (data.indications && data.indications !== med.indications)) {
                     
@@ -158,4 +184,4 @@ window.refreshAllClinicalData = async function(force = false) {
     } catch (err) {
         console.error("Background clinical refresh failed:", err);
     }
-}
+};
