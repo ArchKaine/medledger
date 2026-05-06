@@ -38,7 +38,7 @@ async function populateProfileDropdowns() {
     
     // Ensure "Primary" is always available and unique
     const profiles = ["Primary", ...new Set(meds.map(m => m.profile).filter(p => p && p !== "Primary"))];
-    const selectors = ['profile-filter', 'new-med-profile', 'edit-med-profile'];
+    const selectors = ['global-profile-sidebar', 'global-profile-header', 'profile-filter', 'new-med-profile', 'edit-med-profile'];
     
     selectors.forEach(id => {
         const el = document.getElementById(id);
@@ -50,8 +50,8 @@ async function populateProfileDropdowns() {
             return `<option value="${p}">${label}</option>`;
         }).join('') + `<option value="ADD_NEW">+ Create New Profile...</option>`;
         
-        // Restore previous value or default to active profile for the filter
-        if (id === 'profile-filter') {
+        // Restore previous value or default to active profile for the filters
+        if (id === 'profile-filter' || id.startsWith('global-profile')) {
             el.value = AppSettings.activeProfile || "Primary";
         } else {
             el.value = currentVal || "Primary";
@@ -60,9 +60,9 @@ async function populateProfileDropdowns() {
 }
 
 /**
- * Prompt-driven creation of new Profile names.
+ * Prompt-driven creation of new Profile names inside Add/Edit forms.
  */
-function handleProfileChange(selectId) {
+window.handleProfileChange = function(selectId) {
     const el = document.getElementById(selectId);
     if (el.value === "ADD_NEW") {
         const name = prompt("Enter a name for the new profile (e.g., Mischief, Michele):");
@@ -77,7 +77,38 @@ function handleProfileChange(selectId) {
             el.value = "Primary";
         }
     }
-}
+};
+
+/**
+ * Global Profile Switcher. Captures UI dropdown, sets state, and forces UI redraw.
+ */
+window.switchActiveProfile = function(val) {
+    let profileName = val;
+    if (val === 'ADD_NEW') {
+        const name = prompt("Enter a name for the new profile:");
+        if (name && name.trim()) {
+            profileName = name.trim();
+        } else {
+            profileName = "Primary";
+        }
+    }
+
+    AppSettings.activeProfile = profileName;
+    localStorage.setItem('cfg_activeProfile', profileName);
+
+    // Keep all global dropdowns in sync
+    const syncIds = ['global-profile-sidebar', 'global-profile-header', 'profile-filter'];
+    syncIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = profileName;
+    });
+
+    // Force full UI rebuild with the new active profile
+    if (typeof populateProfileDropdowns === 'function') populateProfileDropdowns();
+    if (typeof loadChecklist === 'function') loadChecklist();
+    if (typeof refreshHistory === 'function') refreshHistory();
+    if (typeof calculateAdherence === 'function') calculateAdherence();
+};
 
 // --- 2. Archiving Logic ---
 
