@@ -13,11 +13,11 @@
     display: none; /* Hidden on phone/tablet */
 }
 
-/* HARDENED STICKY HEADER */
+/* HARDENED STICKY HEADER - THREE ZONE ARCHITECTURE */
 .app-header {
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
-    padding: 0.75rem 1.25rem;
+    padding: 0.5rem 1rem;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -29,17 +29,19 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 1.5rem;
+    height: 48px; /* Standardize header height */
 }
 
-/* ZONE 1: Isolated Branding */
+/* ZONE 1: BRANDING (Left) */
 .header-branding {
-    flex: 0 0 auto; /* Forbidden from growing or shrinking */
-    padding-right: 1rem;
-    border-right: 1px solid var(--border-color);
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 120px;
+    display: flex;
+    align-items: center;
 }
 
-/* ZONE 2: Restricted System Maintenance (Dev Mode) */
+/* ZONE 2: RESTRICTED SYSTEM AREA (Center) */
 .header-restricted-zone {
     flex: 1;
     display: flex;
@@ -48,28 +50,38 @@
     min-width: 0;
 }
 
-.nav-dev-mode-btn {
-    background: rgba(239, 68, 68, 0.05);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    border-radius: 4px;
-    padding: 2px;
+/* Fallback: If header is crowded on small screens, hide Dev Mode to protect System Box */
+@media (max-width: 480px) {
+    .header-restricted-zone {
+        display: none !important;
+    }
 }
 
-/* ZONE 3: User Controls (Settings) */
+/* ZONE 3: SYSTEM BOX (Right) */
+/* Calculated Lock: 3 icons (120px) + 2 gaps (16px) + 8px padding = 144px */
 .header-controls {
-    flex: 0 0 auto;
+    flex: 0 0 144px; 
+    width: 144px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding-left: 1rem;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-left: 0.5rem;
     border-left: 1px solid var(--border-color);
 }
 
-/* MOBILE UTILITY BAR (Dashboard) */
+.header-controls .icon-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+}
+
+/* MOBILE UTILITY BAR (Dashboard Area) */
 .mobile-utility-bar {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 1.5rem;
     padding: 1rem;
     background: var(--bg-surface);
@@ -81,7 +93,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
     width: 100%;
 }
 
@@ -101,13 +112,6 @@ main#app {
     gap: 1.5rem;
     width: 100%;
     flex: 1;
-}
-
-/* Visibility Control for Mobile/Tablet Header */
-@media (max-width: 1199px) {
-    .header-controls #status-bar {
-        display: none !important;
-    }
 }
 
 /* 2. Tablet Mode (768px - 1199px) */
