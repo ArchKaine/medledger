@@ -1,6 +1,201 @@
 /* ==========================================
    components.css - Standard Component Styles
    ========================================== */
+.status-indicator {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: 100px;
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.status-indicator.complete {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: var(--success-color);
+}
+
+.card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Forms & Accessibility Inputs */
+.inline-form {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+input, select, textarea {
+    background-color: var(--bg-primary);
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color);
+    padding: 0.85rem;
+    border-radius: 6px;
+    font-size: 1rem; 
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    min-width: 0;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent-color);
+}
+
+input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+input[type="text"] { flex: 1; min-width: 150px; }
+input[type="time"] { flex: 1; min-width: 120px; }
+
+/* Checklist & Med Items */
+.checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.med-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-primary);
+    padding: 1.1rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.2s, border-color 0.2s;
+    min-height: 60px;
+}
+
+.med-item:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-color);
+}
+
+[data-theme="light"] .med-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.med-item.completed {
+    opacity: 0.5;
+    border-color: transparent;
+    background-color: rgba(16, 185, 129, 0.05);
+}
+
+.med-checkbox {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 1rem;
+    accent-color: var(--success-color);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.med-details {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.med-name {
+    font-weight: 600;
+    font-size: 1.05rem;
+    word-break: break-word;
+}
+
+.med-dose {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+/* Buttons & Controls */
+.action-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.85rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    border: none;
+    transition: background-color 0.2s, transform 0.1s;
+    font-family: inherit;
+    min-width: 100px;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+.btn-secondary {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--border-color);
+}
+
+.btn-danger {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
+    margin-right: auto;
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-color);
+    color: #ffffff;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+    flex-shrink: 0;
+}
+
+.icon-btn:hover { 
+    color: var(--text-primary); 
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .icon-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}/* ==========================================
+   components.css - Standard Component Styles
+   ========================================== */
 .card {
     background-color: var(--bg-surface);
     border: 1px solid var(--border-color);
