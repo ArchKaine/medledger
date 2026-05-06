@@ -16,7 +16,7 @@
 .app-header {
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -27,41 +27,54 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 100%;
-    margin: 0 auto;
     width: 100%;
 }
 
-/* NEW: Relocated controls for small screens */
-.mobile-dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    width: 100%;
-}
-
-.header-content > div:first-child {
+.header-branding {
     flex: 1;
     min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 
 .header-controls {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    flex-shrink: 0; /* NEVER squish the buttons */
+    gap: 0.5rem;
+    flex-shrink: 0; /* Protect settings/dev icons from crushing */
 }
 
-/* Ensure selector is readable on mobile */
+/* NEW: Relocated controls for small screens */
+.mobile-utility-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.mobile-utility-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
 .global-profile-select {
     flex: 1;
-    max-width: none; /* Allow flexibility in the new row */
+    min-width: 0;
     text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+/* Visibility Control */
+@media (max-width: 1199px) {
+    /* Hide the old slots in the sticky header on small screens */
+    .header-controls #status-bar {
+        display: none !important;
+    }
 }
 
 main#app {
@@ -86,23 +99,44 @@ main#app {
         padding: 2rem;
     }
 
-    .main-content-area, .side-content-area {
+    .main-content-area {
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
     }
 
-    .tab-navigation { display: none !important; }
-    .tab-view.hidden-view, .tab-view.active-view { display: block !important; }
+    .side-content-area {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .tab-navigation { 
+        display: none !important; 
+    }
+    
+    .tab-view.hidden-view { 
+        display: block !important; 
+    }
+
+    .tab-view.active-view {
+        display: block !important;
+    }
 }
 
 /* 3. Desktop Mode (> 1200px) */
 @media (min-width: 1200px) {
-    body { padding-bottom: 0; }
-    .app-header { display: none !important; }
-    
-    /* HIDE the relocated row on desktop as it's in the sidebar */
-    .mobile-dashboard-header { display: none !important; }
+    body {
+        padding-bottom: 0;
+    }
+
+    .app-header {
+        display: none !important;
+    }
+
+    .mobile-utility-bar {
+        display: none !important; /* Sidebar handles this on Desktop */
+    }
 
     .app-shell {
         display: grid;
@@ -125,9 +159,9 @@ main#app {
 
     main#app {
         display: grid;
-        grid-template-columns: 1fr 340px;
-        max-width: none !important;
-        width: 100% !important;
+        grid-template-columns: 1fr 340px; 
+        max-width: none !important; 
+        width: 100% !important; 
         margin: 0;
         padding: 2rem;
         height: 100vh;
@@ -135,14 +169,30 @@ main#app {
         gap: 2rem;
     }
 
-    .main-content-area, .side-content-area {
+    .main-content-area {
         max-height: 100%;
         overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
         padding-right: 1rem;
     }
 
-    .tab-navigation { display: none !important; }
-    .tab-view.hidden-view { display: block !important; }
+    .side-content-area {
+        max-height: 100%;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .tab-navigation { 
+        display: none !important; 
+    }
+
+    .tab-view.hidden-view { 
+        display: block !important; 
+    }
 
     .sidebar-brand {
         display: flex;
@@ -154,13 +204,35 @@ main#app {
     }
 
     .nav-item {
-        background: none; border: none; color: var(--text-secondary);
-        text-align: left; padding: 0.75rem 1rem; border-radius: 6px;
-        cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        width: 100%;
+        font-weight: 500;
+        transition: all 0.2s;
         margin-bottom: 0.25rem;
     }
-    .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); }
-    .nav-item.active { background: rgba(59, 130, 246, 0.1); color: var(--accent-color); }
-    #sidebar-status { margin-top: auto; font-size: 0.75rem; }
-    .mobile-legal-footer { display: none !important; }
+
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+
+    .nav-item.active {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-color);
+    }
+
+    #sidebar-status {
+        margin-top: auto;
+        font-size: 0.75rem;
+    }
+
+    .mobile-legal-footer {
+        display: none !important;
+    }
 }
