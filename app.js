@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsModal = getEl('settings-modal');
     helpModal = getEl('help-modal');
 
-    if(typeof initializeTheme === 'function') initializeTheme();
+    //if(typeof initializeTheme === 'function') initializeTheme();
     if(typeof initSettings === 'function') initSettings();
     initDB();
     registerServiceWorker();
