@@ -382,12 +382,15 @@ function renderChecklistUI(rawMeds, logs, container) {
                 <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">
                     ${isFilt ? `No medications have been assigned to this profile yet.` : 'Your zero-knowledge, local-first health vault. All data is encrypted and stored exclusively on your device.'}
                 </p>
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('new-med-name').focus();" style="padding: 0.75rem 1.5rem; font-size: 0.9rem; border-radius: 8px;">
+                <button type="button" id="btn-ftue-focus" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: 0.9rem; border-radius: 8px;">
                     + Add Medication to ${AppSettings.activeProfile}
                 </button>
             </div>
         `; 
         
+        // Use ID listener for the FTUE button to prevent double binding
+        document.getElementById('btn-ftue-focus')?.addEventListener('click', () => document.getElementById('new-med-name').focus());
+
         if(typeof updateStatus === 'function') updateStatus(0, 0);
         const adhereEl = document.getElementById('adherence-score');
         if (adhereEl) adhereEl.innerText = '--%';
@@ -420,10 +423,10 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        // Ripped out redundant math: Now querying clinical.js for dynamic status
+        // Inventory Burn Rate / Run-Out Logic from clinical.js
         const invStatus = (typeof window.calculateInventoryStatus === 'function') 
-            ? window.calculateInventoryStatus(med) 
-            : { isLow: false, runOutDate: "Unknown" };
+            ? window.calculateInventoryStatus(med, logs) 
+            : { isLow: false, runOutDate: "N/A" };
 
         const card = document.createElement('div');
         card.className = 'card'; card.style.padding = '0'; card.style.overflow = 'hidden';
@@ -451,7 +454,6 @@ function renderChecklistUI(rawMeds, logs, container) {
         });
         timesHtml += '</div>';
 
-        // Refill Banner using data returned from clinical engine
         const refillBanner = (AppSettings.inventory && invStatus.isLow) ? `
             <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -505,9 +507,16 @@ function renderChecklistUI(rawMeds, logs, container) {
 // --- 6. Logging Logic ---
 
 window.logSelected = function() {
-    const checked = document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)');
+    // BUG FIX: Identify items that aren't already being processed to prevent duplicate transactions
+    const checked = Array.from(document.querySelectorAll('#checklist-container .med-checkbox:checked:not(:disabled)'));
     if (checked.length === 0) return;
     
+    // IMMEDIATE STATE GUARD: Disable inputs instantly to block double-logging triggers
+    checked.forEach(cb => {
+        cb.disabled = true;
+        cb.closest('.med-item')?.classList.add('completed');
+    });
+
     const manualInput = document.getElementById('manual-time')?.value;
     const logDateObj = manualInput ? new Date(manualInput) : new Date();
     const timestamp = logDateObj.toISOString();
@@ -722,10 +731,11 @@ function checkReminders() {
 }
 setInterval(checkReminders, 60000);
 
+let lastCheckedDate = getLogicalDateString(new Date());
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         const current = getLogicalDateString(new Date());
-        if (typeof lastCheckedDate !== 'undefined' && current !== lastCheckedDate) {
+        if (current !== lastCheckedDate) {
             lastCheckedDate = current;
             loadChecklist(); 
             refreshHistory(); 
