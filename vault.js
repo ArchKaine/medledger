@@ -73,6 +73,7 @@ async function generateEncryptedBlob(password) {
     const settings = {};
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
+        // Captures cfg_ settings, medledger_ (themes/profiles), and core theme key
         if (key.startsWith('cfg_') || key.startsWith('medledger_') || key === 'theme' || key === 'gapi_token' || key === 'gapi_token_expiry') {
             settings[key] = localStorage.getItem(key);
         }
@@ -244,6 +245,9 @@ async function importVaultLocal(e) {
 }
 
 // --- GOOGLE DRIVE SYNC INTEGRATION ---
+let tokenClient;
+let gapiToken = null;
+
 window.initGoogleSync = function() {
     if (typeof GOOGLE_CLIENT_ID === 'undefined') return;
     
@@ -405,3 +409,21 @@ async function pullFromGoogleDrive() {
         showVaultStatus("Decryption or Download failed.", "var(--danger-color)");
     }
 }
+
+// --- EVENT LISTENERS ---
+document.addEventListener('DOMContentLoaded', () => {
+    const importInput = document.getElementById('import-vault-file');
+    if (importInput) importInput.addEventListener('change', importVaultLocal);
+
+    const btnExport = document.getElementById('btn-export-vault');
+    if (btnExport) btnExport.addEventListener('click', exportVaultLocal);
+
+    const btnCloudPush = document.getElementById('btn-cloud-push');
+    if (btnCloudPush) btnCloudPush.addEventListener('click', pushToGoogleDrive);
+
+    const btnCloudPull = document.getElementById('btn-cloud-pull');
+    if (btnCloudPull) btnCloudPull.addEventListener('click', pullFromGoogleDrive);
+    
+    const btnLock = document.getElementById('btn-lock-vault');
+    if (btnLock) btnLock.addEventListener('click', lockVaultSession);
+});
