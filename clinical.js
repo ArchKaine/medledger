@@ -47,23 +47,39 @@ window.calculateInventoryStatus = function(med) {
         const cycleOff = parseInt(med.cycleOff) || 7;
         avgDailyDoses = (dosesPerOccurence * cycleOn) / (cycleOn + cycleOff);
     } else if (freq === "As Needed") {
-        avgDailyDoses = 1; // Conservative estimate for PRN items
+        // For PRN, burn rate is irrelevant for day-based warnings
+        avgDailyDoses = 0; 
     }
 
-    // 2. Project Run-Out Date
-    const daysRemaining = invCount / (avgDailyDoses || 1);
-    const runOutDate = new Date();
-    runOutDate.setDate(runOutDate.getDate() + Math.floor(daysRemaining));
+    // 2. Project Run-Out Date (Only for scheduled meds)
+    let daysRemaining = Infinity;
+    let runOutDateStr = "N/A (As Needed)";
+    
+    if (avgDailyDoses > 0) {
+        daysRemaining = Math.floor(invCount / avgDailyDoses);
+        const runOutDate = new Date();
+        runOutDate.setDate(runOutDate.getDate() + daysRemaining);
+        runOutDateStr = runOutDate.toLocaleDateString();
+    }
 
-    // 3. Determine Warning Status (Threshold: 20% of typical qty OR < 30 days)
-    const lowThreshold = prescribedQty * 0.20;
-    const isLow = (invCount <= lowThreshold || daysRemaining <= 30);
+    // 3. Determine Warning Status
+    const lowThreshold = prescribedQty * 0.20; // 20% Threshold as primary driver
+    
+    let isLow = false;
+    if (freq === "As Needed") {
+        // PRN: Only trigger if below 20% of typical script
+        isLow = (invCount <= lowThreshold);
+    } else {
+        // Maintenance: Trigger if below 20% OR running out within 30 days
+        isLow = (invCount <= lowThreshold || daysRemaining <= 30);
+    }
 
     return {
         isLow,
-        daysRemaining: Math.floor(daysRemaining),
-        runOutDate: runOutDate.toLocaleDateString(),
-        threshold: lowThreshold
+        daysRemaining,
+        runOutDate: runOutDateStr,
+        threshold: lowThreshold,
+        typicalQty: prescribedQty
     };
 };
 
