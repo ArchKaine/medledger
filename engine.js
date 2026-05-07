@@ -26,10 +26,11 @@ function getLogicalDateString(dateObj) {
 
 // Ensures the inventory input on the main dashboard is visible if the feature is enabled
 function updateInventoryUI() {
+    const invEnabled = (typeof AppSettings !== 'undefined' && AppSettings.inventory);
     const newInv = document.getElementById('new-med-inventory');
-    if (newInv) {
-        newInv.style.display = (typeof AppSettings !== 'undefined' && AppSettings.inventory) ? 'block' : 'none';
-    }
+    const newQty = document.getElementById('new-med-prescribed-qty');
+    if (newInv) newInv.style.display = invEnabled ? 'block' : 'none';
+    if (newQty) newQty.style.display = invEnabled ? 'block' : 'none';
 }
 
 // --- 2. Archiving Logic ---
@@ -127,6 +128,7 @@ async function handleAddMed(e) {
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
+    const prescribedQtyInput = document.getElementById('new-med-prescribed-qty')?.value.trim() || "30";
     const rxNumberInput = document.getElementById('new-med-rx')?.value.trim() || "";
     const doctorInput = document.getElementById('new-med-doctor')?.value.trim() || "";
     const pharmacyPhoneInput = document.getElementById('new-med-phone')?.value.trim() || "";
@@ -149,7 +151,9 @@ async function handleAddMed(e) {
     const newMed = {
         id: crypto.randomUUID(), name: nameInput, dose: doseInput, frequency: freqInput, times: timesArray,
         profile: profileInput, 
-        instructions: instructionsInput, sideEffects: sideEffectsInput, inventory: AppSettings.inventory ? inventoryInput : "",
+        instructions: instructionsInput, sideEffects: sideEffectsInput, 
+        inventory: AppSettings.inventory ? inventoryInput : "",
+        prescribedQty: AppSettings.inventory ? (parseInt(prescribedQtyInput) || 30) : 30,
         rxNumber: rxNumberInput, doctor: doctorInput, pharmacyPhone: pharmacyPhoneInput,
         specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
         cycleOn: freqInput === 'Cyclic' ? parseInt(document.getElementById('new-med-cycle-on').value) || 0 : null,
@@ -205,6 +209,7 @@ window.openEditModal = async function(id) {
     if (AppSettings.inventory && invGroup) {
         invGroup.style.display = 'block';
         document.getElementById('edit-med-inventory').value = med.inventory || '';
+        document.getElementById('edit-med-prescribed-qty').value = med.prescribedQty || 30;
     } else if (invGroup) {
         invGroup.style.display = 'none';
     }
@@ -259,6 +264,7 @@ async function saveEditedMed(e) {
         doctor: document.getElementById('edit-med-doctor').value.trim(),
         pharmacyPhone: document.getElementById('edit-med-phone').value.trim(),
         inventory: AppSettings.inventory ? document.getElementById('edit-med-inventory').value.trim() : "",
+        prescribedQty: AppSettings.inventory ? (parseInt(document.getElementById('edit-med-prescribed-qty').value) || 30) : 30,
         specificDays: freq === 'Specific Days' ? Array.from(document.querySelectorAll('input[name="edit-med-days"]:checked')).map(cb => parseInt(cb.value)) : [],
         cycleOn: freq === 'Cyclic' ? parseInt(document.getElementById('edit-med-cycle-on').value) || 0 : null,
         cycleOff: freq === 'Cyclic' ? parseInt(document.getElementById('edit-med-cycle-off').value) || 0 : null,
@@ -344,7 +350,6 @@ function loadChecklist() {
     if(!container) return;
 
     if (AppSettings.devMode && window.MOCK_DATA) {
-        // FALLBACK: Default to 'Primary' if profile is missing
         const filtered = window.MOCK_DATA.meds.filter(m => (m.profile || 'Primary') === AppSettings.activeProfile);
         renderChecklistUI(filtered, window.MOCK_DATA.logs, container);
         return;
@@ -356,7 +361,6 @@ function loadChecklist() {
     const logReq = tx.objectStore("logs").getAll();
 
     tx.oncomplete = () => {
-        // FALLBACK: Default to 'Primary' if profile is missing
         const filtered = medReq.result.filter(m => (m.profile || 'Primary') === AppSettings.activeProfile);
         renderChecklistUI(filtered, logReq.result, container);
     };
@@ -412,10 +416,33 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        let isLow = false;
+        // DYNAMIC REFILL LOGIC
+        let isRefillLow = false;
+        let projectedRunOutStr = "Calculating...";
+        
         if (AppSettings.inventory && med.inventory !== "" && med.inventory !== null && med.inventory !== undefined) {
             const invCount = parseInt(med.inventory);
-            if (!isNaN(invCount) && invCount <= 10) isLow = true;
+            const prescribedQty = parseInt(med.prescribedQty) || 30;
+            const dosesPerOccurence = (med.times && med.times.length > 0) ? med.times.length : 1;
+            
+            // Calculate Daily Average Burn Rate
+            let avgDailyDoses = 0;
+            if (med.frequency === "Daily" || med.frequency === "Morning" || med.frequency === "Night") avgDailyDoses = dosesPerOccurence;
+            else if (med.frequency === "Weekly") avgDailyDoses = dosesPerOccurence / 7;
+            else if (med.frequency === "Specific Days") avgDailyDoses = (dosesPerOccurence * (med.specificDays?.length || 1)) / 7;
+            else if (med.frequency === "Cyclic") avgDailyDoses = (dosesPerOccurence * (med.cycleOn || 21)) / ((med.cycleOn || 21) + (med.cycleOff || 7));
+            else if (med.frequency === "As Needed") avgDailyDoses = 1; // Safety buffer for PRN calculation
+
+            const daysRemaining = invCount / (avgDailyDoses || 1);
+            const runOutDate = new Date();
+            runOutDate.setDate(runOutDate.getDate() + Math.floor(daysRemaining));
+            projectedRunOutStr = runOutDate.toLocaleDateString();
+
+            // Threshold: 20% of typical prescribed qty OR less than 30 days of supply
+            const lowThreshold = prescribedQty * 0.20;
+            if (!isNaN(invCount) && (invCount <= lowThreshold || daysRemaining <= 30)) {
+                isRefillLow = true;
+            }
         }
 
         const card = document.createElement('div');
@@ -427,7 +454,6 @@ function renderChecklistUI(rawMeds, logs, container) {
         
         timesToProcess.forEach(t => {
             const compId = t ? `${med.id}|${t}` : `${med.id}|none`;
-            // Fallback for logs without explicit logicalDate
             const taken = logs.some(l => l.compositeId === compId && (l.logicalDate === logicalTodayStr || new Date(l.dateTaken).toLocaleDateString() === todayLocaleStr));
             
             if (!isPrn) {
@@ -445,14 +471,16 @@ function renderChecklistUI(rawMeds, logs, container) {
         });
         timesHtml += '</div>';
 
-        const refillBanner = isLow ? `
-            <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); flex-wrap:wrap; gap:0.5rem;">
-                <span style="color:var(--danger-color); font-size:0.75rem; font-weight:700;">⚠️ Low Supply (${med.inventory})</span>
-                <div style="display:flex; gap:6px;">
-                    ${med.pharmacyPhone ? `<a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" class="btn btn-primary" style="padding:2px 8px; font-size:0.7rem; text-decoration:none;">📞 Call Rx</a>` : ''}
-                    <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', 30)">+30</button>
-                    <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', 90)">+90</button>
+        const refillBanner = (AppSettings.inventory && isRefillLow) ? `
+            <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:var(--danger-color); font-size:0.75rem; font-weight:700;">⚠️ Supply Alert: ${med.inventory} remaining</span>
+                    <div style="display:flex; gap:6px;">
+                        ${med.pharmacyPhone ? `<a href="tel:${med.pharmacyPhone.replace(/[^0-9+]/g, '')}" class="btn btn-primary" style="padding:2px 8px; font-size:0.7rem; text-decoration:none;">📞 Call Rx</a>` : ''}
+                        <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', ${med.prescribedQty || 30})">Refill (+${med.prescribedQty || 30})</button>
+                    </div>
                 </div>
+                <div style="font-size: 0.7rem; color: var(--text-secondary);">Projected Run-Out: <strong>${projectedRunOutStr}</strong></div>
             </div>` : '';
 
         card.innerHTML = `
