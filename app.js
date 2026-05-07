@@ -115,6 +115,13 @@ function bindModalListeners() {
         if (typeof initThemeCreator === 'function') initThemeCreator();
     });
     getEl('btn-reset-theme')?.addEventListener('click', () => typeof resetThemeCreator === 'function' && resetThemeCreator());
+    
+    // NEW: Theme Cancel Logic - Reverts live previews back to saved state
+    getEl('btn-cancel-theme')?.addEventListener('click', () => {
+        if (typeof initializeTheme === 'function') initializeTheme(); 
+        getEl('theme-creator-modal')?.close();
+    });
+    
     getEl('btn-save-theme')?.addEventListener('click', () => typeof saveCustomTheme === 'function' && saveCustomTheme());
 }
 
