@@ -29,17 +29,17 @@
                     </svg>
                     <span>MedLedger</span>
                 </div>
-                <select id="global-profile-sidebar" class="global-profile-select" onchange="switchActiveProfile(this.value)">
+                <select id="global-profile-sidebar" class="global-profile-select">
                     <option value="Primary">Primary</option>
                 </select>
             </div>
             
             <nav style="padding-top: 1rem;">
-                <button class="nav-item active" onclick="if(typeof switchTab === 'function') switchTab('today')">🏠 Dashboard</button>
-                <button class="nav-item nav-dev-mode-btn" onclick="if(typeof toggleDevMode === 'function') toggleDevMode()" style="display: none;">🛠 Dev Mode</button>
-                <button class="nav-item" onclick="document.getElementById('settings-modal').showModal()">⚙️ Settings</button>
-                <button class="nav-item" onclick="if(typeof openHelpModal === 'function') openHelpModal()">❓ Help Guide</button>
-                <button class="nav-item" onclick="if(typeof exportHTMLReport === 'function') exportHTMLReport()">📄 Export Report</button>
+                <button id="nav-dashboard" class="nav-item active">🏠 Dashboard</button>
+                <button id="nav-dev-mode-btn" class="nav-item nav-dev-mode-btn" style="display: none;">🛠 Dev Mode</button>
+                <button id="nav-settings-toggle" class="nav-item">⚙️ Settings</button>
+                <button id="nav-help-toggle" class="nav-item">❓ Help Guide</button>
+                <button id="nav-export-report" class="nav-item">📄 Export Report</button>
                 
                 <button class="nav-item theme-toggle-btn" aria-label="Toggle Theme" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); border-radius: 0;">
                     <span class="theme-icon-slot"></span>
@@ -65,7 +65,7 @@
 
                 <div class="header-restricted-zone">
                     <div class="nav-dev-mode-btn" style="display: none;">
-                        <button aria-label="Toggle Dev Mode" class="icon-btn" onclick="if(typeof toggleDevMode === 'function') toggleDevMode()" style="color: var(--danger-color);">
+                        <button id="header-dev-mode-toggle" aria-label="Toggle Dev Mode" class="icon-btn" style="color: var(--danger-color);">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                                 <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -76,7 +76,7 @@
                 </div>
 
                 <div class="header-controls">
-                    <button aria-label="Help" class="icon-btn" onclick="if(typeof openHelpModal === 'function') openHelpModal()">
+                    <button id="header-help-toggle" aria-label="Help" class="icon-btn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -86,7 +86,7 @@
                     <button aria-label="Toggle Theme" class="icon-btn theme-toggle-btn">
                         <span class="theme-icon-slot"></span>
                     </button>
-                    <button id="settings-toggle" aria-label="Settings" class="icon-btn" onclick="document.getElementById('settings-modal').showModal()">
+                    <button id="settings-toggle" aria-label="Settings" class="icon-btn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -101,7 +101,7 @@
             <div class="main-content-area">
                 <div class="mobile-utility-bar">
                     <div class="mobile-utility-row">
-                        <select id="global-profile-mobile" class="global-profile-select" onchange="switchActiveProfile(this.value)">
+                        <select id="global-profile-mobile" class="global-profile-select">
                             <option value="Primary">Primary</option>
                         </select>
                         <div id="status-bar-mobile" class="status-indicator">Initializing...</div>
@@ -110,7 +110,7 @@
 
                 <section id="med-config" class="card">
                     <h2>Add Medication</h2>
-                    <form id="add-med-form" onsubmit="handleAddMed(event)">
+                    <form id="add-med-form">
                         <div class="inline-form" style="margin-bottom: 0.5rem; align-items: flex-start;">
                             <input type="text" id="new-med-name" placeholder="Medication (e.g., Lisinopril)" required style="flex: 1.5;">
                             <input type="text" id="new-med-dose" placeholder="Dosage (e.g., 10mg)" required style="flex: 1;">
@@ -127,7 +127,7 @@
                                 <div id="new-med-times-container" style="display: flex; flex-direction: column; gap: 0.25rem;">
                                     <input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
                                 </div>
-                                <button type="button" onclick="addTimeField('new-med-times-container')" class="btn btn-secondary" style="padding: 0.25rem; font-size: 0.8rem;">+ Add Time</button>
+                                <button type="button" id="btn-add-time" class="btn btn-secondary" style="padding: 0.25rem; font-size: 0.8rem;">+ Add Time</button>
                             </div>
                         </div>
 
@@ -161,7 +161,7 @@
 
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.25rem; display: block;">Assign to Profile:</label>
-                            <select id="new-med-profile" onchange="handleProfileChange('new-med-profile')" style="width: 100%; padding: 0.6rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
+                            <select id="new-med-profile" style="width: 100%; padding: 0.6rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);">
                                 <option value="Primary">Primary</option>
                                 <option value="ADD_NEW">+ Create New Profile...</option>
                             </select>
@@ -191,8 +191,8 @@
                 </section>
 
                 <div class="tab-navigation" style="justify-content: flex-start; align-items: center;">
-                    <button id="tab-today" class="tab-btn active" onclick="switchTab('today')">Today's Regimen</button>
-                    <button id="tab-history" class="tab-btn" onclick="switchTab('history')">History Log</button>
+                    <button id="tab-today" class="tab-btn active">Today's Regimen</button>
+                    <button id="tab-history" class="tab-btn">History Log</button>
                 </div>
 
                 <section id="daily-schedule" class="card tab-view active-view">
@@ -203,8 +203,8 @@
                             <input type="datetime-local" id="manual-time">
                         </div>
                         <div class="action-group">
-                            <button type="button" id="btn-submit-selected" class="btn btn-secondary" onclick="logSelected()">Log Selected</button>
-                            <button type="button" id="btn-submit-all" class="btn btn-primary" onclick="logAll()">Log All Medications</button>
+                            <button type="button" id="btn-submit-selected" class="btn btn-secondary">Log Selected</button>
+                            <button type="button" id="btn-submit-all" class="btn btn-primary">Log All Medications</button>
                         </div>
                     </form>
                 </section>
@@ -294,8 +294,7 @@
         </div>
 
         <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
-            <button type="button" class="btn btn-secondary" style="width:100%; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:0.75rem;" 
-                onclick="document.getElementById('theme-creator-modal').showModal(); if(typeof initThemeCreator === 'function') initThemeCreator();">
+            <button type="button" id="btn-launch-theme-creator" class="btn btn-secondary" style="width:100%; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:0.75rem;">
                 <div id="theme-btn-preview" style="position:absolute; bottom:0; left:0; width:100%; height:4px; opacity:0.8;"></div>
                 🎨 Launch Theme Creator
             </button>
@@ -329,7 +328,7 @@
             <input type="text" name="username" autocomplete="username" value="MedLedger_Vault" style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;" tabindex="-1">
             <div class="form-group vault-input-wrapper">
                 <input type="password" id="vault-password" name="password" placeholder="Encryption Password" autocomplete="current-password">
-                <button type="button" id="btn-peek-password" class="icon-btn peek-btn" aria-label="Peek at Password" onclick="if(typeof togglePasswordVisibility === 'function') togglePasswordVisibility()">
+                <button type="button" id="btn-peek-password" class="icon-btn peek-btn" aria-label="Peek at Password">
                     <svg id="peek-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
@@ -348,11 +347,11 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     Cloud Sync (Google Drive)
                 </h3>
-                <button type="button" id="btn-gdrive-login" class="btn btn-secondary" style="width: 100%;" onclick="if(typeof loginGoogleDrive === 'function') loginGoogleDrive()">Sign in to Google</button>
+                <button type="button" id="btn-gdrive-login" class="btn btn-secondary" style="width: 100%;">Sign in to Google</button>
                 <div id="cloud-sync-controls" class="cloud-controls" style="display: none; flex-wrap: wrap;">
                     <button type="button" id="btn-cloud-push" class="btn btn-primary" style="flex: 1;">Push to Cloud</button>
                     <button type="button" id="btn-cloud-pull" class="btn btn-secondary" style="flex: 1;">Pull from Cloud</button>
-                    <button type="button" id="btn-gdrive-logout" class="btn btn-danger" style="flex: 100%; margin-top: 0.5rem; margin-right: 0;" onclick="if(typeof logoutGoogleDrive === 'function') logoutGoogleDrive()">Disconnect Cloud</button>
+                    <button type="button" id="btn-gdrive-logout" class="btn btn-danger" style="flex: 100%; margin-top: 0.5rem; margin-right: 0;">Disconnect Cloud</button>
                 </div>
             </div>
             <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid var(--border-color);">
@@ -393,13 +392,13 @@
             <div id="vault-status" style="margin-top: 0.5rem; font-size: 0.875rem; font-weight: bold; text-align: center;"></div>
         </form>
         <div class="action-group modal-actions" style="margin-top: 1.5rem;">
-            <button type="button" id="btn-close-settings" class="btn btn-primary" style="width:100%;" onclick="document.getElementById('settings-modal').close()">Done</button>
+            <button type="button" id="btn-close-settings" class="btn btn-primary" style="width:100%;">Done</button>
         </div>
     </dialog>
 
     <dialog id="edit-med-modal" class="card modal" style="max-height: 90vh; overflow-y: auto;">
         <h2>Edit Medication</h2>
-        <form id="edit-med-form" class="edit-form" onsubmit="saveEditedMed(event)">
+        <form id="edit-med-form" class="edit-form">
             <input type="hidden" id="edit-med-id">
             <div class="form-group">
                 <label class="form-label" for="edit-med-name">Name</label>
@@ -411,7 +410,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label" for="edit-med-profile">Assigned Profile</label>
-                <select id="edit-med-profile" onchange="handleProfileChange('edit-med-profile')" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+                <select id="edit-med-profile" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
                     <option value="Primary">Primary</option>
                 </select>
             </div>
@@ -456,7 +455,7 @@
             <div class="form-group">
                 <label class="form-label">Reminder Times</label>
                 <div id="edit-med-times-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;"></div>
-                <button type="button" onclick="addTimeField('edit-med-times-container')" class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.8rem; align-self: flex-start;">+ Add Another Time</button>
+                <button type="button" id="btn-edit-add-time" class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.8rem; align-self: flex-start;">+ Add Another Time</button>
             </div>
             <details style="margin-bottom: 1rem; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 4px; background: rgba(0,0,0,0.1);">
                 <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; user-select: none;">Rx & Refill Info (Optional)</summary>
@@ -494,8 +493,8 @@
             </div>
 
             <div class="action-group modal-actions">
-                <button type="button" id="btn-cancel-edit" class="btn btn-secondary" onclick="document.getElementById('edit-med-modal').close()">Cancel</button>
-                <button type="button" id="btn-delete-med" class="btn btn-danger" onclick="deleteMedication()">Delete</button>
+                <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="btn-delete-med" class="btn btn-danger">Delete</button>
                 <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
         </form>
@@ -511,8 +510,8 @@
         </p>
         <div id="theme-creator-controls"></div>
         <div class="action-group modal-actions" style="margin-top: 1.5rem;">
-            <button type="button" class="btn btn-secondary" style="flex:1;" onclick="if(typeof resetThemeCreator === 'function') resetThemeCreator()">Reset</button>
-            <button type="button" class="btn btn-primary" style="flex:2;" onclick="if(typeof saveCustomTheme === 'function') saveCustomTheme()">Save & Apply</button>
+            <button type="button" id="btn-reset-theme" class="btn btn-secondary" style="flex:1;">Reset</button>
+            <button type="button" id="btn-save-theme" class="btn btn-primary" style="flex:2;">Save & Apply</button>
         </div>
     </dialog>
 
