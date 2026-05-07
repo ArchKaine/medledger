@@ -60,7 +60,7 @@
                     
                     <button class="icon-btn" onclick="window.location.href='index.html'" aria-label="Return to Dashboard"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></button>
                     <button id="help-toggle" aria-label="Help Guide" class="icon-btn" onclick="if(typeof openHelpModal === 'function') openHelpModal()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></button>
-                    <button id="settings-toggle" aria-label="Settings" class="icon-btn" onclick="document.getElementById('settings-modal').showModal()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+                    <button id="settings-toggle" aria-label="Settings" class="icon-btn" onclick="document.getElementById('settings-modal').showModal()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 1 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
                     <button aria-label="Toggle Theme" class="icon-btn theme-toggle-btn"><span class="theme-icon-slot"></span></button>
                 </div>
             </div>
@@ -70,14 +70,59 @@
             <div class="main-content-area">
                 <div class="card" style="padding: 2rem;">
                     <h2 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Terms of Service</h2>
-                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 5, 2026</div>
-                    <div class="help-section"><h3>1. Acceptance of Terms</h3><p>By accessing, installing, and using MedLedger (the "App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, you must immediately discontinue use of the App and delete any local data associated with it.</p></div>
-                    <div class="help-section"><h3 style="color: var(--danger-color);">2. MEDICAL DISCLAIMER</h3><p><b>MedLedger is a personal tracking and utility tool. IT IS NOT A MEDICAL DEVICE. The App does not provide medical advice, professional diagnosis, opinion, or treatment.</b></p><p>You should always consult a qualified healthcare provider or pharmacist regarding your medication schedules, dosages, drug interactions, side effects, and health conditions. Never disregard professional medical advice or delay seeking it because of information logged, calculated, presented, or reminded by this App.</p></div>
-                    <div class="help-section"><h3>3. Data Responsibility and Data Loss</h3><p>Because MedLedger utilizes a zero-knowledge, local-first architecture, your data exists exclusively on the specific hardware device you use to run the application.</p><ul style="padding-left: 1.2rem; margin-top: 0.5rem;"><li style="margin-bottom: 0.25rem;"><b>You are solely responsible for maintaining backups of your data.</b></li><li style="margin-bottom: 0.25rem;">If you clear your browser cache, run aggressive system-cleaning software, lose your device, or forget your Data Vault encryption password, your data will be permanently and irreversibly destroyed.</li><li>The developer assumes no responsibility or liability for lost data, missed medications, inventory discrepancies, or any physical, medical, or digital consequences arising from the use or failure of the App.</li></ul></div>
-                    <div class="help-section"><h3>4. "As-Is" Software and Limitation of Liability</h3><p>The App is provided on an "AS IS" and "AS AVAILABLE" basis without any warranties of any kind. To the fullest extent permitted by applicable law, the developer makes no guarantees, expressed or implied, regarding the uptime, notification reliability, browser compatibility, security, or absolute accuracy of the software.</p><p>In no event shall the developer or associated parties be liable for any direct, indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the App.</p></div>
-                    <div class="help-section"><h3>5. Clinical Data & Interaction Warnings</h3><p>The App features tools that query external clinical databases (OpenFDA, Wikidata) and internal reference files (`interactions.json`) to provide supplemental data and interaction warnings.</p><ul style="padding-left: 1.2rem; margin-top: 0.5rem;"><li style="margin-bottom: 0.25rem;"><b>NON-EXHAUSTIVE WARNINGS:</b> The local interaction warning system relies on a limited, static database. It is NOT exhaustive. It may not flag all dangerous combinations, dietary conflicts, or personal allergies. <b>The absence of a warning does not indicate that a combination is safe.</b></li><li>You agree that the developer holds no liability for any errors, omissions, or medical consequences arising from missed, inaccurate, or ignored interaction warnings. These tools are provided strictly for informational convenience.</li></ul></div>
-                    <div class="help-section"><h3>6. Acceptable Use</h3><p>You agree to use the App only for its intended purpose as a personal medication tracking utility. You agree not to attempt to reverse-engineer the encryption mechanisms, exploit the local-storage framework maliciously, or use the App to engage in any illegal activity.</p></div>
-                    <div class="help-section"><h3>7. Modifications to the Terms</h3><p>We reserve the right to modify these Terms of Service at any time. Any modifications will be posted to this page. Your continued use of the App after any such changes constitutes your acceptance of the new Terms.</p></div>
+                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 6, 2026</div>
+                    
+                    <div class="help-section">
+                        <h3>1. Acceptance of Terms</h3>
+                        <p>By accessing, installing, and using MedLedger (the "App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, you must immediately discontinue use of the App and delete any local data associated with it.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 style="color: var(--danger-color);">2. MEDICAL DISCLAIMER</h3>
+                        <p><b>MedLedger is a personal tracking and utility tool. IT IS NOT A MEDICAL DEVICE. The App does not provide medical advice, professional diagnosis, opinion, or treatment.</b></p>
+                        <p>You should always consult a qualified healthcare provider or pharmacist regarding your medication schedules, dosages, drug interactions, <b>side effects</b>, and health conditions. Never disregard professional medical advice or delay seeking it because of information logged, calculated, presented, or reminded by this App.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>3. Data Responsibility and Data Loss</h3>
+                        <p>Because MedLedger utilizes a zero-knowledge, local-first architecture, your data exists exclusively on the specific hardware device you use to run the application.</p>
+                        <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
+                            <li style="margin-bottom: 0.25rem;"><b>You are solely responsible for maintaining backups of your data.</b></li>
+                            <li style="margin-bottom: 0.25rem;">If you clear your browser cache, run aggressive system-cleaning software, lose your device, or forget your Data Vault encryption password, your data will be permanently and irreversibly destroyed.</li>
+                            <li>The developer assumes no responsibility or liability for lost data, missed medications, inventory discrepancies, or any physical, medical, or digital consequences arising from the use or failure of the App.</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>4. "As-Is" Software and Limitation of Liability</h3>
+                        <p>The App is provided on an "AS IS" and "AS AVAILABLE" basis without any warranties of any kind. To the fullest extent permitted by applicable law, the developer makes no guarantees, expressed or implied, regarding the uptime, notification reliability, browser compatibility, security, or absolute accuracy of the software.</p>
+                        <p>In no event shall the developer or associated parties be liable for any direct, indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the App.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>5. Clinical Data & Interaction Warnings</h3>
+                        <p>The App features tools that query external clinical databases (OpenFDA, Wikidata) and internal reference files (`interactions.json`) to provide supplemental data and interaction warnings.</p>
+                        <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
+                            <li style="margin-bottom: 0.25rem;"><b>NON-EXHAUSTIVE WARNINGS:</b> The local interaction warning system relies on a limited, static database. It is NOT exhaustive. It may not flag all dangerous combinations, dietary conflicts, or personal allergies. <b>The absence of a warning does not indicate that a combination is safe.</b></li>
+                            <li style="margin-bottom: 0.25rem;"><b>SIDE EFFECTS:</b> Information regarding adverse reactions and known side effects is retrieved from third-party clinical registries. The App does not monitor your physical health or provide clinical assessment of these symptoms.</li>
+                            <li>You agree that the developer holds no liability for any errors, omissions, or medical consequences arising from missed, inaccurate, or ignored interaction warnings. These tools are provided strictly for informational convenience.</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>6. Standalone Transparency Tools</h3>
+                        <p>The standalone <b>Vault Data Inspector</b> is provided "as-is" for the purpose of personal auditing. Use of this tool is at your own risk and should be performed in a secure environment. The developer makes no warranties regarding the accuracy of the raw data rendering for specific user-modified files.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>7. Acceptable Use</h3>
+                        <p>You agree to use the App only for its intended purpose as a personal medication tracking utility. You agree not to attempt to reverse-engineer the encryption mechanisms, exploit the local-storage framework maliciously, or use the App to engage in any illegal activity.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>8. Modifications to the Terms</h3>
+                        <p>We reserve the right to modify these Terms of Service at any time. Any modifications will be posted to this page. Your continued use of the App after any such changes constitutes your acceptance of the new Terms.</p>
+                    </div>
                 </div>
                 <div id="checklist-container" style="display: none;"></div><ul id="history-list" style="display: none;"></ul>
             </div>
