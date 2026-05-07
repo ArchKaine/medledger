@@ -10,6 +10,9 @@ const ASSETS = [
     'layout.css',
     'components.css',
     'modules.css',
+    '/theming.js',
+    '/inspector.html',
+    '/inspector.js',
     /*'/style.css',*/
     '/app.js',
     '/profiles.js',
