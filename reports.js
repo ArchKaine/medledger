@@ -30,26 +30,39 @@ window.exportHTMLReport = async function() {
         return;
     }
 
-    // 3. Prepare Clinical Overview (Regimen + Side Effects)
-    const lowInv = profileMeds.filter(m => AppSettings.inventory && parseInt(m.inventory) <= 10);
+    // 3. Prepare Clinical Overview (Regimen + Projections)
+    // Dynamic Filter: Use clinical.js to determine if refill is actually required
+    const lowInv = profileMeds.filter(m => {
+        if (!AppSettings.inventory) return false;
+        const status = (typeof window.calculateInventoryStatus === 'function') 
+            ? window.calculateInventoryStatus(m) 
+            : { isLow: false };
+        return status.isLow;
+    });
     
     let regimenHtml = `
         <div class="regimen-section" style="margin-bottom: 40px; padding: 20px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <h3 style="color: #0f172a; margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Current Regimen & Clinical Overview</h3>
+            <h3 style="color: #0f172a; margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Current Regimen & Supply Chain</h3>
             <table class="clinical-table">
                 <thead>
                     <tr>
                         <th style="width: 25%;">Medication & Dose</th>
-                        <th>Clinical Context (Indications & Side Effects)</th>
+                        <th>Clinical Context & Patient Notes</th>
+                        <th style="width: 20%;">Inventory Status</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
     if (profileMeds.length === 0) {
-        regimenHtml += `<tr><td colspan="2" style="text-align:center; color:#64748b;">No active medications found in this profile.</td></tr>`;
+        regimenHtml += `<tr><td colspan="3" style="text-align:center; color:#64748b;">No active medications found in this profile.</td></tr>`;
     } else {
-        regimenHtml += profileMeds.map(m => `
+        regimenHtml += profileMeds.map(m => {
+            const status = (typeof window.calculateInventoryStatus === 'function') 
+                ? window.calculateInventoryStatus(m) 
+                : { runOutDate: "N/A", isLow: false };
+
+            return `
             <tr>
                 <td>
                     <strong style="color: #2563eb; font-size: 14px;">${m.name}</strong><br>
@@ -58,11 +71,19 @@ window.exportHTMLReport = async function() {
                 </td>
                 <td>
                     ${m.indications ? `<div style="font-size: 12px; margin-bottom: 6px; color: #334155;"><strong>Target Indication:</strong> ${m.indications}</div>` : ''}
-                    ${m.sideEffects ? `<div style="font-size: 12px; color: #9f1239; background: #fff1f2; padding: 6px; border-radius: 4px; border-left: 2px solid #e11d48;"><strong>Known Side Effects:</strong> ${m.sideEffects}</div>` : '<div style="font-size: 12px; color: #64748b; font-style: italic;">No clinical side effect data fetched.</div>'}
+                    ${m.sideEffects ? `<div style="font-size: 12px; color: #9f1239; background: #fff1f2; padding: 6px; border-radius: 4px; border-left: 2px solid #e11d48;"><strong>Known Side Effects:</strong> ${m.sideEffects}</div>` : ''}
                     ${m.instructions ? `<div style="font-size: 12px; margin-top: 6px; color: #0f766e;"><strong>Patient Notes:</strong> ${m.instructions}</div>` : ''}
                 </td>
+                <td>
+                    <div style="font-size: 13px; color: ${status.isLow ? '#e11d48' : '#334155'}; font-weight: ${status.isLow ? 'bold' : 'normal'};">
+                        ${m.inventory || '0'} / ${m.prescribedQty || '30'} units
+                    </div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                        Proj. Run-out: <strong>${status.runOutDate}</strong>
+                    </div>
+                </td>
             </tr>
-        `).join('');
+        `}).join('');
     }
     regimenHtml += `</tbody></table></div>`;
 
@@ -118,15 +139,17 @@ window.exportHTMLReport = async function() {
     const refillHtml = lowInv.length ? `
         <div class="refill-section">
             <h3 style="color: #e11d48; margin-top: 0; font-size: 16px;">⚠️ Refill Requirements</h3>
-            ${lowInv.map(m => `
+            ${lowInv.map(m => {
+                const status = window.calculateInventoryStatus(m);
+                return `
                 <div class="refill-item">
-                    • <strong>${m.name}</strong> (${m.inventory} left) 
+                    • <strong>${m.name}</strong> (${m.inventory} remaining) — <i>Projected run-out: ${status.runOutDate}</i>
                     <span class="refill-meta">
                         ${m.rxNumber ? `[Rx: ${m.rxNumber}]` : ''} 
                         ${m.doctor ? `[Dr: ${m.doctor}]` : ''}
                     </span>
                 </div>
-            `).join('')}
+            `}).join('')}
         </div>` : "";
 
     const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>MedLedger: ${activeProfile}</title><style>
@@ -141,7 +164,7 @@ window.exportHTMLReport = async function() {
         .stat-lab { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; }
         .date-header { font-size: 16px; font-weight: 700; background: #e2e8f0; padding: 8px 15px; border-radius: 4px; margin-bottom: 10px; margin-top: 30px; }
         .clinical-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .clinical-table th { text-align: left; padding: 10px; border-bottom: 1px solid #cbd5e1; }
+        .clinical-table th { text-align: left; padding: 10px; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
         .clinical-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
         .med-name-cell { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
         .prn-badge { background: #f1f5f9; color: #475569; font-size: 10px; padding: 2px 6px; border-radius: 10px; text-transform: uppercase; border: 1px solid #e2e8f0; }
