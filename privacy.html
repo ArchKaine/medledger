@@ -98,7 +98,7 @@
             <div class="main-content-area">
                 <div class="card" style="padding: 2rem;">
                     <h2 style="font-size: 1.75rem; margin-bottom: 0.25rem;">Privacy Policy</h2>
-                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 6, 2026</div>
+                    <div style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Effective Date: May 7, 2026</div>
 
                     <div class="help-section">
                         <h3>1. Core Philosophy: Zero-Knowledge & Local-First</h3>
@@ -116,44 +116,48 @@
                     </div>
 
                     <div class="help-section">
-                        <h3>3. Google Integration and Cloud Synchronization</h3>
-                        <p>If you explicitly opt-in to the Cloud Sync feature, MedLedger will request authentication via Google Identity Services (<code>accounts.google.com</code>) and use the Google Drive API (<code>www.googleapis.com</code>).</p>
+                        <h3>3. Google User Data Disclosure</h3>
+                        <p>MedLedger's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" style="color:var(--accent-color);">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+                        
+                        <p><b>Data Accessed:</b> If the user explicitly opts-in to the "Cloud Sync" feature, MedLedger requests access to the <code>https://www.googleapis.com/auth/drive.appdata</code> permission scope. This scope grants the application access to a private, hidden folder within the user's Google Drive that is isolated from all other files and documents.</p>
+                        
+                        <p><b>Data Usage:</b> This access is used exclusively for the purpose of creating and maintaining encrypted backups of the user's medication data. Specific uses include:</p>
                         <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
-                            <li style="margin-bottom: 0.25rem;"><b>Strict Isolation:</b> The app utilizes the <code>drive.appdata</code> permission scope, which strictly limits the application to a single, invisible application-specific folder within your Google Drive.</li>
-                            <li style="margin-bottom: 0.25rem;"><b>Encrypted Transfer:</b> The app only uses this folder to upload and download your locally AES-GCM encrypted <code>.medvault</code> backup files, ensuring synchronization across your devices without Google being able to read the content.</li>
-                            <li><b>No Broader Access:</b> MedLedger cannot see, read, modify, or interact with any of your personal files, documents, or photos in your broader Google Drive account.</li>
+                            <li style="margin-bottom: 0.25rem;"><b>Storage:</b> Uploading the user's locally AES-GCM encrypted <code>.medvault</code> database file to the application-specific Drive folder.</li>
+                            <li style="margin-bottom: 0.25rem;"><b>Synchronization:</b> Downloading these encrypted files onto the user's other authorized devices to maintain data parity.</li>
+                            <li><b>Isolation Policy:</b> The application cannot see, read, modify, or interact with any personal files, photos, or documents located in the user's broader Google Drive account.</li>
                         </ul>
                     </div>
 
                     <div class="help-section">
                         <h3>4. Clinical Data & Interaction Engine</h3>
-                        <p>MedLedger utilizes external systems to provide clinical information, both designed to protect your privacy:</p>
+                        <p>MedLedger utilizes external systems to provide informational clinical data, designed with privacy in mind:</p>
                         <ul style="padding-left: 1.2rem; margin-top: 0.5rem;">
-                            <li style="margin-bottom: 0.5rem;"><b>Zero-Knowledge Interactions:</b> When you add a medication, the App cross-references it against a local database of known drug interactions. This check happens entirely <b>offline</b> on your device.</li>
-                            <li style="margin-bottom: 0.5rem;"><b>OpenFDA (api.fda.gov):</b> If enabled, typing a medication name prompts the app to query the official FDA registry for drug descriptions, indications, and adverse reactions.</li>
-                            <li><b>Wikidata (www.wikidata.org):</b> This service is used as a fallback to retrieve drug descriptions if other sources are unavailable.</li>
-                            <li style="margin-top: 0.5rem;"><b>Privacy Note:</b> These queries are one-way requests containing only the generic text string of the medication name. They do not transmit your history, inventory, or identity.</li>
+                            <li style="margin-bottom: 0.5rem;"><b>Zero-Knowledge Interactions:</b> When a medication is added, the application cross-references it against a local database. This check happens entirely <b>offline</b> on the device.</li>
+                            <li style="margin-bottom: 0.5rem;"><b>OpenFDA (api.fda.gov):</b> If enabled, the application queries this registry for drug descriptions and indications.</li>
+                            <li><b>Wikidata (www.wikidata.org):</b> This service acts as a fallback for generic drug descriptions.</li>
+                            <li style="margin-top: 0.5rem;"><b>Privacy Note:</b> These clinical queries contain only the text string of the medication name. They do not transmit dosages, user history, or identity.</li>
                         </ul>
                     </div>
 
                     <div class="help-section">
-                        <h3>5. User Interface Assets</h3>
-                        <p>To ensure consistent typography and a high-fidelity visual experience, MedLedger loads font assets from Google Fonts (<code>fonts.googleapis.com</code> and <code>fonts.gstatic.com</code>). These requests are limited to asset delivery and do not transmit medical information.</p>
+                        <h3>5. UI Assets and Typography</h3>
+                        <p>To ensure a high-fidelity visual experience, MedLedger loads font assets from Google Fonts (<code>fonts.googleapis.com</code> and <code>fonts.gstatic.com</code>). These requests are limited to asset delivery and do not transmit medical or personal information.</p>
                     </div>
 
                     <div class="help-section">
                         <h3>6. Cookies and Local Storage</h3>
-                        <p>MedLedger does not utilize tracking cookies, tracking pixels, or third-party advertising frameworks. The application relies entirely on HTML5 Local Storage and IndexedDB to maintain core functionality, including your user interface preferences (such as Dark Mode), configuration toggles, and notification timestamps.</p>
+                        <p>MedLedger does not utilize tracking cookies, tracking pixels, or third-party advertising frameworks. The application relies entirely on HTML5 Local Storage and IndexedDB to maintain core functionality, such as theme preferences and notification timestamps.</p>
                     </div>
 
                     <div class="help-section">
                         <h3>7. Your Rights and Data Deletion</h3>
-                        <p>Because your data is owned and controlled entirely by you on your local device, exercising your right to deletion is absolute and immediate. To permanently destroy your MedLedger data, you only need to clear your browser's site data/cache for this application or uninstall the Progressive Web App (PWA). Once cleared locally, the unencrypted data ceases to exist.</p>
+                        <p>Because data is owned and controlled entirely by the user on the local device, exercising the right to deletion is absolute and immediate. To permanently destroy all data, the user only needs to clear the browser's site data/cache for this application or uninstall the Progressive Web App (PWA). Once cleared locally and deleted from the hidden Google Drive app folder, the data ceases to exist.</p>
                     </div>
 
                     <div class="help-section">
                         <h3>8. Changes to This Policy</h3>
-                        <p>We may update this Privacy Policy periodically to reflect changes in application features or regulatory requirements. Because we have no central database of users, we cannot email you regarding updates. Changes will be posted to this page, and your continued use of the application constitutes acceptance of those changes.</p>
+                        <p>This Privacy Policy may be updated periodically to reflect changes in application features or regulatory requirements. Changes are posted to this page, and continued use of the application constitutes acceptance of those changes.</p>
                     </div>
                 </div>
 
@@ -370,9 +374,6 @@
                     </svg>
                     Data Management
                 </h3>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-                    Move old logs to cold storage to keep the app fast. Restore them anytime for complete clinical exports.
-                </div>
                 <div class="inline-form" style="margin-bottom: 0.5rem; align-items: stretch;">
                     <input type="number" id="archive-days" value="90" min="1" style="flex: 1; padding: 0.5rem; max-width: 80px;" title="Days to keep active">
                     <button type="button" id="btn-archive-logs" class="btn btn-secondary" style="flex: 2; font-size: 0.85rem;">Archive Older Days</button>
