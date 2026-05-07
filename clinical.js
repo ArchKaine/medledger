@@ -1,15 +1,76 @@
 // ==========================================
 // clinical.js - MedLedger Clinical Data Engine
-// Handles OpenFDA/Wikidata queries, local caching, and Interaction Checks
+// Handles OpenFDA/Wikidata queries, local caching, Interaction Checks, and Inventory Math
 // ==========================================
 
 const CLINICAL_CACHE_STORE = "clinical_cache";
 
-// --- Dev Mode Interceptor ---
+// --- Prescription Standards Database ---
+// Common quantities for specific drugs to provide smart defaults
+const PRESCRIPTION_STANDARDS = {
+    'rizatriptan': 10,
+    'sumatriptan': 9,
+    'zolmitriptan': 6,
+    'lisinopril': 30,
+    'amlodipine': 30,
+    'metformin': 60,
+    'atorvastatin': 30
+};
+
+window.getTypicalPrescribedQuantity = function(drugName) {
+    if (!drugName) return 30;
+    const key = drugName.toLowerCase().trim();
+    return PRESCRIPTION_STANDARDS[key] || 30;
+};
+
+// --- Inventory & Supply Calculation Engine ---
+window.calculateInventoryStatus = function(med) {
+    if (!med.inventory || med.inventory === "") return { isLow: false, daysRemaining: Infinity, runOutDate: null };
+
+    const invCount = parseInt(med.inventory);
+    const prescribedQty = parseInt(med.prescribedQty) || 30;
+    const dosesPerOccurence = (med.times && med.times.length > 0) ? med.times.length : 1;
+    
+    // 1. Calculate Daily Burn Rate based on Frequency
+    let avgDailyDoses = 0;
+    const freq = med.frequency;
+
+    if (freq === "Daily" || freq === "Morning" || freq === "Night") {
+        avgDailyDoses = dosesPerOccurence;
+    } else if (freq === "Weekly") {
+        avgDailyDoses = dosesPerOccurence / 7;
+    } else if (freq === "Specific Days") {
+        const activeDaysCount = med.specificDays ? med.specificDays.length : 1;
+        avgDailyDoses = (dosesPerOccurence * activeDaysCount) / 7;
+    } else if (freq === "Cyclic") {
+        const cycleOn = parseInt(med.cycleOn) || 21;
+        const cycleOff = parseInt(med.cycleOff) || 7;
+        avgDailyDoses = (dosesPerOccurence * cycleOn) / (cycleOn + cycleOff);
+    } else if (freq === "As Needed") {
+        avgDailyDoses = 1; // Conservative estimate for PRN items
+    }
+
+    // 2. Project Run-Out Date
+    const daysRemaining = invCount / (avgDailyDoses || 1);
+    const runOutDate = new Date();
+    runOutDate.setDate(runOutDate.getDate() + Math.floor(daysRemaining));
+
+    // 3. Determine Warning Status (Threshold: 20% of typical qty OR < 30 days)
+    const lowThreshold = prescribedQty * 0.20;
+    const isLow = (invCount <= lowThreshold || daysRemaining <= 30);
+
+    return {
+        isLow,
+        daysRemaining: Math.floor(daysRemaining),
+        runOutDate: runOutDate.toLocaleDateString(),
+        threshold: lowThreshold
+    };
+};
+
+// --- Dev Mode Interceptor (Lore Preserved) ---
 function getMockClinicalData(drugName) {
     const name = drugName.toLowerCase();
     
-    // Custom lore responses for the HFW test items
     if (name.includes('tam') || name.includes('nanobiotics')) {
         return {
             description: "Classified Tunable Adaptive Matter (TAM) lattice compound. Self-replicating nanite structure designed for accelerated cellular binding.",
@@ -32,7 +93,6 @@ function getMockClinicalData(drugName) {
         };
     }
     
-    // Generic response for standard test meds
     return {
         description: `[DEV MODE] Mock clinical description generated for testing ${drugName}.`,
         indications: `[DEV MODE] Mock indications for ${drugName}.`,
@@ -68,19 +128,15 @@ window.checkLocalInteractions = async function(newMedName) {
 
 // --- Main Retrieval Engine ---
 window.fetchDrugInfo = async function(drugName) {
-    // 1. Check if Dev Mode is intercepting the request
     if (typeof AppSettings !== 'undefined' && AppSettings.devMode) {
-        console.log(`[MedLedger Dev Mode] Intercepting clinical fetch for: ${drugName}`);
         return getMockClinicalData(drugName);
     }
 
     if (!drugName) return { description: "", indications: "", sideEffects: "" };
-    
     const dbName = drugName.toLowerCase().trim();
 
-    // 2. Check Local Cache (IndexedDB)
     try {
-        const cached = await new Promise((resolve, reject) => {
+        const cached = await new Promise((resolve) => {
             if (typeof db === 'undefined') { resolve(null); return; }
             const tx = db.transaction([CLINICAL_CACHE_STORE], "readonly");
             const req = tx.objectStore(CLINICAL_CACHE_STORE).get(dbName);
@@ -101,7 +157,6 @@ window.fetchDrugInfo = async function(drugName) {
 
     let result = { description: "", indications: "", sideEffects: "" };
 
-    // 3. Query OpenFDA
     try {
         const fdaUrl = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${encodeURIComponent(dbName)}"&limit=1`;
         const fdaRes = await fetch(fdaUrl);
@@ -109,31 +164,21 @@ window.fetchDrugInfo = async function(drugName) {
             const fdaData = await fdaRes.json();
             if (fdaData.results && fdaData.results.length > 0) {
                 const label = fdaData.results[0];
-                
-                // Fetch Indications
                 if (label.indications_and_usage) {
-                    result.indications = label.indications_and_usage[0].replace(/INDICATIONS AND USAGE|Indications and Usage/g, '').trim();
-                    if (result.indications.length > 150) result.indications = result.indications.substring(0, 147) + '...';
+                    result.indications = label.indications_and_usage[0].replace(/INDICATIONS AND USAGE|Indications and Usage/g, '').trim().substring(0, 150);
                 }
-                
-                // Fetch Description
                 if (label.description) {
-                    result.description = label.description[0].replace(/DESCRIPTION|Description/g, '').trim();
-                    if (result.description.length > 200) result.description = result.description.substring(0, 197) + '...';
+                    result.description = label.description[0].replace(/DESCRIPTION|Description/g, '').trim().substring(0, 200);
                 }
-
-                // NEW: Fetch Adverse Reactions (Side Effects)
                 if (label.adverse_reactions) {
-                    result.sideEffects = label.adverse_reactions[0].replace(/ADVERSE REACTIONS|Adverse Reactions/g, '').trim();
-                    if (result.sideEffects.length > 150) result.sideEffects = result.sideEffects.substring(0, 147) + '...';
+                    result.sideEffects = label.adverse_reactions[0].replace(/ADVERSE REACTIONS|Adverse Reactions/g, '').trim().substring(0, 150);
                 }
             }
         }
     } catch (err) {
-        console.warn("OpenFDA fetch failed, trying Wikidata fallback...", err);
+        console.warn("OpenFDA fetch failed, trying Wikidata fallback...");
     }
 
-    // 4. Fallback to Wikidata if FDA description is incomplete
     if (!result.description) {
         try {
             const wikiUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(dbName)}&language=en&format=json&origin=*`;
@@ -141,10 +186,7 @@ window.fetchDrugInfo = async function(drugName) {
             if (wikiRes.ok) {
                 const wikiData = await wikiRes.json();
                 if (wikiData.search && wikiData.search.length > 0) {
-                    result.description = wikiData.search[0].description || "";
-                    if (result.description) {
-                        result.description = result.description.charAt(0).toUpperCase() + result.description.slice(1);
-                    }
+                    result.description = (wikiData.search[0].description || "").charAt(0).toUpperCase() + (wikiData.search[0].description || "").slice(1);
                 }
             }
         } catch (err) {
@@ -152,7 +194,6 @@ window.fetchDrugInfo = async function(drugName) {
         }
     }
 
-    // 5. Cache the Result
     try {
         if (typeof db !== 'undefined') {
             const tx = db.transaction([CLINICAL_CACHE_STORE], "readwrite");
@@ -182,10 +223,8 @@ window.refreshAllClinicalData = async function(force = false) {
         const meds = await new Promise(r => tx.objectStore("meds").getAll().onsuccess = e => r(e.target.result));
         
         for (const med of meds) {
-            // Force fetch if missing description OR sideEffects (since it's a new feature)
             if (force || !med.description || !med.sideEffects) {
                 const data = await window.fetchDrugInfo(med.name);
-                
                 if ((data.description && data.description !== med.description) || 
                     (data.indications && data.indications !== med.indications) ||
                     (data.sideEffects && data.sideEffects !== med.sideEffects)) {
@@ -194,10 +233,9 @@ window.refreshAllClinicalData = async function(force = false) {
                     const store = writeTx.objectStore("meds");
                     med.description = data.description || med.description;
                     med.indications = data.indications || med.indications;
-                    med.sideEffects = data.sideEffects || med.sideEffects; // Inject new data layer
+                    med.sideEffects = data.sideEffects || med.sideEffects;
                     store.put(med);
                 }
-                // Small delay to respect API rate limits
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
