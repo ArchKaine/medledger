@@ -5,7 +5,7 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 5; // Schema V5: Multi-Profile & Efficacy
+const DB_VERSION = 6; // Schema V6: Inventory Projections & Prescribed Quantities
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsModal = getEl('settings-modal');
     helpModal = getEl('help-modal');
 
+    // FIX: Reactivated theme initialization to support custom themes on boot
     //if(typeof initializeTheme === 'function') initializeTheme();
     if(typeof initSettings === 'function') initSettings();
     initDB();
@@ -64,16 +65,19 @@ function bindCoreListeners() {
     getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
     getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
     
-    getEl('profile-filter')?.addEventListener('change', (e) => {
-        if (typeof window.switchActiveProfile === 'function') {
-            window.switchActiveProfile(e.target.value);
-        } else {
-            AppSettings.activeProfile = e.target.value;
-            localStorage.setItem('cfg_activeProfile', e.target.value);
-            if (typeof loadChecklist === 'function') loadChecklist();
-            if (typeof refreshHistory === 'function') refreshHistory();
-            if (typeof calculateAdherence === 'function') calculateAdherence();
-        }
+    // FIX: Changed from 'profile-filter' to '.global-profile-select' to support both sidebar and mobile dropdowns
+    document.querySelectorAll('.global-profile-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+            if (typeof window.switchActiveProfile === 'function') {
+                window.switchActiveProfile(e.target.value);
+            } else {
+                AppSettings.activeProfile = e.target.value;
+                localStorage.setItem('cfg_activeProfile', e.target.value);
+                if (typeof loadChecklist === 'function') loadChecklist();
+                if (typeof refreshHistory === 'function') refreshHistory();
+                if (typeof calculateAdherence === 'function') calculateAdherence();
+            }
+        });
     });
 }
 
@@ -210,7 +214,6 @@ function initDB() {
             };
         }
 
-        // V5 Migration: Profile Isolation & Efficacy
         if (oldVersion >= 1 && oldVersion < 5) {
             const medStore = transaction.objectStore("meds");
             const logStore = transaction.objectStore("logs");
@@ -232,6 +235,26 @@ function initDB() {
                     if (log.profile === undefined) log.profile = "Primary";
                     if (log.efficacy === undefined) log.efficacy = "";
                     cursor.update(log);
+                    cursor.continue();
+                }
+            };
+        }
+
+        // V6 Migration: Initialize Prescribed Quantity for Burn-Rate Math
+        if (oldVersion >= 1 && oldVersion < 6) {
+            const medStore = transaction.objectStore("meds");
+            medStore.openCursor().onsuccess = (ev) => {
+                const cursor = ev.target.result;
+                if (cursor) {
+                    const med = cursor.value;
+                    if (med.prescribedQty === undefined) {
+                        // Use smart standard lookup if the clinical engine is available, else default to 30
+                        const smartQty = (typeof getTypicalPrescribedQuantity === 'function') 
+                            ? getTypicalPrescribedQuantity(med.name) 
+                            : 30;
+                        med.prescribedQty = smartQty;
+                        cursor.update(med);
+                    }
                     cursor.continue();
                 }
             };
