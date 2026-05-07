@@ -129,7 +129,7 @@ async function handleAddMed(e) {
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
     
-    // Ripped out hardcoded default: Queries clinical.js standards for smart defaults
+    // Logic: Use smart standard quantity from clinical.js if field is empty
     const prescribedQtyInput = document.getElementById('new-med-prescribed-qty')?.value.trim();
     const finalQty = prescribedQtyInput || (typeof window.getTypicalPrescribedQuantity === 'function' ? window.getTypicalPrescribedQuantity(nameInput) : 30);
     
@@ -145,7 +145,7 @@ async function handleAddMed(e) {
         if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
     }
 
-    let clinicalData = { description: "", indications: "" };
+    let clinicalData = { description: "", indications: "", sideEffects: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         clinicalData = await fetchDrugInfo(nameInput);
     }
@@ -155,7 +155,7 @@ async function handleAddMed(e) {
     const newMed = {
         id: crypto.randomUUID(), name: nameInput, dose: doseInput, frequency: freqInput, times: timesArray,
         profile: profileInput, 
-        instructions: instructionsInput, sideEffects: sideEffectsInput, 
+        instructions: instructionsInput, sideEffects: sideEffectsInput || clinicalData.sideEffects, 
         inventory: AppSettings.inventory ? inventoryInput : "",
         prescribedQty: AppSettings.inventory ? (parseInt(finalQty) || 30) : 30,
         rxNumber: rxNumberInput, doctor: doctorInput, pharmacyPhone: pharmacyPhoneInput,
@@ -420,7 +420,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        // Ripped out redundant math: Now querying clinical.js for the dynamic status
+        // Ripped out redundant math: Now querying clinical.js for dynamic status
         const invStatus = (typeof window.calculateInventoryStatus === 'function') 
             ? window.calculateInventoryStatus(med) 
             : { isLow: false, runOutDate: "Unknown" };
@@ -451,7 +451,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         });
         timesHtml += '</div>';
 
-        // Refill Banner now uses data returned from the clinical engine
+        // Refill Banner using data returned from clinical engine
         const refillBanner = (AppSettings.inventory && invStatus.isLow) ? `
             <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
