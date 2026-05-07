@@ -128,7 +128,11 @@ async function handleAddMed(e) {
     const instructionsInput = document.getElementById('new-med-instructions').value.trim();
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
-    const prescribedQtyInput = document.getElementById('new-med-prescribed-qty')?.value.trim() || "30";
+    
+    // Logic: Use typical prescribed quantity if field is left blank
+    const prescribedQtyInput = document.getElementById('new-med-prescribed-qty')?.value.trim();
+    const finalPrescribedQty = prescribedQtyInput || (typeof window.getTypicalPrescribedQuantity === 'function' ? window.getTypicalPrescribedQuantity(nameInput) : 30);
+    
     const rxNumberInput = document.getElementById('new-med-rx')?.value.trim() || "";
     const doctorInput = document.getElementById('new-med-doctor')?.value.trim() || "";
     const pharmacyPhoneInput = document.getElementById('new-med-phone')?.value.trim() || "";
@@ -141,7 +145,7 @@ async function handleAddMed(e) {
         if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
     }
 
-    let clinicalData = { description: "", indications: "" };
+    let clinicalData = { description: "", indications: "", sideEffects: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         clinicalData = await fetchDrugInfo(nameInput);
     }
@@ -151,9 +155,10 @@ async function handleAddMed(e) {
     const newMed = {
         id: crypto.randomUUID(), name: nameInput, dose: doseInput, frequency: freqInput, times: timesArray,
         profile: profileInput, 
-        instructions: instructionsInput, sideEffects: sideEffectsInput, 
+        instructions: instructionsInput, 
+        sideEffects: sideEffectsInput || clinicalData.sideEffects, 
         inventory: AppSettings.inventory ? inventoryInput : "",
-        prescribedQty: AppSettings.inventory ? (parseInt(prescribedQtyInput) || 30) : 30,
+        prescribedQty: AppSettings.inventory ? (parseInt(finalPrescribedQty) || 30) : 30,
         rxNumber: rxNumberInput, doctor: doctorInput, pharmacyPhone: pharmacyPhoneInput,
         specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
         cycleOn: freqInput === 'Cyclic' ? parseInt(document.getElementById('new-med-cycle-on').value) || 0 : null,
@@ -313,8 +318,8 @@ window.deleteMedication = function() {
 }
 
 window.refillMed = function(id, amount) {
-    const qty = amount === 'custom' ? (parseInt(document.getElementById(`refill-custom-${id}`).value) || 0) : parseInt(amount);
-    if (qty <= 0) return;
+    const qty = parseInt(amount);
+    if (isNaN(qty) || qty <= 0) return;
 
     if (AppSettings.devMode && window.MOCK_DATA) {
         let m = window.MOCK_DATA.meds.find(x => x.id === id);
@@ -416,34 +421,10 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        // DYNAMIC REFILL LOGIC
-        let isRefillLow = false;
-        let projectedRunOutStr = "Calculating...";
-        
-        if (AppSettings.inventory && med.inventory !== "" && med.inventory !== null && med.inventory !== undefined) {
-            const invCount = parseInt(med.inventory);
-            const prescribedQty = parseInt(med.prescribedQty) || 30;
-            const dosesPerOccurence = (med.times && med.times.length > 0) ? med.times.length : 1;
-            
-            // Calculate Daily Average Burn Rate
-            let avgDailyDoses = 0;
-            if (med.frequency === "Daily" || med.frequency === "Morning" || med.frequency === "Night") avgDailyDoses = dosesPerOccurence;
-            else if (med.frequency === "Weekly") avgDailyDoses = dosesPerOccurence / 7;
-            else if (med.frequency === "Specific Days") avgDailyDoses = (dosesPerOccurence * (med.specificDays?.length || 1)) / 7;
-            else if (med.frequency === "Cyclic") avgDailyDoses = (dosesPerOccurence * (med.cycleOn || 21)) / ((med.cycleOn || 21) + (med.cycleOff || 7));
-            else if (med.frequency === "As Needed") avgDailyDoses = 1; // Safety buffer for PRN calculation
-
-            const daysRemaining = invCount / (avgDailyDoses || 1);
-            const runOutDate = new Date();
-            runOutDate.setDate(runOutDate.getDate() + Math.floor(daysRemaining));
-            projectedRunOutStr = runOutDate.toLocaleDateString();
-
-            // Threshold: 20% of typical prescribed qty OR less than 30 days of supply
-            const lowThreshold = prescribedQty * 0.20;
-            if (!isNaN(invCount) && (invCount <= lowThreshold || daysRemaining <= 30)) {
-                isRefillLow = true;
-            }
-        }
+        // DYNAMIC INVENTORY LOGIC (Brain in clinical.js)
+        const status = (typeof window.calculateInventoryStatus === 'function') 
+            ? window.calculateInventoryStatus(med) 
+            : { isLow: false, runOutDate: "Unknown" };
 
         const card = document.createElement('div');
         card.className = 'card'; card.style.padding = '0'; card.style.overflow = 'hidden';
@@ -471,7 +452,7 @@ function renderChecklistUI(rawMeds, logs, container) {
         });
         timesHtml += '</div>';
 
-        const refillBanner = (AppSettings.inventory && isRefillLow) ? `
+        const refillBanner = (AppSettings.inventory && status.isLow) ? `
             <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="color:var(--danger-color); font-size:0.75rem; font-weight:700;">⚠️ Supply Alert: ${med.inventory} remaining</span>
@@ -480,7 +461,9 @@ function renderChecklistUI(rawMeds, logs, container) {
                         <button class="btn btn-secondary" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="refillMed('${med.id}', ${med.prescribedQty || 30})">Refill (+${med.prescribedQty || 30})</button>
                     </div>
                 </div>
-                <div style="font-size: 0.7rem; color: var(--text-secondary);">Projected Run-Out: <strong>${projectedRunOutStr}</strong></div>
+                <div style="font-size: 0.7rem; color: var(--text-secondary);">
+                    Typical Prescribed Qty: <strong>${med.prescribedQty} units</strong> | Projected Run-Out: <strong>${status.runOutDate}</strong>
+                </div>
             </div>` : '';
 
         card.innerHTML = `
