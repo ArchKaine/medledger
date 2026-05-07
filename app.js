@@ -5,7 +5,7 @@
 const GOOGLE_CLIENT_ID = '254319619201-8m0phsnf5eftqpllis3kt0a03l56r6v8.apps.googleusercontent.com';
 
 const DB_NAME = "MedLedgerDB";
-const DB_VERSION = 6; // Schema V6: Inventory Projections & Prescribed Quantities
+const DB_VERSION = 6; 
 let db;
 let tokenClient;
 let gapiToken = null;
@@ -40,10 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsModal = getEl('settings-modal');
     helpModal = getEl('help-modal');
 
-    // FIX: Reactivated theme initialization to support custom themes on boot
-    //if(typeof initializeTheme === 'function') initializeTheme();
     if(typeof initSettings === 'function') initSettings();
-    initDB();
+    initDB(); 
     registerServiceWorker();
 
     bindCoreListeners();
@@ -54,8 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindVaultListeners();
     bindKeyboardShortcuts();
     bindGlobalErrorHandler();
-
-    setTimeout(fullAppInit, 150);
 });
 
 function bindCoreListeners() {
@@ -64,8 +60,10 @@ function bindCoreListeners() {
     getEl('add-med-form')?.addEventListener('submit', handleAddMed);
     getEl('btn-delete-med')?.addEventListener('click', deleteMedication);
     getEl('edit-med-form')?.addEventListener('submit', saveEditedMed);
+    getEl('btn-add-time')?.addEventListener('click', () => addTimeField('new-med-times-container'));
+    getEl('btn-edit-add-time')?.addEventListener('click', () => addTimeField('edit-med-times-container'));
+    getEl('btn-cancel-edit')?.addEventListener('click', () => editModal?.close());
     
-    // FIX: Changed from 'profile-filter' to '.global-profile-select' to support both sidebar and mobile dropdowns
     document.querySelectorAll('.global-profile-select').forEach(select => {
         select.addEventListener('change', (e) => {
             if (typeof window.switchActiveProfile === 'function') {
@@ -79,14 +77,16 @@ function bindCoreListeners() {
             }
         });
     });
+
+    getEl('new-med-profile')?.addEventListener('change', (e) => handleProfileChange('new-med-profile'));
+    getEl('edit-med-profile')?.addEventListener('change', (e) => handleProfileChange('edit-med-profile'));
 }
 
 function bindModalListeners() {
-    getEl('settings-toggle')?.addEventListener('click', () => {
+    const openSettings = () => {
         const cachedPass = sessionStorage.getItem('medledger_session_key');
         const vaultPassInput = getEl('vault-password');
         const sessionLockControls = getEl('session-lock-controls');
-        
         if (cachedPass && vaultPassInput && sessionLockControls) {
             vaultPassInput.value = cachedPass;
             sessionLockControls.style.display = 'flex';
@@ -96,14 +96,26 @@ function bindModalListeners() {
         }
         settingsModal?.showModal();
         if(settingsModal) settingsModal.scrollTop = 0;
-    });
+    };
+
+    getEl('settings-toggle')?.addEventListener('click', openSettings);
+    getEl('nav-settings-toggle')?.addEventListener('click', openSettings);
     getEl('btn-close-settings')?.addEventListener('click', () => settingsModal?.close());
     
-    getEl('help-toggle')?.addEventListener('click', () => {
-        helpModal?.showModal();
-        if(helpModal) helpModal.scrollTop = 0;
+    const openHelp = () => {
+        if (typeof openHelpModal === 'function') openHelpModal();
+        else { helpModal?.showModal(); if(helpModal) helpModal.scrollTop = 0; }
+    };
+    getEl('nav-help-toggle')?.addEventListener('click', openHelp);
+    getEl('header-help-toggle')?.addEventListener('click', openHelp);
+    getEl('help-toggle')?.addEventListener('click', openHelp);
+
+    getEl('btn-launch-theme-creator')?.addEventListener('click', () => {
+        getEl('theme-creator-modal')?.showModal();
+        if (typeof initThemeCreator === 'function') initThemeCreator();
     });
-    getEl('btn-close-help')?.addEventListener('click', () => helpModal?.close());
+    getEl('btn-reset-theme')?.addEventListener('click', () => typeof resetThemeCreator === 'function' && resetThemeCreator());
+    getEl('btn-save-theme')?.addEventListener('click', () => typeof saveCustomTheme === 'function' && saveCustomTheme());
 }
 
 function bindExportListeners() {
@@ -111,6 +123,7 @@ function bindExportListeners() {
     getEl('btn-lock-vault')?.addEventListener('click', lockVaultSession);
     getEl('btn-export-csv')?.addEventListener('click', exportCSV);
     getEl('btn-export-html')?.addEventListener('click', exportHTMLReport);
+    getEl('nav-export-report')?.addEventListener('click', exportHTMLReport);
     getEl('btn-archive-logs')?.addEventListener('click', archiveOldLogs);
     getEl('btn-restore-archives')?.addEventListener('click', restoreArchivedLogs);
 }
@@ -120,7 +133,6 @@ function bindHeatmapListener() {
     if (heatmapRangeSelect) {
         const savedRange = localStorage.getItem('cfg_heatmapRange');
         if (savedRange) heatmapRangeSelect.value = savedRange;
-        
         heatmapRangeSelect.addEventListener('change', (e) => {
             localStorage.setItem('cfg_heatmapRange', e.target.value);
             if (typeof calculateAdherence === 'function') calculateAdherence();
@@ -131,6 +143,9 @@ function bindHeatmapListener() {
 function bindTabListeners() {
     getEl('tab-today')?.addEventListener('click', () => switchTab('today'));
     getEl('tab-history')?.addEventListener('click', () => switchTab('history'));
+    const dashFunc = () => window.location.href = 'index.html';
+    getEl('nav-dashboard')?.addEventListener('click', dashFunc);
+    getEl('header-dash')?.addEventListener('click', dashFunc);
 }
 
 function bindVaultListeners() {
@@ -138,6 +153,8 @@ function bindVaultListeners() {
     getEl('import-vault-file')?.addEventListener('change', importVaultLocal);
     getEl('btn-cloud-push')?.addEventListener('click', pushToGoogleDrive);
     getEl('btn-cloud-pull')?.addEventListener('click', pullFromGoogleDrive);
+    getEl('btn-gdrive-login')?.addEventListener('click', () => typeof loginGoogleDrive === 'function' && loginGoogleDrive());
+    getEl('btn-gdrive-logout')?.addEventListener('click', () => typeof logoutGoogleDrive === 'function' && logoutGoogleDrive());
 }
 
 function bindKeyboardShortcuts() {
@@ -154,7 +171,7 @@ function bindGlobalErrorHandler() {
     window.addEventListener('error', (e) => {
         console.error("MedLedger runtime error:", e);
         if (typeof showVaultStatus === 'function') {
-            showVaultStatus("App encountered an issue. Check console.", "var(--danger-color)");
+            showVaultStatus("App issue detected.", "var(--danger-color)");
         }
     });
 }
@@ -168,91 +185,25 @@ function fullAppInit() {
 
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
     request.onupgradeneeded = (e) => {
         db = e.target.result;
         const oldVersion = e.oldVersion;
-        const transaction = e.target.transaction;
-
         if (oldVersion < 1) {
             db.createObjectStore("meds", { keyPath: "id" });
             db.createObjectStore("logs", { keyPath: "timestamp" });
+            db.createObjectStore("clinical_cache", { keyPath: "id" });
         }
-        
-        if (oldVersion >= 1 && oldVersion < 2) {
-            const medStore = transaction.objectStore("meds");
-            medStore.openCursor().onsuccess = (ev) => {
-                const cursor = ev.target.result;
-                if (cursor) {
-                    const med = cursor.value;
-                    if (med.sideEffects === undefined) med.sideEffects = "";
-                    cursor.update(med);
-                    cursor.continue();
-                }
-            };
+        if (oldVersion < 3 && !db.objectStoreNames.contains("archived_logs")) {
+            db.createObjectStore("archived_logs", { keyPath: "timestamp" });
         }
-        
-        if (oldVersion < 3) {
-            if (!db.objectStoreNames.contains("archived_logs")) {
-                db.createObjectStore("archived_logs", { keyPath: "timestamp" });
-            }
-        }
-
-        if (oldVersion >= 1 && oldVersion < 4) {
-            const medStore = transaction.objectStore("meds");
-            medStore.openCursor().onsuccess = (ev) => {
-                const cursor = ev.target.result;
-                if (cursor) {
-                    const med = cursor.value;
-                    let changed = false;
-                    if (med.rxNumber === undefined) { med.rxNumber = ""; changed = true; }
-                    if (med.doctor === undefined) { med.doctor = ""; changed = true; }
-                    if (med.pharmacyPhone === undefined) { med.pharmacyPhone = ""; changed = true; }
-                    if (changed) cursor.update(med);
-                    cursor.continue();
-                }
-            };
-        }
-
-        if (oldVersion >= 1 && oldVersion < 5) {
-            const medStore = transaction.objectStore("meds");
-            const logStore = transaction.objectStore("logs");
-
-            medStore.openCursor().onsuccess = (ev) => {
-                const cursor = ev.target.result;
-                if (cursor) {
-                    const med = cursor.value;
-                    if (med.profile === undefined) med.profile = "Primary";
-                    cursor.update(med);
-                    cursor.continue();
-                }
-            };
-
-            logStore.openCursor().onsuccess = (ev) => {
-                const cursor = ev.target.result;
-                if (cursor) {
-                    const log = cursor.value;
-                    if (log.profile === undefined) log.profile = "Primary";
-                    if (log.efficacy === undefined) log.efficacy = "";
-                    cursor.update(log);
-                    cursor.continue();
-                }
-            };
-        }
-
-        // V6 Migration: Initialize Prescribed Quantity for Burn-Rate Math
         if (oldVersion >= 1 && oldVersion < 6) {
-            const medStore = transaction.objectStore("meds");
+            const medStore = e.target.transaction.objectStore("meds");
             medStore.openCursor().onsuccess = (ev) => {
                 const cursor = ev.target.result;
                 if (cursor) {
                     const med = cursor.value;
                     if (med.prescribedQty === undefined) {
-                        // Use smart standard lookup if the clinical engine is available, else default to 30
-                        const smartQty = (typeof getTypicalPrescribedQuantity === 'function') 
-                            ? getTypicalPrescribedQuantity(med.name) 
-                            : 30;
-                        med.prescribedQty = smartQty;
+                        med.prescribedQty = (typeof getTypicalPrescribedQuantity === 'function') ? getTypicalPrescribedQuantity(med.name) : 30;
                         cursor.update(med);
                     }
                     cursor.continue();
@@ -260,16 +211,8 @@ function initDB() {
             };
         }
     };
-    
-    request.onsuccess = (e) => {
-        db = e.target.result;
-        console.log("✅ MedLedger DB ready (V" + DB_VERSION + ")");
-        fullAppInit();
-    };
-    request.onerror = (e) => {
-        console.error("Database error: ", e.target.errorCode);
-        if(typeof showVaultStatus === 'function') showVaultStatus("Database connection error.", "var(--danger-color)");
-    };
+    request.onsuccess = (e) => { db = e.target.result; fullAppInit(); };
+    request.onerror = (e) => { if(typeof showVaultStatus === 'function') showVaultStatus("Database error.", "var(--danger-color)"); };
 }
 
 function registerServiceWorker() {
