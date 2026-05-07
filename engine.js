@@ -129,9 +129,9 @@ async function handleAddMed(e) {
     const sideEffectsInput = document.getElementById('new-med-side-effects').value.trim();
     const inventoryInput = document.getElementById('new-med-inventory')?.value.trim() || "";
     
-    // Logic: Use typical prescribed quantity if field is left blank
+    // Ripped out hardcoded default: Queries clinical.js standards for smart defaults
     const prescribedQtyInput = document.getElementById('new-med-prescribed-qty')?.value.trim();
-    const finalPrescribedQty = prescribedQtyInput || (typeof window.getTypicalPrescribedQuantity === 'function' ? window.getTypicalPrescribedQuantity(nameInput) : 30);
+    const finalQty = prescribedQtyInput || (typeof window.getTypicalPrescribedQuantity === 'function' ? window.getTypicalPrescribedQuantity(nameInput) : 30);
     
     const rxNumberInput = document.getElementById('new-med-rx')?.value.trim() || "";
     const doctorInput = document.getElementById('new-med-doctor')?.value.trim() || "";
@@ -145,7 +145,7 @@ async function handleAddMed(e) {
         if (warnings.length > 0 && !confirm(`⚠️ POTENTIAL INTERACTION DETECTED ⚠️\n\n${warnings.join('\n\n')}\n\nAdd anyway?`)) return;
     }
 
-    let clinicalData = { description: "", indications: "", sideEffects: "" };
+    let clinicalData = { description: "", indications: "" };
     if (document.getElementById('toggle-lookup')?.checked && typeof fetchDrugInfo === 'function') {
         clinicalData = await fetchDrugInfo(nameInput);
     }
@@ -155,10 +155,9 @@ async function handleAddMed(e) {
     const newMed = {
         id: crypto.randomUUID(), name: nameInput, dose: doseInput, frequency: freqInput, times: timesArray,
         profile: profileInput, 
-        instructions: instructionsInput, 
-        sideEffects: sideEffectsInput || clinicalData.sideEffects, 
+        instructions: instructionsInput, sideEffects: sideEffectsInput, 
         inventory: AppSettings.inventory ? inventoryInput : "",
-        prescribedQty: AppSettings.inventory ? (parseInt(finalPrescribedQty) || 30) : 30,
+        prescribedQty: AppSettings.inventory ? (parseInt(finalQty) || 30) : 30,
         rxNumber: rxNumberInput, doctor: doctorInput, pharmacyPhone: pharmacyPhoneInput,
         specificDays: freqInput === 'Specific Days' ? specificDaysChecked : [],
         cycleOn: freqInput === 'Cyclic' ? parseInt(document.getElementById('new-med-cycle-on').value) || 0 : null,
@@ -318,8 +317,8 @@ window.deleteMedication = function() {
 }
 
 window.refillMed = function(id, amount) {
-    const qty = parseInt(amount);
-    if (isNaN(qty) || qty <= 0) return;
+    const qty = amount === 'custom' ? (parseInt(document.getElementById(`refill-custom-${id}`).value) || 0) : parseInt(amount);
+    if (qty <= 0) return;
 
     if (AppSettings.devMode && window.MOCK_DATA) {
         let m = window.MOCK_DATA.meds.find(x => x.id === id);
@@ -421,8 +420,8 @@ function renderChecklistUI(rawMeds, logs, container) {
         }
         if (!shouldRender && med.frequency !== "As Needed") return;
 
-        // DYNAMIC INVENTORY LOGIC (Brain in clinical.js)
-        const status = (typeof window.calculateInventoryStatus === 'function') 
+        // Ripped out redundant math: Now querying clinical.js for the dynamic status
+        const invStatus = (typeof window.calculateInventoryStatus === 'function') 
             ? window.calculateInventoryStatus(med) 
             : { isLow: false, runOutDate: "Unknown" };
 
@@ -452,7 +451,8 @@ function renderChecklistUI(rawMeds, logs, container) {
         });
         timesHtml += '</div>';
 
-        const refillBanner = (AppSettings.inventory && status.isLow) ? `
+        // Refill Banner now uses data returned from the clinical engine
+        const refillBanner = (AppSettings.inventory && invStatus.isLow) ? `
             <div style="padding:0.75rem 1rem; background:rgba(239,68,68,0.05); border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="color:var(--danger-color); font-size:0.75rem; font-weight:700;">⚠️ Supply Alert: ${med.inventory} remaining</span>
@@ -462,7 +462,7 @@ function renderChecklistUI(rawMeds, logs, container) {
                     </div>
                 </div>
                 <div style="font-size: 0.7rem; color: var(--text-secondary);">
-                    Typical Prescribed Qty: <strong>${med.prescribedQty} units</strong> | Projected Run-Out: <strong>${status.runOutDate}</strong>
+                    Typical Prescribed Qty: <strong>${med.prescribedQty} units</strong> | Projected Run-Out: <strong>${invStatus.runOutDate}</strong>
                 </div>
             </div>` : '';
 
