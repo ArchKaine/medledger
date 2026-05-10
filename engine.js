@@ -688,6 +688,43 @@ window.deleteLog = function(ts) {
     tx.oncomplete = () => { refreshHistory(); loadChecklist(); if(typeof calculateAdherence === 'function') calculateAdherence(); };
 };
 
+window.handleLogObservation = function(e) {
+    e.preventDefault();
+    const text = document.getElementById('obs-text').value.trim();
+    const sev = document.getElementById('obs-severity').value;
+    if (!text) return;
+
+    const logEntry = {
+        timestamp: new Date().toISOString() + '-' + crypto.randomUUID(),
+        dateTaken: new Date().toISOString(),
+        logicalDate: getLogicalDateString(new Date()),
+        profile: AppSettings.activeProfile,
+        systemLoggedTime: Date.now(),
+        medId: "GENERAL_OBS", // Constant identifier
+        medName: "Observation",
+        status: "recorded",
+        prnReason: text, // Store text here to reuse existing UI history rendering
+        efficacy: `Severity: ${sev}/10`,
+        compositeId: "general|obs"
+    };
+
+    if (AppSettings.devMode && window.MOCK_DATA) {
+        window.MOCK_DATA.logs.push(logEntry);
+        window.syncDevData();
+        refreshHistory();
+        document.getElementById('obs-form').reset();
+        return;
+    }
+
+    const tx = db.transaction(["logs"], "readwrite");
+    tx.objectStore("logs").add(logEntry);
+    tx.oncomplete = () => {
+        document.getElementById('obs-form').reset();
+        refreshHistory();
+        if(typeof showVaultStatus === 'function') showVaultStatus("Observation logged.", "var(--success-color)");
+    };
+};
+
 // --- 8. Initialization & Tasks ---
 
 document.addEventListener('DOMContentLoaded', () => {
