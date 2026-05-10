@@ -63,6 +63,7 @@ function bindCoreListeners() {
     getEl('btn-add-time')?.addEventListener('click', () => addTimeField('new-med-times-container'));
     getEl('btn-edit-add-time')?.addEventListener('click', () => addTimeField('edit-med-times-container'));
     getEl('btn-cancel-edit')?.addEventListener('click', () => editModal?.close());
+    getEl('obs-form')?.addEventListener('submit', handleLogObservation);
     
     document.querySelectorAll('.global-profile-select').forEach(select => {
         select.addEventListener('change', (e) => {
