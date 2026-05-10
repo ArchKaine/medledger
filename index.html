@@ -190,6 +190,22 @@
                     </form>
                 </section>
 
+                <section id="health-observations" class="card" style="border-left: 4px solid var(--accent-color);">
+                    <h2>Health Observation</h2>
+                    <form id="obs-form">
+                        <div class="inline-form" style="margin-bottom: 1rem;">
+                            <input type="text" id="obs-text" placeholder="Describe symptom or event (e.g. Left thigh injection pain)" required style="flex: 3;">
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 0.25rem;">
+                                <label style="font-size: 0.7rem; color: var(--text-secondary); text-align: center;">Severity (1-10)</label>
+                                <input type="range" id="obs-severity" min="1" max="10" value="5" style="width: 100%;">
+                            </div>
+                        </div>
+                        <div class="action-group" style="justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary">Log Observation</button>
+                        </div>
+                    </form>
+                </section>
+                
                 <div class="tab-navigation" style="justify-content: flex-start; align-items: center;">
                     <button id="tab-today" class="tab-btn active">Today's Regimen</button>
                     <button id="tab-history" class="tab-btn">History Log</button>
