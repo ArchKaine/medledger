@@ -125,8 +125,12 @@
                             </select>
                             <div style="display: flex; flex-direction: column; gap: 0.25rem; flex: 1;">
                                 <div id="new-med-times-container" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <input type="time" class="time-input" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
-                                </div>
+    <!-- Wrap the default input in a flex row with a remove button -->
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <input type="time" class="time-input" style="flex: 1; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit;">
+        <button type="button" class="icon-btn" style="color: var(--danger-color);" onclick="this.parentElement.remove()" aria-label="Remove time">🗑️</button>
+    </div>
+</div>
                                 <button type="button" id="btn-add-time" class="btn btn-secondary" style="padding: 0.25rem; font-size: 0.8rem;">+ Add Time</button>
                             </div>
                         </div>
