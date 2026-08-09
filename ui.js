@@ -116,15 +116,49 @@ window.switchTab = function(tab) {
     }
 }
 
+// ==========================================
+// In ui.js - Replace your addTimeField function
+// ==========================================
+
 window.addTimeField = function(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
+
+    // Create a flex wrapper for the row
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.gap = '0.5rem';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.marginTop = '0.25rem'; // Small spacing between rows
+
+    // Create the time input
     const input = document.createElement('input');
     input.type = 'time';
     input.className = 'time-input';
-    input.style.cssText = 'padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit; margin-top: 0.25rem;';
-    container.appendChild(input);
-    input.focus(); 
+    input.style.flex = '1';
+    input.style.padding = '0.75rem';
+    input.style.border = '1px solid var(--border-color)';
+    input.style.borderRadius = '4px';
+    input.style.backgroundColor = 'var(--bg-primary)';
+    input.style.color = 'var(--text-primary)';
+    input.style.fontFamily = 'inherit';
+
+    // Create the trash button
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'icon-btn';
+    removeBtn.style.color = 'var(--danger-color)';
+    removeBtn.innerHTML = '🗑️';
+    removeBtn.setAttribute('aria-label', 'Remove time');
+    
+    // Nuke the row when clicked
+    removeBtn.onclick = function() {
+        container.removeChild(wrapper);
+    };
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(removeBtn);
+    container.appendChild(wrapper);
 };
 
 window.getTimesFromContainer = function(containerId) {
